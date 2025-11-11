@@ -1,0 +1,248 @@
+# =============================================================================
+# Sistema de Requisiciones MVC - .gitignore
+# =============================================================================
+
+# =============================================================================
+# ARCHIVOS DE CONFIGURACIÓN SENSIBLES
+# =============================================================================
+
+# Variables de entorno (¡NUNCA subir esto!)
+.env
+.env.local
+.env.*.local
+
+# Configuraciones personales
+config/local.php
+
+# =============================================================================
+# DEPENDENCIAS
+# =============================================================================
+
+# Composer
+/vendor/
+composer.lock
+
+# Node (si usas npm en el futuro)
+/node_modules/
+package-lock.json
+yarn.lock
+
+# =============================================================================
+# ARCHIVOS DEL SISTEMA OPERATIVO
+# =============================================================================
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# =============================================================================
+# IDEs Y EDITORES
+# =============================================================================
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# PhpStorm / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# NetBeans
+/nbproject/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# =============================================================================
+# ARCHIVOS TEMPORALES Y LOGS
+# =============================================================================
+
+# Logs
+/storage/logs/*.log
+/storage/logs/*.txt
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos temporales
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.cache
+
+# =============================================================================
+# ARCHIVOS SUBIDOS POR USUARIOS
+# =============================================================================
+
+# Archivos adjuntos
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+
+# =============================================================================
+# CACHE Y SESIONES
+# =============================================================================
+
+# Cache de PHP
+/storage/cache/*
+!/storage/cache/.gitkeep
+
+# Sesiones
+/storage/sessions/*
+!/storage/sessions/.gitkeep
+
+# Cache de frameworks
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+
+# =============================================================================
+# ARCHIVOS DE BACKUP
+# =============================================================================
+
+# Backups
+*.sql
+*.sql.gz
+*.backup
+*.bak
+*.old
+backup/
+backups/
+
+# =============================================================================
+# ARCHIVOS DE TESTING
+# =============================================================================
+
+# PHPUnit
+.phpunit.result.cache
+/coverage/
+phpunit.xml
+
+# Testing
+/tests/_output/*
+
+# =============================================================================
+# ARCHIVOS DE BUILD
+# =============================================================================
+
+# Archivos compilados
+*.min.js
+*.min.css
+/public/build/
+/public/mix-manifest.json
+
+# =============================================================================
+# DOCUMENTACIÓN TEMPORAL
+# =============================================================================
+
+# Documentos de trabajo
+/docs/drafts/
+/docs/temp/
+*.draft.md
+
+# =============================================================================
+# ARCHIVOS ESPECÍFICOS DEL PROYECTO
+# =============================================================================
+
+# Configuraciones locales de desarrollo
+/config/development.php
+/config/local/
+
+# Archivos de prueba
+test.php
+prueba.php
+debug.php
+
+# Archivos de análisis
+/reports/
+/metrics/
+
+# =============================================================================
+# MISCELÁNEOS
+# =============================================================================
+
+# Archivos comprimidos (generalmente no se deben versionar)
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# Certificados y claves (¡NUNCA subir!)
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# =============================================================================
+# EXCEPCIONES (archivos que SÍ queremos versionar)
+# =============================================================================
+
+# Mantener estas carpetas con .gitkeep
+!storage/.gitkeep
+!storage/logs/.gitkeep
+!storage/uploads/.gitkeep
+!storage/cache/.gitkeep
+!storage/sessions/.gitkeep
+
+# Mantener archivos de ejemplo
+!.env.example
+!env.example.txt
+
+# Mantener configuraciones base
+!config/app.php
+!config/database.php
+!config/azure.php
+
+# =============================================================================
+# NOTAS
+# =============================================================================
+
+# Este .gitignore está optimizado para:
+# - Proteger información sensible (.env, credenciales)
+# - Evitar archivos innecesarios (cache, logs, temporales)
+# - Mantener el repositorio limpio
+# - Ser compatible con diferentes sistemas operativos
+# - Funcionar con diferentes IDEs
+
+# Antes de hacer commit:
+# 1. Verificar que .env NO esté incluido
+# 2. Verificar que /vendor/ NO esté incluido
+# 3. Revisar archivos con datos sensibles
+# 4. Confirmar que solo se versiona código fuente

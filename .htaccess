@@ -1,0 +1,12 @@
+# Redirigir todo a la carpeta public
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Si no es un directorio ni un archivo
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    
+    # Redirigir a public/
+    RewriteRule ^(.*)$ public/$1 [L,QSA]
+</IfModule>
+

@@ -1,0 +1,397 @@
+/**
+ * ESTILOS PARA AUTOCOMPLETADO DE CENTROS DE COSTO
+ * 
+ * Estilos específicos para la funcionalidad de autocompletado
+ * y tabla resumen de facturas
+ */
+
+/* ========================================
+   ESTILOS PARA LA TABLA DE DISTRIBUCIÓN
+   ======================================== */
+
+.distribucion-row {
+    transition: all 0.3s ease;
+}
+
+.distribucion-row:hover {
+    background-color: #f8f9fa;
+}
+
+.columna-tipo-factura {
+    min-width: 120px;
+    vertical-align: middle;
+}
+
+.tipo-factura {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.porcentaje-calculado {
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9rem;
+    display: inline-block;
+    min-width: 50px;
+    text-align: center;
+    padding: 0.25rem 0.5rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+/* ========================================
+   TABLA RESUMEN DE FACTURAS
+   ======================================== */
+
+#tablaResumen {
+    margin-top: 2rem;
+    animation: fadeInUp 0.5s ease-out;
+}
+
+#tablaResumen .card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    font-weight: 600;
+}
+
+#tablaResumen .table {
+    margin-bottom: 0;
+}
+
+#tablaResumen .table thead {
+    background: #343a40;
+    color: white;
+}
+
+#tablaResumen .table thead th {
+    border: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.75rem;
+}
+
+#tablaResumen .table tbody tr {
+    transition: all 0.2s ease;
+}
+
+#tablaResumen .table tbody tr:hover {
+    background-color: #f8f9fa;
+    transform: scale(1.01);
+}
+
+#tablaResumen .table tbody td {
+    padding: 0.75rem;
+    vertical-align: middle;
+    border-color: #e9ecef;
+}
+
+#tablaResumen .table-success {
+    background-color: rgba(40, 167, 69, 0.1) !important;
+    border-left: 4px solid #28a745;
+}
+
+#tablaResumen .table tfoot {
+    background: #f8f9fa;
+    font-weight: 700;
+}
+
+#tablaResumen .table tfoot th {
+    border-top: 2px solid #dee2e6;
+    font-size: 1rem;
+}
+
+/* ========================================
+   BADGES Y INDICADORES
+   ======================================== */
+
+.badge.bg-primary {
+    background: linear-gradient(45deg, #007bff, #0056b3) !important;
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 50px;
+}
+
+.badge.bg-success {
+    background: linear-gradient(45deg, #28a745, #1e7e34) !important;
+}
+
+.badge.bg-warning {
+    background: linear-gradient(45deg, #ffc107, #d39e00) !important;
+    color: #212529 !important;
+}
+
+.badge.bg-danger {
+    background: linear-gradient(45deg, #dc3545, #a71e2a) !important;
+}
+
+/* ========================================
+   ANIMACIONES
+   ======================================== */
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.animate-pulse {
+    animation: pulse 2s infinite;
+}
+
+/* ========================================
+   ESTILOS PARA ESTADOS
+   ======================================== */
+
+.success-row {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(34, 153, 84, 0.1));
+    border-left: 4px solid #28a745;
+}
+
+.warning-row {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(227, 172, 0, 0.1));
+    border-left: 4px solid #ffc107;
+}
+
+.error-row {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(176, 42, 55, 0.1));
+    border-left: 4px solid #dc3545;
+}
+
+/* ========================================
+   TOOLTIPS PERSONALIZADOS
+   ======================================== */
+
+.custom-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    z-index: 10000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    max-width: 250px;
+    text-align: center;
+}
+
+.custom-tooltip.show {
+    opacity: 1;
+}
+
+/* ========================================
+   BOTONES ESPECIALES
+   ======================================== */
+
+.btn-eliminar-distribucion {
+    background: linear-gradient(45deg, #dc3545, #c82333);
+    border: none;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.btn-eliminar-distribucion:hover {
+    background: linear-gradient(45deg, #c82333, #a71e2a);
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.btn-agregar-distribucion {
+    color: #28a745 !important;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    margin-top: 15px;
+    transition: all 0.3s ease;
+}
+
+.btn-agregar-distribucion:hover {
+    color: #1e7e34 !important;
+    text-decoration: none;
+    transform: translateY(-2px);
+}
+
+.btn-agregar-distribucion i {
+    background: #28a745;
+    color: white;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+.btn-agregar-distribucion:hover i {
+    background: #1e7e34;
+    transform: rotate(90deg);
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 768px) {
+    .columna-tipo-factura {
+        min-width: 100px;
+    }
+    
+    .tipo-factura {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.5rem;
+    }
+    
+    .porcentaje-calculado {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    #tablaResumen .table thead th,
+    #tablaResumen .table tbody td {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.8rem;
+    }
+    
+    .badge {
+        font-size: 0.65rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    #tablaResumen {
+        margin-top: 1rem;
+    }
+    
+    .btn-agregar-distribucion {
+        font-size: 12px;
+        gap: 6px;
+    }
+    
+    .btn-agregar-distribucion i {
+        width: 16px;
+        height: 16px;
+        font-size: 10px;
+    }
+}
+
+/* ========================================
+   MODO IMPRESIÓN
+   ======================================== */
+
+@media print {
+    #tablaResumen {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    
+    .btn-eliminar-distribucion,
+    .btn-agregar-distribucion {
+        display: none !important;
+    }
+    
+    .distribucion-row:hover {
+        background-color: transparent !important;
+        transform: none !important;
+    }
+    
+    .tipo-factura {
+        background: #f8f9fa !important;
+        color: #333 !important;
+        border: 1px solid #ccc !important;
+    }
+}
+
+/* ========================================
+   ESTADOS DE CARGA
+   ======================================== */
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ========================================
+   VALIDACIONES VISUALES
+   ======================================== */
+
+.validation-error {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+}
+
+.validation-success {
+    border-color: #28a745 !important;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
+}
+
+.validation-warning {
+    border-color: #ffc107 !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25) !important;
+}
+
+.error-message {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.success-message {
+    color: #28a745;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.warning-message {
+    color: #856404;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}

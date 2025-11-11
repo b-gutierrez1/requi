@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URGENTE: Requisición Pendiente de Autorización</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .header { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: #ffffff; padding: 30px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+        .urgent-badge { background-color: #dc3545; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; display: inline-block; }
+        .content { padding: 30px 20px; }
+        .content h2 { color: #dc3545; font-size: 20px; margin-bottom: 15px; }
+        .content p { margin-bottom: 15px; color: #555; }
+        .urgent-box { background-color: #f8d7da; border: 2px solid #dc3545; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .urgent-box h3 { color: #dc3545; margin-bottom: 10px; font-size: 18px; }
+        .urgent-box p { color: #721c24; margin-bottom: 10px; }
+        .info-box { background-color: #f8f9fa; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0; }
+        .info-box .label { font-weight: 600; color: #dc3545; display: block; margin-bottom: 5px; }
+        .info-box .value { color: #333; }
+        .button { display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: #ffffff !important; text-decoration: none; border-radius: 5px; font-weight: 600; margin: 10px 0; font-size: 16px; }
+        .button-center { text-align: center; margin: 30px 0; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #6c757d; font-size: 12px; border-top: 1px solid #dee2e6; }
+        .divider { height: 1px; background-color: #dee2e6; margin: 20px 0; }
+        .timeline { background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 15px; margin: 20px 0; }
+        .timeline h4 { color: #856404; margin-bottom: 10px; }
+        .timeline p { color: #856404; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="urgent-badge">🚨 URGENTE</div>
+            <h1>Requisición Pendiente de Autorización</h1>
+        </div>
+        
+        <div class="content">
+            <h2>Acción Requerida Inmediatamente</h2>
+            
+            <p>Hola <strong>{{destinatario_nombre}}</strong>,</p>
+            
+            <div class="urgent-box">
+                <h3>⚠️ Requisición URGENTE</h3>
+                <p><strong>Esta requisición requiere tu autorización inmediata.</strong></p>
+                <p><strong>Tiempo límite:</strong> {{tiempo_limite}}</p>
+                <p><strong>Prioridad:</strong> {{prioridad}}</p>
+            </div>
+            
+            <p>Se ha creado una nueva requisición que requiere tu autorización urgente para el centro de costo <strong>{{centro_costo}}</strong>.</p>
+            
+            <div class="info-box">
+                <span class="label">Número de Requisición:</span>
+                <span class="value">#{{numero_orden}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Solicitante:</span>
+                <span class="value">{{solicitante_nombre}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Proveedor:</span>
+                <span class="value">{{proveedor}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Monto Total:</span>
+                <span class="value">{{monto_total}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Fecha de Creación:</span>
+                <span class="value">{{fecha_creacion}}</span>
+            </div>
+            
+            <div class="timeline">
+                <h4>📋 Próximos Pasos:</h4>
+                <p>1. <strong>Revisar</strong> los detalles de la requisición</p>
+                <p>2. <strong>Autorizar</strong> o rechazar según corresponda</p>
+                <p>3. <strong>Responder</strong> dentro del tiempo límite establecido</p>
+            </div>
+            
+            <div class="button-center">
+                <a href="{{url_revision}}" class="button">
+                    🚀 AUTORIZAR AHORA
+                </a>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <p><strong>Importante:</strong> Esta es una notificación urgente. Por favor, procesa esta requisición lo antes posible para evitar retrasos en el proceso de compra.</p>
+            
+            <p>Si tienes alguna pregunta o necesitas más información, por favor contacta al solicitante o al equipo de administración.</p>
+            
+            <p>Gracias por tu atención inmediata.</p>
+            
+            <p>Saludos cordiales,<br>
+            <strong>{{app_name}}</strong></p>
+        </div>
+        
+        <div class="footer">
+            <p>&copy; {{year}} {{app_name}} - Sistema de Requisiciones</p>
+            <p>Este es un mensaje automático del sistema. Por favor, no respondas directamente a este email.</p>
+        </div>
+    </div>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(rm:*)",
+      "Bash(php:*)",
+      "Bash(mysql:*)",
+      "Bash(./mysql.exe:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\c\\xampp\\mysql"
+    ]
+  }
+}

@@ -1,0 +1,147 @@
+<?php
+require_once 'app/Helpers/functions.php';
+require_once 'app/Models/Model.php';
+require_once 'app/Models/OrdenCompra.php';
+require_once 'app/Models/AutorizacionCentroCosto.php';
+require_once 'app/Models/Usuario.php';
+
+session_start();
+
+// Asegurarse de que hay un usuario logueado para debugging
+if (!isset($_SESSION['usuario_id'])) {
+    $_SESSION['usuario_id'] = 1; // Cambia por tu ID de usuario real
+    $_SESSION['usuario'] = [
+        'id' => 1,
+        'email' => 'bgutierrez@sp.iga.edu', // Cambia por tu email real
+        'nombre' => 'Debug User'
+    ];
+}
+
+$usuario = $_SESSION['usuario'];
+$usuarioEmail = $usuario['email'] ?? '';
+
+echo "<h1>🔍 DEBUG AUTORIZACIÓN 2</h1>";
+echo "<p><strong>Usuario actual:</strong> {$usuarioEmail}</p>";
+
+try {
+    // Buscar la orden de compra ID 2
+    $orden = OrdenCompra::find(2);
+    if (!$orden) {
+        echo "<div style='color: red;'>❌ No se encontró la orden de compra con ID 2</div>";
+        exit;
+    }
+    
+    echo "<h2>📄 Información de la Orden:</h2>";
+    echo "<p><strong>ID:</strong> {$orden->id}</p>";
+    echo "<p><strong>Estado:</strong> {$orden->estado}</p>";
+    echo "<p><strong>Proveedor:</strong> {$orden->nombre_razon_social}</p>";
+    echo "<p><strong>Usuario creador:</strong> {$orden->usuario_id}</p>";
+    
+    // Obtener las distribuciones de gasto
+    $distribuciones = $orden->getDistribucionGasto();
+    
+    echo "<h2>💰 Distribuciones de Gasto:</h2>";
+    foreach ($distribuciones as $dist) {
+        echo "<div style='border: 1px solid #ccc; margin: 10px; padding: 10px; border-radius: 8px;'>";
+        echo "<p><strong>Centro de Costo:</strong> {$dist['centro_nombre']} (ID: {$dist['centro_costo_id']})</p>";
+        echo "<p><strong>Monto:</strong> Q" . number_format($dist['monto'], 2) . "</p>";
+        
+        // Buscar la autorización para este centro
+        $autorizacionQuery = "
+            SELECT acc.*, 
+                   pa.email as autorizador_email,
+                   pa.nombre as autorizador_nombre,
+                   acc.estado,
+                   acc.fecha_autorizacion,
+                   acc.comentarios
+            FROM autorizacion_centro_costo acc
+            LEFT JOIN persona_autorizada pa ON acc.autorizador_id = pa.id
+            WHERE acc.orden_compra_id = ? AND acc.centro_costo_id = ?
+        ";
+        
+        $pdo = Model::getConnection();
+        $stmt = $pdo->prepare($autorizacionQuery);
+        $stmt->execute([$orden->id, $dist['centro_costo_id']]);
+        $autorizacion = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($autorizacion) {
+            echo "<h4>✅ Autorización encontrada:</h4>";
+            echo "<p><strong>ID Autorización:</strong> {$autorizacion['id']}</p>";
+            echo "<p><strong>Estado:</strong> <span style='color: blue;'>{$autorizacion['estado']}</span></p>";
+            echo "<p><strong>Autorizador asignado:</strong> {$autorizacion['autorizador_email']}</p>";
+            echo "<p><strong>Nombre autorizador:</strong> {$autorizacion['autorizador_nombre']}</p>";
+            echo "<p><strong>Fecha autorización:</strong> {$autorizacion['fecha_autorizacion']}</p>";
+            echo "<p><strong>Comentarios:</strong> {$autorizacion['comentarios']}</p>";
+            
+            // Verificar si el usuario actual es el autorizador
+            $autorizadorEmail = $autorizacion['autorizador_email'] ?? null;
+            $esMiCentro = ($usuarioEmail && $autorizadorEmail && strtolower(trim($autorizadorEmail)) === strtolower(trim($usuarioEmail)));
+            
+            echo "<h4>🔐 Verificación de Permisos:</h4>";
+            echo "<p><strong>Email usuario actual:</strong> '$usuarioEmail'</p>";
+            echo "<p><strong>Email autorizador requerido:</strong> '$autorizadorEmail'</p>";
+            echo "<p><strong>¿Coinciden?:</strong> " . ($esMiCentro ? '✅ SÍ' : '❌ NO') . "</p>";
+            
+            // Mostrar condiciones para el botón
+            echo "<h4>📋 Condiciones para mostrar botón AUTORIZAR:</h4>";
+            echo "<p>1. Estado = 'pendiente': " . ($autorizacion['estado'] === 'pendiente' ? '✅ SÍ' : "❌ NO (actual: {$autorizacion['estado']})") . "</p>";
+            echo "<p>2. Es mi centro: " . ($esMiCentro ? '✅ SÍ' : '❌ NO') . "</p>";
+            echo "<p>3. Autorización existe: ✅ SÍ</p>";
+            
+            $mostrarBoton = ($autorizacion['estado'] === 'pendiente' && $esMiCentro);
+            echo "<p><strong>¿Debe mostrar botón?:</strong> " . ($mostrarBoton ? '✅ SÍ' : '❌ NO') . "</p>";
+            
+        } else {
+            echo "<h4>❌ NO se encontró autorización para este centro</h4>";
+            echo "<p style='color: red;'>Esto significa que falta crear la autorización en la tabla autorizacion_centro_costo</p>";
+        }
+        
+        echo "</div>";
+    }
+    
+    // Verificar el flujo general
+    echo "<h2>🔄 Estado del Flujo General:</h2>";
+    $flujo = $orden->autorizacionFlujo();
+    if ($flujo) {
+        echo "<p><strong>Estado del flujo:</strong> {$flujo->estado}</p>";
+        echo "<p><strong>Fecha:</strong> {$flujo->fecha_estado}</p>";
+        echo "<p><strong>Comentarios:</strong> {$flujo->comentarios}</p>";
+    } else {
+        echo "<p style='color: red;'>❌ No se encontró flujo de autorización</p>";
+    }
+    
+    // Mostrar todos los autorizadores para debugg
+    echo "<h2>👥 Todos los Autorizadores del Sistema:</h2>";
+    $autorizadoresQuery = "SELECT id, email, nombre, activo FROM persona_autorizada ORDER BY email";
+    $stmt = $pdo->prepare($autorizadoresQuery);
+    $stmt->execute();
+    $autorizadores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    foreach ($autorizadores as $aut) {
+        $esActual = (strtolower(trim($aut['email'])) === strtolower(trim($usuarioEmail)));
+        echo "<p" . ($esActual ? " style='background: yellow; font-weight: bold;'" : "") . ">";
+        echo "📧 {$aut['email']} - {$aut['nombre']} - " . ($aut['activo'] ? '✅ Activo' : '❌ Inactivo');
+        if ($esActual) echo " 👈 <strong>ESTE ERES TÚ</strong>";
+        echo "</p>";
+    }
+    
+} catch (Exception $e) {
+    echo "<div style='color: red;'>❌ Error: " . $e->getMessage() . "</div>";
+    echo "<pre>" . $e->getTraceAsString() . "</pre>";
+}
+?>
+
+<style>
+body { 
+    font-family: Arial, sans-serif; 
+    max-width: 1000px; 
+    margin: 0 auto; 
+    padding: 20px; 
+    line-height: 1.6;
+}
+h1, h2, h4 { color: #2c3e50; }
+p { margin: 5px 0; }
+div { margin-bottom: 10px; }
+</style>
+
+<p><a href="/autorizaciones/2" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">🔙 Volver a Autorización 2</a></p>

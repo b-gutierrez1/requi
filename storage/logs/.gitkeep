@@ -1,0 +1,2 @@
+# Esta carpeta contiene archivos de log del sistema
+# Los archivos .log son ignorados por .gitignore pero la carpeta debe existir

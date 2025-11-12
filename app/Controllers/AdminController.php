@@ -2422,8 +2422,56 @@ class AdminController extends Controller
         $this->editMetodoPagoByEmail($email);
     }
     public function updateMetodoPago($id) { $this->storeMetodoPago(); }
-    public function deleteMetodoPago($id) { 
-        Redirect::to('/admin/autorizadores/metodos-pago')->withSuccess('Autorizador eliminado')->send(); 
+
+    /**
+     * Elimina un autorizador de método de pago
+     *
+     * @param string $id ID numérico o email del autorizador
+     * @return void
+     */
+    public function deleteMetodoPago($id) {
+        if (!$this->validateCSRF()) {
+            $this->jsonResponse(['success' => false, 'error' => 'Token inválido'], 403);
+            return;
+        }
+
+        try {
+            // Decodificar el parámetro por si viene como email codificado
+            $param = urldecode($id);
+
+            // Determinar si es un ID numérico o un email
+            if (filter_var($param, FILTER_VALIDATE_EMAIL)) {
+                // Es un email - eliminar todos los registros de ese autorizador
+                $conn = Model::getConnection();
+                $sql = "DELETE FROM autorizadores_metodos_pago WHERE autorizador_email = ?";
+                $stmt = $conn->prepare($sql);
+                $resultado = $stmt->execute([$param]);
+                $filasAfectadas = $stmt->rowCount();
+
+                $this->jsonResponse([
+                    'success' => $resultado && $filasAfectadas > 0,
+                    'message' => $resultado && $filasAfectadas > 0
+                        ? "Se eliminaron $filasAfectadas método(s) de pago del autorizador"
+                        : 'No se encontraron registros para eliminar'
+                ]);
+            } else {
+                // Es un ID numérico - eliminar solo ese registro
+                $resultado = AutorizadorMetodoPago::destroy($param);
+
+                $this->jsonResponse([
+                    'success' => $resultado,
+                    'message' => $resultado
+                        ? 'Autorizador de método de pago eliminado correctamente'
+                        : 'Error al eliminar el autorizador'
+                ]);
+            }
+        } catch (\Exception $e) {
+            error_log("Error en deleteMetodoPago: " . $e->getMessage());
+            $this->jsonResponse([
+                'success' => false,
+                'error' => 'Error al eliminar: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function editCuentaContable($id) { $this->showCuentaContable($id); }

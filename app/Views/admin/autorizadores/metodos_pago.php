@@ -292,7 +292,7 @@ $metodosCubiertos = count($metodosUnicos);
                             </div>
                             <div class="col-md-4 text-end">
                                 <div class="btn-group btn-group-sm">
-                                    <?php 
+                                    <?php
                                     // Usar email codificado para las rutas, ya que el controlador espera email
                                     // Esto funciona independientemente del usuario actual
                                     $paramUrl = urlencode($autorizador->email ?? $autorizador->id ?? '');
@@ -307,12 +307,16 @@ $metodosCubiertos = count($metodosUnicos);
                                        title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <a href="/admin/autorizadores/metodos-pago/<?= $paramUrl ?>/delete"
-                                       class="btn btn-outline-danger"
-                                       title="Eliminar"
-                                       onclick="return confirm('¿Estás seguro de eliminar este autorizador?')">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
+                                    <form action="/admin/autorizadores/metodos-pago/<?= $paramUrl ?>"
+                                          method="POST"
+                                          style="display: inline;"
+                                          onsubmit="return confirm('¿Estás seguro de eliminar todos los métodos de pago de este autorizador? Esta acción no se puede deshacer.')">
+                                        <input type="hidden" name="_method" value="DELETE">
+                                        <?= \App\Middlewares\CsrfMiddleware::field() ?>
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </div>

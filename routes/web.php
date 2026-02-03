@@ -14,6 +14,7 @@ use App\Controllers\DashboardController;
 use App\Controllers\RequisicionController;
 use App\Controllers\AutorizacionController;
 use App\Controllers\AdminController;
+use App\Helpers\Redirect;
 
 // ============================================================================
 // RUTAS DE DESARROLLO (Solo para desarrollo local)
@@ -23,11 +24,7 @@ use App\Controllers\AdminController;
  * Login de desarrollo (bypasea Azure AD)
  * Solo habilitado cuando APP_ENV=development
  */
-if (isset($_ENV['APP_ENV']) && $_ENV['APP_ENV'] === 'development') {
-    $router->get('/dev/login', [DevAuthController::class, 'showLogin']);
-    $router->post('/dev/login', [DevAuthController::class, 'login']);
-    $router->get('/dev/logout', [DevAuthController::class, 'logout']);
-}
+if (false) {} // Se deshabilitan las rutas de desarrollo
 
 // ============================================================================
 // RUTAS PÚBLICAS
@@ -38,23 +35,18 @@ if (isset($_ENV['APP_ENV']) && $_ENV['APP_ENV'] === 'development') {
  */
 $router->get('/', function() {
     if (isset($_SESSION['user_id'])) {
-        header('Location: /dashboard');
+        Redirect::to('/dashboard')->send();
     } else {
-        // Si está en desarrollo, redirigir a dev login
-        if (isset($_ENV['APP_ENV']) && $_ENV['APP_ENV'] === 'development') {
-            header('Location: /dev/login');
-        } else {
-            header('Location: /login');
-        }
+        Redirect::to('/login')->send();
     }
-    exit;
 });
-
 /**
  * Autenticación
  */
 $router->get('/login', [AuthController::class, 'showLogin']);
 $router->get('/auth/azure', [AuthController::class, 'login']);
+$router->get('/auth/azure/callback', [AuthController::class, 'azureCallback']);
+// Ruta heredada para compatibilidad
 $router->get('/auth/callback', [AuthController::class, 'azureCallback']);
 $router->get('/logout', [AuthController::class, 'logout']);
 $router->get('/auth/status', [AuthController::class, 'status']); // API
@@ -108,6 +100,9 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
         $router->get('/api/export', [RequisicionController::class, 'export']);
     });
     
+    // API para detalle de requisición (fuera del grupo de CSRF para permitir GET)
+    $router->get('/api/requisiciones/{id}/detalle', [RequisicionController::class, 'apiDetalleRequisicion']);
+    
     // ------------------------------------------------------------------------
     // RUTA DE PRUEBA TEMPORAL
     // ------------------------------------------------------------------------
@@ -130,13 +125,19 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
     // ------------------------------------------------------------------------
     $router->group(['prefix' => '/autorizaciones'], function($router) {
         
+        // IMPORTANTE: Las rutas específicas deben ir ANTES de las rutas con parámetros dinámicos
+        
         // Ver
         $router->get('/', [AutorizacionController::class, 'index']);
-        $router->get('/{id}', [AutorizacionController::class, 'show']);
+        
+        // Rutas específicas (deben ir antes de /{id})
         $router->get('/historial', [AutorizacionController::class, 'historial']);
         
         // Revisión (requiere rol revisor)
         $router->group(['middlewares' => ['RoleMiddleware:revisor']], function($router) {
+            // Ruta principal de revisión (alias para /revision/pendientes)
+            // IMPORTANTE: Debe ir ANTES de /{id} para que funcione correctamente
+            $router->get('/revision', [AutorizacionController::class, 'pendientesRevision']);
             $router->get('/revision/pendientes', [AutorizacionController::class, 'pendientesRevision']);
             
             // Con CSRF
@@ -146,10 +147,21 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
             });
         });
         
+        // Ruta genérica con parámetro (debe ir AL FINAL después de todas las rutas específicas)
+        $router->get('/{id}', [AutorizacionController::class, 'show']);
+        
         // Autorización por centro de costo (con CSRF)
         $router->group(['middlewares' => ['CsrfMiddleware']], function($router) {
             $router->post('/centro/{id}/autorizar', [AutorizacionController::class, 'autorizarCentro']);
             $router->post('/centro/{id}/rechazar', [AutorizacionController::class, 'rechazarCentro']);
+        });
+        
+        // Autorizaciones especiales (con CSRF)
+        $router->group(['middlewares' => ['CsrfMiddleware']], function($router) {
+            $router->post('/pago/{id}/aprobar', [AutorizacionController::class, 'aprobarAutorizacionPago']);
+            $router->post('/pago/{id}/rechazar', [AutorizacionController::class, 'rechazarAutorizacionPago']);
+            $router->post('/cuenta/{id}/aprobar', [AutorizacionController::class, 'aprobarAutorizacionCuenta']);
+            $router->post('/cuenta/{id}/rechazar', [AutorizacionController::class, 'rechazarAutorizacionCuenta']);
         });
         
         // APIs
@@ -172,31 +184,43 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
         
         // -------- USUARIOS --------
         $router->get('/usuarios', [AdminController::class, 'usuarios']);
+        $router->get('/usuarios/{id}/edit', [AdminController::class, 'editUsuario']); // Específica ANTES que genérica
         $router->get('/usuarios/{id}', [AdminController::class, 'showUsuario']);
         
         $router->group(['middlewares' => ['CsrfMiddleware']], function($router) {
             $router->post('/usuarios/{id}', [AdminController::class, 'updateUsuario']);
+            $router->post('/usuarios/{id}/toggle', [AdminController::class, 'toggleUsuario']);
             $router->delete('/usuarios/{id}/desactivar', [AdminController::class, 'desactivarUsuario']);
         });
         
         // -------- CENTROS DE COSTO --------
         $router->get('/centros', [AdminController::class, 'centrosCosto']);
+        $router->get('/centros/create', [AdminController::class, 'createCentro']);
+        $router->get('/centros/{id}', [AdminController::class, 'showCentro']);
+        $router->get('/centros/{id}/edit', [AdminController::class, 'editCentro']);
         
         $router->group(['middlewares' => ['CsrfMiddleware']], function($router) {
             $router->post('/centros', [AdminController::class, 'storeCentro']);
             $router->put('/centros/{id}', [AdminController::class, 'updateCentro']);
+            $router->delete('/centros/{id}', [AdminController::class, 'deleteCentro']);
         });
         
         // -------- AUTORIZADORES --------
         $router->get('/autorizadores', [AdminController::class, 'autorizadores']);
+        $router->get('/autorizadores/create', [AdminController::class, 'createAutorizador']);
         $router->get('/autorizadores/{id}/edit', [AdminController::class, 'editAutorizador']);
         
         // Autorizadores Especiales (deben ir ANTES de las rutas con parámetros)
         $router->get('/autorizadores/metodos-pago', [AdminController::class, 'autorizadoresMetodosPago']);
         $router->get('/autorizadores/metodos-pago/create', [AdminController::class, 'createMetodoPago']);
-        $router->get('/autorizadores/metodos-pago/{email}/edit', [AdminController::class, 'editMetodoPagoByEmail']);
+        $router->get('/autorizadores/metodos-pago/email/{email}/edit', [AdminController::class, 'editMetodoPagoByEmail']);
+        $router->get('/autorizadores/metodos-pago/{id}/delete', [AdminController::class, 'deleteMetodoPagoLegacy']);
         $router->get('/autorizadores/metodos-pago/{id}', [AdminController::class, 'showMetodoPago']);
         $router->get('/autorizadores/metodos-pago/{id}/edit', [AdminController::class, 'editMetodoPago']);
+        $router->get('/autorizadores/cuentas-contables', [AdminController::class, 'autorizadoresCuentasContables']);
+        $router->get('/autorizadores/cuentas-contables/create', [AdminController::class, 'createCuentaContable']);
+        $router->get('/autorizadores/cuentas-contables/{id}', [AdminController::class, 'showCuentaContable']);
+        $router->get('/autorizadores/cuentas-contables/{id}/edit', [AdminController::class, 'editCuentaContable']);
 
         $router->group(['middlewares' => ['CsrfMiddleware']], function($router) {
             $router->post('/autorizadores', [AdminController::class, 'storeAutorizador']);
@@ -205,9 +229,15 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
             
             // CRUD para Autorizadores de Métodos de Pago
             $router->post('/autorizadores/metodos-pago', [AdminController::class, 'storeMetodoPago']);
-            $router->put('/autorizadores/metodos-pago/{email}/edit', [AdminController::class, 'updateMetodoPagoByEmail']);
+            $router->post('/autorizadores/metodos-pago/email/{email}/edit', [AdminController::class, 'updateMetodoPagoByEmail']);
+            $router->delete('/autorizadores/metodos-pago/email/{email}', [AdminController::class, 'deleteMetodoPagoByEmail']);
             $router->put('/autorizadores/metodos-pago/{id}', [AdminController::class, 'updateMetodoPago']);
             $router->delete('/autorizadores/metodos-pago/{id}', [AdminController::class, 'deleteMetodoPago']);
+            
+            // CRUD Autorizadores por Cuenta Contable
+            $router->post('/autorizadores/cuentas-contables', [AdminController::class, 'storeCuentaContable']);
+            $router->put('/autorizadores/cuentas-contables/{id}', [AdminController::class, 'updateCuentaContable']);
+            $router->delete('/autorizadores/cuentas-contables/{id}', [AdminController::class, 'deleteCuentaContable']);
         });
         
         // -------- RESPALDOS --------
@@ -234,6 +264,14 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
         // -------- CATÁLOGOS --------
         $router->get('/catalogos', [AdminController::class, 'catalogos']);
         
+        $router->group(['middlewares' => ['CsrfMiddleware']], function($router) {
+            // CRUD para Cuentas Contables
+            $router->post('/catalogos/cuenta', [AdminController::class, 'storeCuentaContableCatalogo']);
+            $router->put('/catalogos/cuenta/{id}', [AdminController::class, 'updateCuentaContableCatalogo']);
+            $router->post('/catalogos/cuenta/{id}/toggle', [AdminController::class, 'toggleCuentaContable']);
+            $router->delete('/catalogos/cuenta/{id}', [AdminController::class, 'deleteCuentaContableCatalogo']);
+        });
+        
         // -------- REPORTES --------
         $router->get('/reportes', [AdminController::class, 'reportes']);
         
@@ -248,6 +286,19 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
         // -------- SEGUIMIENTO DE REQUISICIONES --------
         $router->get('/requisiciones', [\App\Controllers\Admin\RequisicionesController::class, 'index']);
         $router->get('/requisiciones/{id}', [\App\Controllers\Admin\RequisicionesController::class, 'show']);
+
+        // -------- CONFIGURACIÓN DE CORREO --------
+        $router->get('/email', [\App\Controllers\Admin\EmailController::class, 'index']);
+        $router->get('/email/config', [\App\Controllers\Admin\EmailController::class, 'config']);
+        $router->get('/email/templates', [\App\Controllers\Admin\EmailController::class, 'templates']);
+        $router->get('/email/templates/{template}/edit', [\App\Controllers\Admin\EmailController::class, 'editTemplate']);
+
+        $router->group(['middlewares' => ['CsrfMiddleware']], function($router) {
+            $router->post('/email/config/save', [\App\Controllers\Admin\EmailController::class, 'saveConfig']);
+            $router->post('/email/templates/{template}/save', [\App\Controllers\Admin\EmailController::class, 'saveTemplate']);
+            $router->post('/email/test', [\App\Controllers\Admin\EmailController::class, 'testEmail']);
+            $router->post('/email/test-connection', [\App\Controllers\Admin\EmailController::class, 'testConnection']);
+        });
     });
 });
 
@@ -269,6 +320,7 @@ $router->get('/test', function() {
     ]);
 });
 
+
 /**
  * Ruta de prueba con parámetros
  */
@@ -280,3 +332,5 @@ $router->get('/test/{param}', function($param) {
         'timestamp' => date('Y-m-d H:i:s')
     ]);
 });
+
+

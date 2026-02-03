@@ -16,8 +16,8 @@ View::startSection('content');
             </h1>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
-                    <li class="breadcrumb-item"><a href="/requisiciones">Requisiciones</a></li>
+                    <li class="breadcrumb-item"><a href="<?= url('/dashboard') ?>">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="<?= url('/requisiciones') ?>">Requisiciones</a></li>
                     <li class="breadcrumb-item active">Editar #<?php echo View::e($requisicion['orden']->id ?? $requisicion['orden']['id'] ?? ''); ?></li>
                 </ol>
             </nav>
@@ -66,13 +66,15 @@ View::startSection('content');
         <button type="submit" class="btn btn-primary">
             <i class="fas fa-save me-2"></i>Guardar Cambios
         </button>
-        <a href="/requisiciones/<?php echo $requisicion['orden']->id ?? $requisicion['orden']['id'] ?? ''; ?>" class="btn btn-secondary">
+        <a href="<?= url('/requisiciones/' . ($requisicion['orden']->id ?? $requisicion['orden']['id'] ?? '')) ?>" class="btn btn-secondary">
             <i class="fas fa-arrow-left me-2"></i>Volver
         </a>
     </div>
 </div>
 
 <?php View::endSection(); ?>
+
+
 
 
 

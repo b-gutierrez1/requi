@@ -27,7 +27,7 @@ View::startSection('content');
                     </h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="/admin/usuarios/<?php echo $usuario_edit->id; ?>">
+                    <form method="POST" action="<?= url('/admin/usuarios/' . $usuario_edit->id) ?>">
                         <?php echo \App\Middlewares\CsrfMiddleware::field(); ?>
                         
                         <div class="row">
@@ -70,48 +70,78 @@ View::startSection('content');
                             </h6>
                             
                             <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" 
-                                               type="checkbox" 
-                                               id="is_admin" 
-                                               name="is_admin" 
-                                               <?php echo $usuario_edit->is_admin ? 'checked' : ''; ?>>
-                                        <label class="form-check-label" for="is_admin">
-                                            <i class="fas fa-crown text-danger me-1"></i>
-                                            Administrador
-                                        </label>
-                                        <div class="form-text">Acceso completo al sistema</div>
+                                <!-- Administrador -->
+                                <div class="col-12">
+                                    <div class="clean-field" id="adminField">
+                                        <div class="field-content">
+                                            <div class="field-label">
+                                                <i class="fas fa-crown text-danger me-2"></i>
+                                                Administrador
+                                            </div>
+                                            <div class="field-description">Acceso completo al sistema, configuraciones y gestión de usuarios</div>
+                                        </div>
+                                        <div class="modern-switch">
+                                            <input type="checkbox" id="is_admin" name="is_admin" value="1"
+                                                   <?php echo $usuario_edit->is_admin ? 'checked' : ''; ?>>
+                                            <span class="modern-switch-track" onclick="toggleModernUserRole('admin', this)"></span>
+                                        </div>
                                     </div>
                                 </div>
                                 
-                                <div class="col-md-4">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" 
-                                               type="checkbox" 
-                                               id="is_revisor" 
-                                               name="is_revisor" 
-                                               <?php echo $usuario_edit->is_revisor ? 'checked' : ''; ?>>
-                                        <label class="form-check-label" for="is_revisor">
-                                            <i class="fas fa-eye text-warning me-1"></i>
-                                            Revisor
-                                        </label>
-                                        <div class="form-text">Puede revisar requisiciones</div>
+                                <!-- Revisor -->
+                                <div class="col-12">
+                                    <div class="clean-field" id="revisorField">
+                                        <div class="field-content">
+                                            <div class="field-label">
+                                                <i class="fas fa-eye text-warning me-2"></i>
+                                                Revisor
+                                            </div>
+                                            <div class="field-description">Puede revisar, evaluar y aprobar requisiciones pendientes</div>
+                                        </div>
+                                        <div class="modern-switch">
+                                            <input type="checkbox" id="is_revisor" name="is_revisor" value="1"
+                                                   <?php echo $usuario_edit->is_revisor ? 'checked' : ''; ?>>
+                                            <span class="modern-switch-track" onclick="toggleModernUserRole('revisor', this)"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                
+                                <!-- Autorizador -->
+                                <div class="col-12">
+                                    <div class="clean-field" id="autorizadorField">
+                                        <div class="field-content">
+                                            <div class="field-label">
+                                                <i class="fas fa-check-double text-success me-2"></i>
+                                                Autorizador
+                                            </div>
+                                            <div class="field-description">Puede autorizar requisiciones y compras según su centro de costo</div>
+                                        </div>
+                                        <div class="modern-switch">
+                                            <input type="checkbox" id="is_autorizador" name="is_autorizador" value="1"
+                                                   <?php echo $usuario_edit->is_autorizador ? 'checked' : ''; ?>>
+                                            <span class="modern-switch-track" onclick="toggleModernUserRole('autorizador', this)"></span>
+                                        </div>
                                     </div>
                                 </div>
                                 
-                                <div class="col-md-4">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" 
-                                               type="checkbox" 
-                                               id="activo" 
-                                               name="activo" 
-                                               <?php echo $usuario_edit->activo ? 'checked' : ''; ?>>
-                                        <label class="form-check-label" for="activo">
-                                            <i class="fas fa-check-circle text-success me-1"></i>
-                                            Activo
-                                        </label>
-                                        <div class="form-text">Usuario habilitado</div>
+                                <!-- Usuario Activo -->
+                                <div class="col-12">
+                                    <div class="clean-field" id="activoField">
+                                        <div class="field-content">
+                                            <div class="field-label">
+                                                <i class="fas fa-power-off text-primary me-2"></i>
+                                                Estado del Usuario
+                                            </div>
+                                            <div class="field-description">Controla si el usuario puede acceder e interactuar con el sistema</div>
+                                        </div>
+                                        <div class="modern-switch">
+                                            <input type="checkbox" id="activo" name="activo" value="1"
+                                                   <?php echo $usuario_edit->activo ? 'checked' : ''; ?>>
+                                            <span class="modern-switch-track" onclick="toggleModernUserRole('activo', this)"></span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -123,7 +153,7 @@ View::startSection('content');
                                 <i class="fas fa-save me-1"></i>
                                 Guardar Cambios
                             </button>
-                            <a href="/admin/usuarios" class="btn btn-secondary">
+                            <a href="<?= url('/admin/usuarios') ?>" class="btn btn-secondary">
                                 <i class="fas fa-times me-1"></i>
                                 Cancelar
                             </a>
@@ -171,8 +201,11 @@ View::startSection('content');
                             <?php if ($usuario_edit->is_revisor): ?>
                                 <span class="badge bg-warning me-1">Revisor</span>
                             <?php endif; ?>
-                            <?php if (!$usuario_edit->is_admin && !$usuario_edit->is_revisor): ?>
-                                <span class="badge bg-info">Usuario</span>
+                            <?php if ($usuario_edit->is_autorizador): ?>
+                                <span class="badge bg-info me-1">Autorizador</span>
+                            <?php endif; ?>
+                            <?php if (!$usuario_edit->is_admin && !$usuario_edit->is_revisor && !$usuario_edit->is_autorizador): ?>
+                                <span class="badge bg-secondary">Usuario</span>
                             <?php endif; ?>
                         </p>
                     </div>
@@ -191,6 +224,7 @@ View::startSection('content');
                     <div class="small">
                         <p><strong>Administrador:</strong> Acceso completo al sistema, incluyendo panel de administración.</p>
                         <p><strong>Revisor:</strong> Puede revisar y aprobar requisiciones.</p>
+                        <p><strong>Autorizador:</strong> Puede autorizar requisiciones por centro de costo.</p>
                         <p><strong>Activo:</strong> El usuario puede iniciar sesión y usar el sistema.</p>
                     </div>
                 </div>
@@ -198,5 +232,37 @@ View::startSection('content');
         </div>
     </div>
 </div>
+
+<script>
+    // Inicializar estado de todos los switches modernos
+    document.addEventListener('DOMContentLoaded', function() {
+        updateModernUserRoleField('admin');
+        updateModernUserRoleField('revisor');
+        updateModernUserRoleField('autorizador');
+        updateModernUserRoleField('activo');
+    });
+
+    // Toggle para los switches modernos de roles de usuario
+    function toggleModernUserRole(role, track) {
+        const checkbox = track.parentElement.querySelector('input[type="checkbox"]');
+        checkbox.checked = !checkbox.checked;
+        updateModernUserRoleField(role);
+    }
+
+    // Actualizar apariencia del campo moderno según el estado
+    function updateModernUserRoleField(role) {
+        const checkbox = document.getElementById(`is_${role}`) || document.getElementById(role);
+        const field = document.getElementById(`${role}Field`);
+        
+        if (checkbox && field) {
+            field.classList.remove('active', 'inactive');
+            if (checkbox.checked) {
+                field.classList.add('active');
+            } else {
+                field.classList.add('inactive');
+            }
+        }
+    }
+</script>
 
 <?php View::endSection(); ?>

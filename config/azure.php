@@ -43,7 +43,7 @@ return [
         'uri' => getenv('AZURE_REDIRECT_URI') ?: null, // Se construye dinámicamente si es null
         'base_path' => '',
         'callback_route' => '/auth/azure/callback',
-        'logout_route' => '/auth/logout',
+        'logout' => '/auth/azure/logout',
     ],
 
     /*

@@ -1,0 +1,55 @@
+===========================================
+LOGS DE DEBUG A COMENTAR/ELIMINAR EN CÓDIGO
+===========================================
+
+ARCHIVOS CON LOGS DE DEBUG QUE DEBEN SER COMENTADOS:
+
+1. app/Controllers/AutorizacionController.php
+   Línea 79:    error_log("=== DEBUG REVISIÓN ===");
+   Línea 1470:  error_log("=== DEBUG PERMISOS AUTORIZACIÓN ESPECIAL ===");
+
+2. app/Controllers/DashboardController.php  
+   Línea 93:    error_log("Dashboard Debug - Usuario ID: $usuarioId");
+   Línea 94:    error_log("Dashboard Debug - Estadísticas: " . json_encode($estadisticas));
+   Línea 95:    error_log("Dashboard Debug - Requisiciones recientes: " . count($requisiciones_recientes));
+   Línea 96:    error_log("Dashboard Debug - Resumen mensual: " . json_encode($resumen_mensual));
+
+3. app/Controllers/RequisicionController.php
+   Línea 97:    error_log("DEBUG: show() llamado con ID: " . $id);
+
+4. app/Controllers/Controller.php
+   Línea 198:   error_log("=== SENDAJAXRESPONSE DEBUG ===");
+
+5. app/Controllers/AdminController.php
+   Línea 2579:  error_log("DEBUG deleteRespaldo: Intentando eliminar respaldo ID: $id");
+   Línea 2584:  error_log("DEBUG deleteRespaldo: Respaldo ID $id no encontrado");
+   Línea 2591:  error_log("DEBUG deleteRespaldo: Respaldo encontrado, intentando eliminar...");
+   Línea 2599:  error_log("DEBUG deleteRespaldo: Resultado de eliminación: " . ($eliminado ? 'true' : 'false') . ", Filas afectadas: $rowsAffected");
+   Línea 2602:  error_log("DEBUG deleteRespaldo: Respaldo eliminado exitosamente");
+   Línea 2607:  error_log("DEBUG deleteRespaldo: No se pudo eliminar el respaldo");
+
+===========================================
+INSTRUCCIONES:
+===========================================
+
+1. Abrir cada archivo listado arriba
+2. Buscar las líneas indicadas 
+3. Comentar o eliminar los error_log que contengan "DEBUG"
+4. Mantener solo logs de error reales (no de debug)
+
+EJEMPLO DE CAMBIO:
+❌ error_log("DEBUG: Usuario ID: " . $usuarioId);
+✅ // error_log("DEBUG: Usuario ID: " . $usuarioId); // DEBUG - Comentado para producción
+
+O simplemente eliminar la línea completa.
+
+===========================================
+BUSCAR EN TODA LA APLICACIÓN:
+===========================================
+
+Para encontrar todos los logs de debug restantes, usar:
+- grep -r "error_log.*DEBUG" app/
+- grep -r "error_log.*Debug" app/ 
+- grep -r "error_log.*debug" app/
+
+===========================================

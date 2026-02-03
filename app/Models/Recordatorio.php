@@ -19,7 +19,7 @@ class Recordatorio extends Model
     protected static $timestampFields = ['fecha_creacion', 'fecha_enviado'];
 
     protected static $fillable = [
-        'orden_compra_id',
+        'requisicion_id',
         'destinatario_email',
         'tipo_recordatorio',
         'mensaje',
@@ -37,11 +37,11 @@ class Recordatorio extends Model
      */
     public function ordenCompra()
     {
-        if (!isset($this->attributes['orden_compra_id'])) {
+        if (!isset($this->attributes['requisicion_id'])) {
             return null;
         }
 
-        return OrdenCompra::find($this->attributes['orden_compra_id']);
+        return Requisicion::find($this->attributes['requisicion_id']);
     }
 
     /**
@@ -75,7 +75,7 @@ class Recordatorio extends Model
         $instance = new static();
         
         $sql = "SELECT * FROM {$instance->table} 
-                WHERE orden_compra_id = ? 
+                WHERE requisicion_id = ? 
                 ORDER BY fecha_creacion DESC";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -93,7 +93,7 @@ class Recordatorio extends Model
     public static function crearParaOrden($ordenCompraId)
     {
         try {
-            $orden = OrdenCompra::find($ordenCompraId);
+            $orden = Requisicion::find($ordenCompraId);
             if (!$orden) {
                 return false;
             }
@@ -115,18 +115,19 @@ class Recordatorio extends Model
             } elseif ($flujo['estado'] === 'pendiente_autorizacion') {
                 // Obtener autorizadores de centros de costo
                 $sql = "SELECT DISTINCT autorizador_email 
-                        FROM autorizacion_centro_costo 
-                        WHERE autorizacion_flujo_id = ? 
-                        AND estado = 'pendiente'";
+                        FROM autorizaciones 
+                        WHERE requisicion_id = ? 
+                          AND tipo = 'centro_costo'
+                          AND estado = 'pendiente'";
                 $stmt = self::getConnection()->prepare($sql);
-                $stmt->execute([$flujo['id']]);
+                $stmt->execute([$ordenCompraId]);
                 $autorizadores = $stmt->fetchAll(\PDO::FETCH_COLUMN);
             }
 
             // Crear recordatorios
             foreach ($autorizadores as $email) {
                 self::create([
-                    'orden_compra_id' => $ordenCompraId,
+                    'requisicion_id' => $ordenCompraId,
                     'destinatario_email' => $email,
                     'tipo_recordatorio' => $flujo['estado'],
                     'mensaje' => self::generarMensaje($orden, $flujo['estado']),
@@ -207,7 +208,7 @@ class Recordatorio extends Model
         
         $sql = "UPDATE {$instance->table} 
                 SET estado = 'cancelado' 
-                WHERE orden_compra_id = ? 
+                WHERE requisicion_id = ? 
                 AND estado = 'pendiente'";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -226,7 +227,7 @@ class Recordatorio extends Model
         
         $sql = "SELECT r.*, oc.id as orden_id, oc.nombre_razon_social
                 FROM {$instance->table} r
-                INNER JOIN orden_compra oc ON r.orden_compra_id = oc.id
+                INNER JOIN requisiciones oc ON r.requisicion_id = oc.id
                 WHERE r.estado = 'pendiente'
                 AND r.intentos < 3
                 AND (

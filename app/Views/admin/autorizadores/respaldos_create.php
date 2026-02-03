@@ -181,7 +181,7 @@ $title = 'Crear Autorizador de Respaldo';
                 <p class="mb-0 opacity-75">Configurar un autorizador temporal para respaldo</p>
             </div>
             <div class="col-md-4 text-end">
-                <a href="/admin/autorizadores/respaldos" class="btn btn-light">
+                <a href="<?= url('/admin/autorizadores/respaldos') ?>" class="btn btn-light">
                     <i class="fas fa-arrow-left me-2"></i>
                     Volver a la Lista
                 </a>
@@ -348,12 +348,20 @@ $title = 'Crear Autorizador de Respaldo';
                         
                         <div class="row mt-3">
                             <div class="col-12">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="activo" id="activo" value="1" checked>
-                                    <label class="form-check-label" for="activo">
-                                        Activar respaldo inmediatamente
-                                    </label>
-                                    <div class="help-text">Si está marcado, el respaldo estará activo según las fechas especificadas</div>
+                                <div class="switch-container">
+                                    <div class="flex-grow-1">
+                                        <label class="switch-label" for="activo">
+                                            <i class="fas fa-play-circle me-2 text-success"></i>
+                                            Activar respaldo inmediatamente
+                                        </label>
+                                        <p class="switch-description">
+                                            Si está marcado, el respaldo estará activo según las fechas especificadas
+                                        </p>
+                                    </div>
+                                    <div class="custom-switch">
+                                        <input type="checkbox" name="activo" id="activo" value="1" checked>
+                                        <span class="custom-switch-slider" onclick="toggleSwitchContainer(this)"></span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -366,7 +374,7 @@ $title = 'Crear Autorizador de Respaldo';
                                 <i class="fas fa-save me-2"></i>
                                 Crear Respaldo
                             </button>
-                            <a href="/admin/autorizadores/respaldos" class="btn btn-cancel">
+                            <a href="<?= url('/admin/autorizadores/respaldos') ?>" class="btn btn-cancel">
                                 <i class="fas fa-times me-2"></i>
                                 Cancelar
                             </a>
@@ -652,5 +660,28 @@ document.addEventListener('DOMContentLoaded', function() {
     fechaInicio.min = hoy;
     fechaFin.min = hoy;
 });
+
+// ========================================================================
+// FUNCIÓN PARA SWITCHES MODERNOS
+// ========================================================================
+
+function toggleSwitchContainer(slider) {
+    const checkbox = slider.parentElement.querySelector('input[type="checkbox"]');
+    const container = slider.closest('.switch-container');
+    
+    // Toggle checkbox
+    checkbox.checked = !checkbox.checked;
+    
+    // Add animation class
+    container.classList.add('toggling');
+    
+    // Remove animation class after animation completes
+    setTimeout(() => {
+        container.classList.remove('toggling');
+    }, 200);
+    
+    // Dispatch change event for any listeners
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+}
 </script>
 <?php View::endSection(); ?>

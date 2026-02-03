@@ -16,6 +16,8 @@
 
 namespace App\Models;
 
+use App\Repositories\AutorizacionCentroRepository;
+
 class AutorizacionFlujo extends Model
 {
     protected static $table = 'autorizacion_flujo';
@@ -23,7 +25,7 @@ class AutorizacionFlujo extends Model
     protected static $timestamps = false;  // La tabla usa fecha_creacion, no created_at
 
     protected static $fillable = [
-        'orden_compra_id',
+        'requisicion_id',
         'estado',
         'requiere_autorizacion_especial_pago',
         'requiere_autorizacion_especial_cuenta',
@@ -37,10 +39,24 @@ class AutorizacionFlujo extends Model
      */
     const ESTADO_PENDIENTE_REVISION = 'pendiente_revision';
     const ESTADO_RECHAZADO_REVISION = 'rechazado_revision';
+    const ESTADO_PENDIENTE_AUTORIZACION_PAGO = 'pendiente_autorizacion_pago';
+    const ESTADO_PENDIENTE_AUTORIZACION_CUENTA = 'pendiente_autorizacion_cuenta';
+    const ESTADO_PENDIENTE_AUTORIZACION_CENTROS = 'pendiente_autorizacion_centros';
     const ESTADO_PENDIENTE_AUTORIZACION = 'pendiente_autorizacion';
     const ESTADO_RECHAZADO_AUTORIZACION = 'rechazado_autorizacion';
     const ESTADO_AUTORIZADO = 'autorizado';
     const ESTADO_RECHAZADO = 'rechazado';
+
+    protected static ?AutorizacionCentroRepository $centroRepository = null;
+
+    protected static function centrosRepo(): AutorizacionCentroRepository
+    {
+        if (!self::$centroRepository) {
+            self::$centroRepository = new AutorizacionCentroRepository();
+        }
+
+        return self::$centroRepository;
+    }
 
     /**
      * Obtiene la orden de compra asociada
@@ -49,11 +65,11 @@ class AutorizacionFlujo extends Model
      */
     public function ordenCompra()
     {
-        if (!isset($this->attributes['orden_compra_id'])) {
+        if (!isset($this->attributes['requisicion_id'])) {
             return null;
         }
 
-        return OrdenCompra::find($this->attributes['orden_compra_id']);
+        return Requisicion::find($this->attributes['requisicion_id']);
     }
 
     /**
@@ -63,26 +79,37 @@ class AutorizacionFlujo extends Model
      */
     public function autorizacionesCentros()
     {
-        if (!isset($this->attributes['id'])) {
+        if (!isset($this->attributes['requisicion_id'])) {
             return [];
         }
 
-        return AutorizacionCentroCosto::porFlujo($this->attributes['id']);
+        return self::centrosRepo()->getByRequisicion((int) $this->attributes['requisicion_id']);
     }
 
     /**
-     * Obtiene el flujo de una orden de compra
+     * Obtiene el flujo de una requisición
      * 
-     * @param int $ordenCompraId
+     * @param int $requisicionId
+     * @return array|null
+     */
+    public static function porRequisicion($requisicionId)
+    {
+        $sql = "SELECT * FROM autorizacion_flujo WHERE requisicion_id = ? LIMIT 1";
+        $stmt = self::getConnection()->prepare($sql);
+        $stmt->execute([$requisicionId]);
+        
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+    }
+
+    /**
+     * Obtiene el flujo por orden de compra (alias por compatibilidad legacy)
+     * 
+     * @param int $ordenCompraId ID de la requisición (anteriormente orden de compra)
      * @return array|null
      */
     public static function porOrdenCompra($ordenCompraId)
     {
-        $sql = "SELECT * FROM autorizacion_flujo WHERE orden_compra_id = ? LIMIT 1";
-        $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$ordenCompraId]);
-        
-        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+        return self::porRequisicion($ordenCompraId);
     }
 
     /**
@@ -94,16 +121,16 @@ class AutorizacionFlujo extends Model
     public static function iniciarFlujo($ordenCompraId)
     {
         try {
-            $orden = OrdenCompra::find($ordenCompraId);
-            if (!$orden) {
-                throw new \Exception("Orden de compra no encontrada");
+            $requisicion = Requisicion::find($ordenCompraId);
+            if (!$requisicion) {
+                throw new \Exception("Requisición no encontrada");
             }
 
             // Verificar si requiere autorizaciones especiales
-            $requiereEspecialPago = AutorizadorMetodoPago::requiereAutorizacionEspecial($orden->forma_pago);
+            $requiereEspecialPago = AutorizadorMetodoPago::requiereAutorizacionEspecial($requisicion->forma_pago);
             
             // Verificar si alguna cuenta contable requiere autorización especial
-            $distribuciones = DistribucionGasto::porOrdenCompra($ordenCompraId);
+            $distribuciones = DistribucionGasto::porRequisicion($ordenCompraId);
             $requiereEspecialCuenta = false;
             
             foreach ($distribuciones as $dist) {
@@ -115,7 +142,7 @@ class AutorizacionFlujo extends Model
 
             // Crear el flujo
             $flujo = self::create([
-                'orden_compra_id' => $ordenCompraId,
+                'requisicion_id' => $ordenCompraId,
                 'estado' => self::ESTADO_PENDIENTE_REVISION,
                 'requiere_autorizacion_especial_pago' => $requiereEspecialPago ? 1 : 0,
                 'requiere_autorizacion_especial_cuenta' => $requiereEspecialCuenta ? 1 : 0,
@@ -141,21 +168,48 @@ class AutorizacionFlujo extends Model
     {
         try {
             $flujo = self::find($id);
-            if (!$flujo || $flujo['estado'] !== self::ESTADO_PENDIENTE_REVISION) {
+            if (!$flujo) {
                 return false;
             }
+            
+            $estado = is_object($flujo) ? $flujo->estado : $flujo['estado'];
+            if ($estado !== self::ESTADO_PENDIENTE_REVISION) {
+                return false;
+            }
+            
+            // Convertir a array para compatibilidad
+            $flujoArray = is_object($flujo) ? $flujo->toArray() : $flujo;
 
-            // Actualizar estado a pendiente de autorización
-            self::update($id, [
-                'estado' => self::ESTADO_PENDIENTE_AUTORIZACION,
+            // Determinar el siguiente estado según el flujo correcto
+            $requiereEspecialPago = $flujoArray['requiere_autorizacion_especial_pago'];
+            $requiereEspecialCuenta = $flujoArray['requiere_autorizacion_especial_cuenta'];
+            
+            $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS; // Por defecto
+            
+            if ($requiereEspecialPago && $requiereEspecialCuenta) {
+                // Si requiere ambos especiales, empezar por pago
+                $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_PAGO;
+            } elseif ($requiereEspecialPago) {
+                // Solo requiere pago especial
+                $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_PAGO;
+            } elseif ($requiereEspecialCuenta) {
+                // Solo requiere cuenta especial
+                $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA;
+            }
+            // Si no requiere ningún especial, va directo a centros
+
+            // Actualizar estado según el flujo correcto
+            self::updateById($id, [
+                'estado' => $nuevoEstado,
             ]);
 
             // Crear autorizaciones especiales si son requeridas
-            self::crearAutorizacionesEspeciales($id, $flujo);
+            self::crearAutorizacionesEspeciales($id, $flujoArray);
 
-            // Registrar en historial
+            // Registrar en historial  
+            $ordenCompraId = is_object($flujo) ? $flujo->requisicion_id : $flujoArray['requisicion_id'];
             HistorialRequisicion::registrarAprobacion(
-                $flujo['orden_compra_id'],
+                $ordenCompraId,
                 $usuarioId,
                 'Revisión',
                 $comentario
@@ -166,6 +220,19 @@ class AutorizacionFlujo extends Model
             error_log("Error aprobando revisión: " . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Aprobar revisión (método simplificado para testing)
+     * 
+     * @param int $id
+     * @param string $comentario
+     * @return bool
+     */
+    public static function aprobarRevisionSimple($id, $comentario = '')
+    {
+        // Usar usuario 0 como sistema si no se proporciona
+        return self::aprobarRevision($id, 0, $comentario);
     }
 
     /**
@@ -184,13 +251,14 @@ class AutorizacionFlujo extends Model
                 return false;
             }
 
-            self::update($id, [
+            self::updateById($id, [
                 'estado' => self::ESTADO_RECHAZADO_REVISION,
                 'fecha_completado' => date('Y-m-d H:i:s'),
             ]);
 
+            $ordenCompraId = is_object($flujo) ? $flujo->requisicion_id : $flujo['requisicion_id'];
             HistorialRequisicion::registrarRechazo(
-                $flujo['orden_compra_id'],
+                $ordenCompraId,
                 $usuarioId,
                 $motivo
             );
@@ -212,34 +280,101 @@ class AutorizacionFlujo extends Model
     {
         try {
             $flujo = self::find($id);
-            if (!$flujo || $flujo['estado'] !== self::ESTADO_PENDIENTE_AUTORIZACION) {
+            if (!$flujo) {
+                return false;
+            }
+            
+            $estado = is_object($flujo) ? $flujo->estado : $flujo['estado'];
+            // Solo verificar flujos que están en algún estado de autorización pendiente
+            $estadosAutorizacionPendiente = [
+                self::ESTADO_PENDIENTE_AUTORIZACION,
+                self::ESTADO_PENDIENTE_AUTORIZACION_PAGO,
+                self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA,
+                self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS
+            ];
+            
+            if (!in_array($estado, $estadosAutorizacionPendiente)) {
+                return false;
+            }
+            
+            $requisicionId = is_object($flujo) ? $flujo->requisicion_id : $flujo['requisicion_id'];
+            if (!$requisicionId) {
                 return false;
             }
 
             // Verificar si hay rechazos
-            if (AutorizacionCentroCosto::algunaRechazada($id)) {
-                self::update($id, [
+            if (self::centrosRepo()->hasRejected((int) $requisicionId)) {
+                self::updateById($id, [
                     'estado' => self::ESTADO_RECHAZADO,
                     'fecha_completado' => date('Y-m-d H:i:s'),
                 ]);
                 return true;
             }
 
-            $autorizacionesEspecialesPendientes = Autorizacion::where('requisicion_id', $flujo['orden_compra_id'] ?? null)
-                ->whereIn('tipo', ['forma_pago', 'cuenta_contable'])
-                ->where('estado', Autorizacion::ESTADO_PENDIENTE)
-                ->count();
-
-            if ($autorizacionesEspecialesPendientes > 0) {
-                return false;
+            // Obtener información de qué autorizaciones especiales se requieren
+            $requierePago = is_object($flujo) ? $flujo->requiere_autorizacion_especial_pago : $flujo['requiere_autorizacion_especial_pago'];
+            $requiereCuenta = is_object($flujo) ? $flujo->requiere_autorizacion_especial_cuenta : $flujo['requiere_autorizacion_especial_cuenta'];
+            
+            // Verificar autorizaciones especiales pendientes usando consulta directa
+            $pdo = self::getConnection();
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) as pendientes, tipo
+                FROM autorizaciones
+                WHERE requisicion_id = ?
+                  AND tipo IN ('forma_pago', 'cuenta_contable')
+                  AND estado = 'pendiente'
+                GROUP BY tipo
+            ");
+            $stmt->execute([$requisicionId]);
+            $especialesPendientes = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            
+            $pagosPendientes = false;
+            $cuentasPendientes = false;
+            foreach ($especialesPendientes as $pendiente) {
+                if ($pendiente['tipo'] === 'forma_pago') {
+                    $pagosPendientes = true;
+                }
+                if ($pendiente['tipo'] === 'cuenta_contable') {
+                    $cuentasPendientes = true;
+                }
             }
 
-            if (AutorizacionCentroCosto::todasAutorizadas($id)) {
-                self::update($id, [
-                    'estado' => self::ESTADO_AUTORIZADO,
-                    'fecha_completado' => date('Y-m-d H:i:s'),
-                ]);
-                return true;
+            // Lógica de transición de estados
+            if ($estado === self::ESTADO_PENDIENTE_AUTORIZACION_PAGO) {
+                if (!$pagosPendientes) {
+                    // Pago completado, determinar siguiente estado
+                    if ($requiereCuenta && $cuentasPendientes) {
+                        // Pasar a cuenta contable
+                        self::updateById($id, ['estado' => self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA]);
+                        return true;
+                    } else {
+                        // Pasar a centros de costo
+                        self::updateById($id, ['estado' => self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS]);
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            if ($estado === self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA) {
+                if (!$cuentasPendientes) {
+                    // Cuenta completada, pasar a centros de costo
+                    self::updateById($id, ['estado' => self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS]);
+                    return true;
+                }
+                return false;
+            }
+            
+            // Para estados pendiente_autorizacion_centros y pendiente_autorizacion (legacy)
+            if (!$pagosPendientes && !$cuentasPendientes) {
+                // Verificar si todos los centros están autorizados
+                if (self::centrosRepo()->allAuthorized((int) $requisicionId)) {
+                    self::updateById($id, [
+                        'estado' => self::ESTADO_AUTORIZADO,
+                        'fecha_completado' => date('Y-m-d H:i:s'),
+                    ]);
+                    return true;
+                }
             }
 
             return false;
@@ -259,7 +394,7 @@ class AutorizacionFlujo extends Model
     public static function marcarComoRechazado($id, $motivo = null)
     {
         try {
-            return self::update($id, [
+            return self::updateById($id, [
                 'estado' => self::ESTADO_RECHAZADO,
                 'fecha_completado' => date('Y-m-d H:i:s'),
             ]);
@@ -280,12 +415,14 @@ class AutorizacionFlujo extends Model
     {
         $instance = new static();
         
-        $sql = "SELECT af.*, oc.nombre_razon_social, oc.monto_total, oc.fecha,
-                       af.orden_compra_id as orden_id, oc.fecha as fecha_orden
+        $sql = "SELECT af.*, r.proveedor_nombre as nombre_razon_social, r.monto_total, r.fecha_solicitud as fecha,
+                       r.numero_requisicion, r.fecha_solicitud as fecha_orden,
+                       u.azure_display_name as usuario_nombre
                 FROM autorizacion_flujo af
-                INNER JOIN orden_compra oc ON af.orden_compra_id = oc.id
+                INNER JOIN requisiciones r ON af.requisicion_id = r.id
+                LEFT JOIN usuarios u ON r.usuario_id = u.id
                 WHERE af.estado = ?
-                ORDER BY oc.fecha DESC";
+                ORDER BY r.fecha_solicitud DESC";
         
         if ($limit) {
             $sql .= " LIMIT " . intval($limit);
@@ -338,10 +475,10 @@ class AutorizacionFlujo extends Model
     {
         $instance = new static();
         
-        $sql = "SELECT af.*, oc.nombre_razon_social, oc.fecha,
+        $sql = "SELECT af.*, r.proveedor_nombre as nombre_razon_social, r.fecha_solicitud as fecha,
                     DATEDIFF(NOW(), af.fecha_inicio) as dias_pendiente
                 FROM {$instance->table} af
-                INNER JOIN orden_compra oc ON af.orden_compra_id = oc.id
+                INNER JOIN requisiciones r ON af.requisicion_id = r.id
                 WHERE af.estado IN ('pendiente_revision', 'pendiente_autorizacion')
                 AND DATEDIFF(NOW(), af.fecha_inicio) > ?
                 ORDER BY dias_pendiente DESC";
@@ -453,13 +590,14 @@ class AutorizacionFlujo extends Model
                 return false;
             }
 
-            self::update($id, [
+            self::updateById($id, [
                 'estado' => self::ESTADO_RECHAZADO,
                 'fecha_completado' => date('Y-m-d H:i:s'),
             ]);
 
+            $ordenCompraId = is_object($flujo) ? $flujo->requisicion_id : $flujo['requisicion_id'];
             HistorialRequisicion::registrar(
-                $flujo['orden_compra_id'],
+                $ordenCompraId,
                 'cancelacion',
                 "Flujo cancelado: {$motivo}",
                 $usuarioId
@@ -487,13 +625,14 @@ class AutorizacionFlujo extends Model
                 return false;
             }
 
-            self::update($id, [
+            self::updateById($id, [
                 'estado' => self::ESTADO_PENDIENTE_REVISION,
                 'fecha_completado' => null,
             ]);
 
+            $ordenCompraId = is_object($flujo) ? $flujo->requisicion_id : $flujo['requisicion_id'];
             HistorialRequisicion::registrar(
-                $flujo['orden_compra_id'],
+                $ordenCompraId,
                 'reinicio',
                 "Flujo reiniciado",
                 $usuarioId
@@ -518,20 +657,26 @@ class AutorizacionFlujo extends Model
         try {
             error_log("=== CREANDO AUTORIZACIONES ESPECIALES ===");
             error_log("Flujo ID: $flujoId");
-            error_log("Requiere autorización especial de pago: " . ($flujo['requiere_autorizacion_especial_pago'] ? 'SÍ' : 'NO'));
-            error_log("Requiere autorización especial de cuenta: " . ($flujo['requiere_autorizacion_especial_cuenta'] ? 'SÍ' : 'NO'));
+            
+            // Asegurar compatibilidad objeto/array
+            $requiereEspecialPago = is_object($flujo) ? $flujo->requiere_autorizacion_especial_pago : $flujo['requiere_autorizacion_especial_pago'];
+            $requiereEspecialCuenta = is_object($flujo) ? $flujo->requiere_autorizacion_especial_cuenta : $flujo['requiere_autorizacion_especial_cuenta'];
+            $ordenCompraId = is_object($flujo) ? $flujo->requisicion_id : $flujo['requisicion_id'];
+            
+            error_log("Requiere autorización especial de pago: " . ($requiereEspecialPago ? 'SÍ' : 'NO'));
+            error_log("Requiere autorización especial de cuenta: " . ($requiereEspecialCuenta ? 'SÍ' : 'NO'));
 
             $pdo = self::getConnection();
             $pdo->beginTransaction();
 
             // 1. Autorización especial por método de pago
-            if ($flujo['requiere_autorizacion_especial_pago']) {
-                self::crearAutorizacionEspecialPago($flujoId, $flujo['orden_compra_id'], $pdo);
+            if ($requiereEspecialPago) {
+                self::crearAutorizacionEspecialPago($flujoId, $ordenCompraId, $pdo);
             }
 
             // 2. Autorización especial por cuenta contable
-            if ($flujo['requiere_autorizacion_especial_cuenta']) {
-                self::crearAutorizacionEspecialCuentas($flujoId, $flujo['orden_compra_id'], $pdo);
+            if ($requiereEspecialCuenta) {
+                self::crearAutorizacionEspecialCuentas($flujoId, $ordenCompraId, $pdo);
             }
 
             // Solo crear autorizaciones por centro cuando no hay especiales pendientes
@@ -542,11 +687,11 @@ class AutorizacionFlujo extends Model
                   AND tipo IN ('forma_pago', 'cuenta_contable')
                   AND estado = 'pendiente'
             ");
-            $stmt->execute([$flujo['orden_compra_id']]);
+            $stmt->execute([$ordenCompraId]);
             $pendientesEspeciales = (int)$stmt->fetchColumn();
 
             if ($pendientesEspeciales === 0) {
-                AutorizacionCentroCosto::crearParaFlujo($flujoId, $flujo['orden_compra_id']);
+                self::centrosRepo()->createFromDistribucion((int) $ordenCompraId);
             }
 
             $pdo->commit();
@@ -566,13 +711,13 @@ class AutorizacionFlujo extends Model
      */
     private static function crearAutorizacionEspecialPago($flujoId, $ordenCompraId, $pdo)
     {
-        // Obtener información de la orden para saber la forma de pago
-        $stmt = $pdo->prepare("SELECT forma_pago FROM orden_compra WHERE id = ?");
+        // Obtener información de la requisición para saber la forma de pago
+        $stmt = $pdo->prepare("SELECT forma_pago FROM requisiciones WHERE id = ?");
         $stmt->execute([$ordenCompraId]);
         $orden = $stmt->fetch(\PDO::FETCH_ASSOC);
         
         if (!$orden) {
-            error_log("⚠️ No se encontró la orden $ordenCompraId para autorización de pago");
+            error_log("⚠️ No se encontró la requisición $ordenCompraId para autorización de pago");
             return;
         }
 
@@ -646,7 +791,7 @@ class AutorizacionFlujo extends Model
             FROM distribucion_gasto dg
             JOIN cuenta_contable cc ON dg.cuenta_contable_id = cc.id
             JOIN autorizadores_cuentas_contables acc ON cc.id = acc.cuenta_contable_id
-            WHERE dg.orden_compra_id = ?
+            WHERE dg.requisicion_id = ?
         ");
         $stmt->execute([$ordenCompraId]);
         $cuentasEspeciales = $stmt->fetchAll(\PDO::FETCH_ASSOC);

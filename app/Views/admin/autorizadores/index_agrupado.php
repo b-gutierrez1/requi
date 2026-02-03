@@ -202,7 +202,7 @@ $title = 'Gestión de Autorizadores';
                 <p class="mb-0 opacity-75">Administra los autorizadores del sistema</p>
             </div>
             <div class="col-md-6 text-end">
-                <a href="/admin/autorizadores/create" class="btn btn-create">
+                <a href="<?= url('/admin/autorizadores/create') ?>" class="btn btn-create">
                     <i class="fas fa-plus me-2"></i>
                     Nuevo Autorizador
                 </a>
@@ -225,21 +225,21 @@ $title = 'Gestión de Autorizadores';
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-4 mb-3">
-                            <a href="/admin/autorizadores/respaldos" class="btn btn-outline-danger w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3" style="min-height: 120px;">
+                            <a href="<?= url('/admin/autorizadores/respaldos') ?>" class="btn btn-outline-danger w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3" style="min-height: 120px;">
                                 <i class="fas fa-hands-helping fa-2x mb-2 text-danger"></i>
                                 <strong>Autorizadores de Respaldo</strong>
                                 <small class="text-muted mt-1">Gestionar respaldos temporales</small>
                             </a>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <a href="/admin/autorizadores/metodos-pago" class="btn btn-outline-info w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3" style="min-height: 120px;">
+                            <a href="<?= url('/admin/autorizadores/metodos-pago') ?>" class="btn btn-outline-info w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3" style="min-height: 120px;">
                                 <i class="fas fa-credit-card fa-2x mb-2 text-info"></i>
                                 <strong>Por Método de Pago</strong>
                                 <small class="text-muted mt-1">Autorización por forma de pago</small>
                             </a>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <a href="/admin/autorizadores/cuentas-contables" class="btn btn-outline-purple w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3" style="min-height: 120px; border-color: #6f42c1; color: #6f42c1;">
+                            <a href="<?= url('/admin/autorizadores/cuentas-contables') ?>" class="btn btn-outline-purple w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3" style="min-height: 120px; border-color: #6f42c1; color: #6f42c1;">
                                 <i class="fas fa-calculator fa-2x mb-2" style="color: #6f42c1;"></i>
                                 <strong>Por Cuenta Contable</strong>
                                 <small class="text-muted mt-1">Autorización por cuenta específica</small>
@@ -287,13 +287,13 @@ $title = 'Gestión de Autorizadores';
     <div class="row mb-4">
         <div class="col-md-8">
             <div class="btn-group" role="group">
-                <a href="/admin/autorizadores" class="btn filter-btn active">
+                <a href="<?= url('/admin/autorizadores') ?>" class="btn filter-btn active">
                     Todos
                 </a>
-                <a href="/admin/autorizadores?filtro=activos" class="btn filter-btn">
+                <a href="<?= url('/admin/autorizadores?filtro=activos') ?>" class="btn filter-btn">
                     Activos
                 </a>
-                <a href="/admin/autorizadores?filtro=inactivos" class="btn filter-btn">
+                <a href="<?= url('/admin/autorizadores?filtro=inactivos') ?>" class="btn filter-btn">
                     Inactivos
                 </a>
             </div>
@@ -451,12 +451,12 @@ $title = 'Gestión de Autorizadores';
                             </div>
                             <div class="col-md-2 text-end">
                                 <div class="btn-group btn-group-sm">
-                                    <a href="/admin/autorizadores/<?= View::e($autorizador->id ?? '') ?>"
+                                    <a href="<?= url('/admin/autorizadores/' . View::e($autorizador->id ?? '')) ?>"
                                        class="btn btn-outline-primary btn-action"
                                        title="Ver detalles">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="/admin/autorizadores/<?= View::e($autorizador->id ?? '') ?>/edit"
+                                    <a href="<?= url('/admin/autorizadores/' . View::e($autorizador->id ?? '') . '/edit') ?>"
                                        class="btn btn-outline-warning btn-action"
                                        title="Editar">
                                         <i class="fas fa-edit"></i>
@@ -466,7 +466,7 @@ $title = 'Gestión de Autorizadores';
                                             onclick="consolidarAutorizador('<?= View::e($email) ?>', '<?= View::e($autorizador->nombre) ?>')">
                                         <i class="fas fa-compress-arrows-alt"></i>
                                     </button>
-                                    <a href="/admin/autorizadores/<?= View::e($autorizador->id ?? '') ?>/delete"
+                                    <a href="<?= url('/admin/autorizadores/' . View::e($autorizador->id ?? '') . '/delete') ?>"
                                        class="btn btn-outline-danger btn-action"
                                        title="Eliminar"
                                        onclick="return confirm('¿Estás seguro de eliminar este autorizador?')">
@@ -542,7 +542,7 @@ $title = 'Gestión de Autorizadores';
                     <i class="fas fa-user-shield"></i>
                     <h4>No hay autorizadores</h4>
                     <p class="mb-3">No se encontraron autorizadores en el sistema.</p>
-                    <a href="/admin/autorizadores/create" class="btn btn-create">
+                    <a href="<?= url('/admin/autorizadores/create') ?>" class="btn btn-create">
                         <i class="fas fa-plus me-2"></i>Crear Primer Autorizador
                     </a>
                 </div>
@@ -553,13 +553,13 @@ $title = 'Gestión de Autorizadores';
     <!-- Acciones Rápidas -->
     <div class="row mt-4">
         <div class="col-12 text-center">
-            <a href="/admin" class="btn btn-outline-secondary me-2">
+            <a href="<?= url('/admin') ?>" class="btn btn-outline-secondary me-2">
                 <i class="fas fa-arrow-left me-2"></i>Volver al Admin
             </a>
-            <a href="/dashboard" class="btn btn-outline-primary me-2">
+            <a href="<?= url('/dashboard') ?>" class="btn btn-outline-primary me-2">
                 <i class="fas fa-home me-2"></i>Dashboard
             </a>
-            <a href="/admin/autorizadores/create" class="btn btn-create">
+            <a href="<?= url('/admin/autorizadores/create') ?>" class="btn btn-create">
                 <i class="fas fa-plus me-2"></i>Nuevo Autorizador
             </a>
         </div>
@@ -749,7 +749,7 @@ $title = 'Gestión de Autorizadores';
             btn.classList.remove('active');
         });
         
-        const activeBtn = document.querySelector(`a[href="/admin/autorizadores?filtro=${filtro}"]`);
+        const activeBtn = document.querySelector(`a[href="<?= url('/admin/autorizadores') ?>?filtro=${filtro}"]`);
         if (activeBtn) {
             activeBtn.classList.add('active');
         }

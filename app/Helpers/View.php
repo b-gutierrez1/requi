@@ -519,13 +519,44 @@ class View
      * Formatea un número como moneda
      * 
      * @param float $amount Cantidad
-     * @param string $currency Símbolo de moneda
+     * @param string $currency Código o símbolo de moneda (GTQ, USD, EUR, Q, $, etc.)
      * @return string Cantidad formateada
      */
     public static function money($amount, $currency = 'Q')
     {
         $amount = $amount ?? 0;
-        return $currency . ' ' . number_format((float)$amount, 2, '.', ',');
+        
+        // Mapeo de códigos de moneda a símbolos
+        $currencySymbols = [
+            'GTQ' => 'Q',
+            'USD' => '$',
+            'EUR' => '€',
+            'Q' => 'Q',      // Mantener compatibilidad con símbolo directo
+            '$' => '$',
+            '€' => '€',
+        ];
+        
+        // Obtener el símbolo correcto
+        $symbol = $currencySymbols[$currency] ?? $currency;
+        
+        return $symbol . ' ' . number_format((float)$amount, 2, '.', ',');
+    }
+    
+    /**
+     * Obtiene el símbolo de una moneda basado en su código
+     * 
+     * @param string $currencyCode Código de moneda (GTQ, USD, EUR)
+     * @return string Símbolo de la moneda
+     */
+    public static function getCurrencySymbol($currencyCode)
+    {
+        $symbols = [
+            'GTQ' => 'Q',
+            'USD' => '$',
+            'EUR' => '€',
+        ];
+        
+        return $symbols[$currencyCode] ?? $currencyCode;
     }
 
     /**

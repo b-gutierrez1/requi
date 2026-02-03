@@ -183,8 +183,8 @@ class AutorizadorMetodoPago extends Model
                     af.estado,
                     amp.metodo_pago,
                     amp.descripcion as motivo_autorizacion
-                FROM orden_compra oc
-                INNER JOIN autorizacion_flujo af ON oc.id = af.orden_compra_id
+                FROM requisiciones oc
+                INNER JOIN autorizacion_flujo af ON oc.id = af.requisicion_id
                 INNER JOIN autorizadores_metodos_pago amp ON oc.forma_pago = amp.metodo_pago
                 WHERE amp.autorizador_email = ?
                 AND af.estado = 'pendiente_autorizacion_pago'
@@ -205,8 +205,8 @@ class AutorizadorMetodoPago extends Model
     public static function contarPendientes($email)
     {
         $sql = "SELECT COUNT(*) as total
-                FROM orden_compra oc
-                INNER JOIN autorizacion_flujo af ON oc.id = af.orden_compra_id
+                FROM requisiciones oc
+                INNER JOIN autorizacion_flujo af ON oc.id = af.requisicion_id
                 INNER JOIN autorizadores_metodos_pago amp ON oc.forma_pago = amp.metodo_pago
                 WHERE amp.autorizador_email = ?
                 AND af.estado = 'pendiente_autorizacion_pago'";
@@ -232,8 +232,8 @@ class AutorizadorMetodoPago extends Model
                     SUM(CASE WHEN af.estado = 'rechazado_autorizacion' THEN 1 ELSE 0 END) as rechazadas,
                     SUM(CASE WHEN af.estado = 'pendiente_autorizacion_pago' THEN 1 ELSE 0 END) as pendientes,
                     SUM(oc.monto_total) as monto_total
-                FROM orden_compra oc
-                INNER JOIN autorizacion_flujo af ON oc.id = af.orden_compra_id
+                FROM requisiciones oc
+                INNER JOIN autorizacion_flujo af ON oc.id = af.requisicion_id
                 WHERE oc.forma_pago = ?";
         
         $stmt = self::getConnection()->prepare($sql);

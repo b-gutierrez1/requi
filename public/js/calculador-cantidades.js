@@ -191,7 +191,7 @@ class CalculadorCantidades {
         // Actualizar el campo de total general
         const totalGeneralElement = document.getElementById('totalGeneral');
         if (totalGeneralElement) {
-            totalGeneralElement.textContent = `Q ${total.toFixed(2)}`;
+            totalGeneralElement.textContent = `Q ${total.toFixed(5)}`;
         }
         
         // Actualizar el campo hidden si existe
@@ -288,13 +288,13 @@ class CalculadorCantidades {
                 // Actualizar porcentaje
                 const porcentajeCell = fila.querySelector('.porcentaje-factura');
                 if (porcentajeCell) {
-                    porcentajeCell.textContent = `${datosFactura.porcentaje.toFixed(2)}%`;
+                    porcentajeCell.textContent = `${datosFactura.porcentaje.toFixed(5)}%`;
                 }
                 
                 // Actualizar monto
                 const montoCell = fila.querySelector('.monto-factura');
                 if (montoCell) {
-                    montoCell.textContent = `Q ${datosFactura.monto.toFixed(2)}`;
+                    montoCell.textContent = `Q ${datosFactura.monto.toFixed(5)}`;
                 }
             }
         });
@@ -307,11 +307,11 @@ class CalculadorCantidades {
         const totalMontoElement = document.getElementById('totalMontoFacturas');
         
         if (totalPorcentajeElement) {
-            totalPorcentajeElement.textContent = `${totalPorcentaje.toFixed(2)}%`;
+            totalPorcentajeElement.textContent = `${totalPorcentaje.toFixed(5)}%`;
         }
         
         if (totalMontoElement) {
-            totalMontoElement.textContent = `Q ${totalMonto.toFixed(2)}`;
+            totalMontoElement.textContent = `Q ${totalMonto.toFixed(5)}`;
         }
     }
 
@@ -334,7 +334,7 @@ class CalculadorCantidades {
         // Mostrar indicador visual
         const indicadorPorcentaje = document.getElementById('indicadorPorcentaje');
         if (indicadorPorcentaje) {
-            indicadorPorcentaje.textContent = `${totalPorcentaje.toFixed(2)}%`;
+            indicadorPorcentaje.textContent = `${totalPorcentaje.toFixed(5)}%`;
             indicadorPorcentaje.className = esValido ? 'text-success fw-bold' : 'text-danger fw-bold';
         }
         
@@ -345,7 +345,7 @@ class CalculadorCantidades {
                 mensajeValidacion.textContent = '✓ Los porcentajes suman correctamente';
                 mensajeValidacion.className = 'text-success small';
             } else {
-                mensajeValidacion.textContent = `⚠ Los porcentajes deben sumar exactamente 100% (actual: ${totalPorcentaje.toFixed(2)}%)`;
+                mensajeValidacion.textContent = `⚠ Los porcentajes deben sumar exactamente 100% (actual: ${totalPorcentaje.toFixed(5)}%)`;
                 mensajeValidacion.className = 'text-danger small';
             }
         }
@@ -356,7 +356,7 @@ class CalculadorCantidades {
             submitBtn.disabled = !esValido;
         }
         
-        console.log(`Validación de porcentajes: ${totalPorcentaje.toFixed(2)}% - ${esValido ? 'VÁLIDO' : 'INVÁLIDO'}`);
+        console.log(`Validación de porcentajes: ${totalPorcentaje.toFixed(5)}% - ${esValido ? 'VÁLIDO' : 'INVÁLIDO'}`);
         
         return esValido;
     }

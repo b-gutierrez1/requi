@@ -10,6 +10,7 @@
 .env
 .env.local
 .env.*.local
+.env.production
 
 # Configuraciones personales
 config/local.php
@@ -112,6 +113,7 @@ yarn-error.log*
 # Archivos adjuntos
 /storage/uploads/*
 !/storage/uploads/.gitkeep
+/public/uploads/
 
 # =============================================================================
 # CACHE Y SESIONES
@@ -182,10 +184,16 @@ phpunit.xml
 /config/development.php
 /config/local/
 
-# Archivos de prueba
+# Archivos de prueba y debug
 test.php
 prueba.php
 debug.php
+debug_*.php
+test_*.php
+test_*.html
+test_*.js
+/tmp/
+requi-mvc
 
 # Archivos de análisis
 /reports/

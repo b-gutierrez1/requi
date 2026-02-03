@@ -77,6 +77,60 @@ $title = 'Editar Autorizador de Método de Pago';
         margin-bottom: 10px;
         border-left: 4px solid #17a2b8;
     }
+    
+    /* Toggle Switch Styles */
+    .toggle-switch {
+        width: 60px;
+        height: 30px;
+        position: relative;
+        cursor: pointer;
+        margin: 0;
+    }
+    
+    .toggle-switch:checked {
+        background-color: #17a2b8;
+        border-color: #17a2b8;
+    }
+    
+    .toggle-switch:focus {
+        border-color: #17a2b8;
+        box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+    }
+    
+    .toggle-label {
+        margin-left: 10px;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .toggle-text-on, .toggle-text-off {
+        display: none;
+    }
+    
+    .toggle-switch:checked + .toggle-label .toggle-text-on {
+        display: inline;
+        color: #17a2b8;
+    }
+    
+    .toggle-switch:not(:checked) + .toggle-label .toggle-text-off {
+        display: inline;
+        color: #6c757d;
+    }
+    
+    .form-switch .form-check-input {
+        width: 60px;
+        height: 30px;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
+        background-position: left center;
+        background-size: contain;
+        transition: all 0.3s ease;
+    }
+    
+    .form-switch .form-check-input:checked {
+        background-position: right center;
+        background-color: #17a2b8;
+        border-color: #17a2b8;
+    }
 </style>
 
 <div class="main-header">
@@ -87,7 +141,7 @@ $title = 'Editar Autorizador de Método de Pago';
                 <p class="mb-0 opacity-75">Modificar configuración del autorizador por método de pago</p>
             </div>
             <div class="col-md-4 text-end">
-                <a href="/admin/autorizadores/metodos-pago" class="btn btn-light">
+                <a href="<?= url('/admin/autorizadores/metodos-pago') ?>" class="btn btn-light">
                     <i class="fas fa-arrow-left me-2"></i>Volver a la Lista
                 </a>
             </div>
@@ -110,7 +164,7 @@ $title = 'Editar Autorizador de Método de Pago';
             <?php endif; ?>
 
             <div class="form-container">
-                <form method="POST" action="/admin/autorizadores/metodos-pago/<?= urlencode($autorizador['email']) ?>/edit">
+                <form method="POST" action="/admin/autorizadores/metodos-pago/<?= $autorizador['id'] ?? 'unknown' ?>">
                     <?= CsrfMiddleware::field() ?>
                     <input type="hidden" name="_method" value="PUT">
                     
@@ -168,24 +222,27 @@ $title = 'Editar Autorizador de Método de Pago';
                             <i class="fas fa-toggle-on"></i>Estado del Autorizador
                         </h3>
                         
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="activo" name="activo" value="1" 
-                                   <?= (!isset($autorizador['activo']) || $autorizador['activo']) ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="activo">
-                                <strong>Autorizador Activo</strong>
-                                <br>
-                                <small class="text-muted">
-                                    Si está marcado, este autorizador puede aprobar métodos de pago. 
-                                    Si no está marcado, el autorizador estará deshabilitado.
-                                </small>
-                            </label>
-                        </div>
-                        
-                        <div class="current-value mt-3">
-                            <strong>Estado actual:</strong>
-                            <span class="badge <?= (!isset($autorizador['activo']) || $autorizador['activo']) ? 'bg-success' : 'bg-danger' ?>">
-                                <?= (!isset($autorizador['activo']) || $autorizador['activo']) ? 'Activo' : 'Inactivo' ?>
-                            </span>
+                        <div class="switch-container">
+                            <div class="flex-grow-1">
+                                <label class="switch-label" for="activo">
+                                    <i class="fas fa-power-off me-2 text-info"></i>
+                                    Control de Estado
+                                </label>
+                                <p class="switch-description">
+                                    Si está activado, este autorizador puede aprobar métodos de pago
+                                </p>
+                                <div class="current-value mt-2">
+                                    <small><strong>Estado actual:</strong>
+                                    <span class="badge <?= (!isset($autorizador['activo']) || $autorizador['activo']) ? 'bg-success' : 'bg-danger' ?>">
+                                        <?= (!isset($autorizador['activo']) || $autorizador['activo']) ? 'Activo' : 'Inactivo' ?>
+                                    </span></small>
+                                </div>
+                            </div>
+                            <div class="custom-switch custom-switch-info">
+                                <input type="checkbox" name="activo" id="activo" value="1" 
+                                       <?= (!isset($autorizador['activo']) || $autorizador['activo']) ? 'checked' : '' ?>>
+                                <span class="custom-switch-slider" onclick="toggleSwitchContainer(this)"></span>
+                            </div>
                         </div>
                     </div>
 
@@ -194,7 +251,7 @@ $title = 'Editar Autorizador de Método de Pago';
                             <button type="submit" class="btn btn-primary me-3">
                                 <i class="fas fa-save me-2"></i>Guardar Cambios
                             </button>
-                            <a href="/admin/autorizadores/metodos-pago" class="btn btn-secondary">
+                            <a href="<?= url('/admin/autorizadores/metodos-pago') ?>" class="btn btn-secondary">
                                 <i class="fas fa-times me-2"></i>Cancelar
                             </a>
                         </div>
@@ -223,6 +280,45 @@ document.addEventListener('DOMContentLoaded', function() {
             this.classList.remove('is-valid');
         }
     });
+    
+    // Toggle switch functionality
+    const toggleSwitch = document.getElementById('activo');
+    const currentStateBadge = document.querySelector('.current-value .badge');
+    
+    if (toggleSwitch && currentStateBadge) {
+        toggleSwitch.addEventListener('change', function() {
+            if (this.checked) {
+                currentStateBadge.className = 'badge bg-success';
+                currentStateBadge.textContent = 'Activo';
+            } else {
+                currentStateBadge.className = 'badge bg-danger';
+                currentStateBadge.textContent = 'Inactivo';
+            }
+        });
+    }
 });
+
+// ========================================================================
+// FUNCIÓN PARA SWITCHES MODERNOS
+// ========================================================================
+
+function toggleSwitchContainer(slider) {
+    const checkbox = slider.parentElement.querySelector('input[type="checkbox"]');
+    const container = slider.closest('.switch-container');
+    
+    // Toggle checkbox
+    checkbox.checked = !checkbox.checked;
+    
+    // Add animation class
+    container.classList.add('toggling');
+    
+    // Remove animation class after animation completes
+    setTimeout(() => {
+        container.classList.remove('toggling');
+    }, 200);
+    
+    // Dispatch change event for any listeners
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+}
 </script>
 <?php View::endSection(); ?>

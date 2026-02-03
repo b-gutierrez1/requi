@@ -12,6 +12,7 @@
 namespace App\Controllers;
 
 use App\Helpers\Config;
+use App\Helpers\Redirect;
 
 abstract class Controller
 {
@@ -42,7 +43,8 @@ abstract class Controller
      */
     protected function isAuthenticated()
     {
-        return isset($this->session['user_id']) && !empty($this->session['user_id']);
+        // Usar $_SESSION directamente
+        return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
     }
 
     /**
@@ -52,13 +54,15 @@ abstract class Controller
      */
     protected function getUsuarioId()
     {
+        // IMPORTANTE: Usar $_SESSION directamente para obtener datos actualizados
+        
         // Priorizar el ID de la estructura nueva del usuario
-        if (isset($this->session['user']) && is_array($this->session['user']) && !empty($this->session['user']['id'])) {
-            return $this->session['user']['id'];
+        if (isset($_SESSION['user']) && is_array($_SESSION['user']) && !empty($_SESSION['user']['id'])) {
+            return $_SESSION['user']['id'];
         }
         
         // Fallback a la estructura legacy
-        return $this->session['user_id'] ?? null;
+        return $_SESSION['user_id'] ?? null;
     }
 
     /**
@@ -68,13 +72,37 @@ abstract class Controller
      */
     protected function getUsuarioEmail()
     {
+        // IMPORTANTE: Usar $_SESSION directamente para obtener datos actualizados
+        // (no usar $this->session que puede estar desactualizado)
+        
         // Priorizar el email de la estructura nueva del usuario
-        if (isset($this->session['user']) && is_array($this->session['user']) && !empty($this->session['user']['email'])) {
-            return $this->session['user']['email'];
+        if (isset($_SESSION['user']) && is_array($_SESSION['user']) && !empty($_SESSION['user']['email'])) {
+            return $_SESSION['user']['email'];
         }
         
         // Fallback a la estructura legacy
-        return $this->session['user_email'] ?? null;
+        return $_SESSION['user_email'] ?? null;
+    }
+
+    /**
+     * Obtiene el email del usuario autenticado o fuerza reautenticación.
+     *
+     * @return string
+     */
+    protected function requireUsuarioEmail()
+    {
+        $email = $this->getUsuarioEmail();
+
+        if (!empty($email)) {
+            return $email;
+        }
+
+        error_log(static::class . ': requireUsuarioEmail() - email no disponible, redirigiendo a login');
+
+        Redirect::to('/login')
+            ->withError('Tu sesión ha expirado. Inicia sesión nuevamente para continuar.')
+            ->send();
+        exit;
     }
 
     /**
@@ -282,7 +310,8 @@ abstract class Controller
                  $_SERVER['HTTP_X_CSRF_TOKEN'] ?? 
                  '';
         
-        $sessionToken = $this->session['csrf_token'] ?? '';
+        // Usar $_SESSION directamente
+        $sessionToken = $_SESSION['csrf_token'] ?? '';
         
         return !empty($token) && !empty($sessionToken) && hash_equals($sessionToken, $token);
     }
@@ -434,5 +463,18 @@ abstract class Controller
     {
         session_destroy();
         $this->session = [];
+    }
+
+    /**
+     * Verifica si un usuario es revisor por su email
+     * 
+     * @param string $usuarioEmail
+     * @return bool
+     */
+    protected function isRevisorPorEmail($usuarioEmail)
+    {
+        // Solo verificar el flag is_revisor de la base de datos (vía sesión)
+        // Ya no se usa verificación por dominio de email
+        return $this->isRevisor();
     }
 }

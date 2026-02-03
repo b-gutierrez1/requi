@@ -99,7 +99,7 @@
             ?>
         </p>
         
-        <a href="/" class="btn-home">
+        <a href="<?= url('/') ?>" class="btn-home">
             <i class="fas fa-home me-2"></i>
             Volver al Inicio
         </a>

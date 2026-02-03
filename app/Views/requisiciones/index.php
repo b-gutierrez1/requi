@@ -1,5 +1,6 @@
 <?php
 use App\Helpers\View;
+use App\Helpers\EstadoHelper;
 
 View::startSection('content');
 ?>
@@ -12,16 +13,19 @@ View::startSection('content');
             <h1 class="h3 mb-2">
                 <i class="fas fa-file-alt me-2"></i>
                 Mis Requisiciones
+                <?php if (isset($paginacion)): ?>
+                <span class="badge bg-secondary fs-6"><?= $paginacion['total_requisiciones'] ?></span>
+                <?php endif; ?>
             </h1>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="<?= url('/dashboard') ?>">Dashboard</a></li>
                     <li class="breadcrumb-item active">Requisiciones</li>
                 </ol>
             </nav>
         </div>
         <div class="col-md-4 text-end">
-            <a href="/requisiciones/crear" class="btn btn-primary">
+            <a href="<?= url('/requisiciones/crear') ?>" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>
                 Nueva Requisición
             </a>
@@ -31,7 +35,7 @@ View::startSection('content');
     <!-- Filtros -->
     <div class="card mb-4">
         <div class="card-body">
-            <form method="GET" action="/requisiciones" class="row g-3">
+            <form method="GET" action="<?= url('/requisiciones') ?>" class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Estado</label>
                     <select name="estado" class="form-select">
@@ -80,7 +84,7 @@ View::startSection('content');
                         <i class="fas fa-filter me-2"></i>
                         Filtrar
                     </button>
-                    <a href="/requisiciones" class="btn btn-outline-secondary">
+                    <a href="<?= url('/requisiciones') ?>" class="btn btn-outline-secondary">
                         <i class="fas fa-times me-2"></i>
                         Limpiar
                     </a>
@@ -110,7 +114,7 @@ View::startSection('content');
                         Comienza creando tu primera requisición
                     <?php endif; ?>
                 </p>
-                <a href="/requisiciones/crear" class="btn btn-primary">
+                <a href="<?= url('/requisiciones/crear') ?>" class="btn btn-primary">
                     <i class="fas fa-plus me-2"></i>
                     Nueva Requisición
                 </a>
@@ -157,7 +161,7 @@ View::startSection('content');
                                 <small><?php echo View::formatDate($req->fecha); ?></small>
                             </td>
                             <td class="text-end">
-                                <strong><?php echo View::money($req->monto_total); ?></strong>
+                                <strong><?php echo View::money($req->monto_total, $req->moneda ?? 'GTQ'); ?></strong>
                             </td>
                             <td class="text-center">
                                 <?php
@@ -200,7 +204,7 @@ View::startSection('content');
                             <td class="text-center">
                                 <div class="btn-group" role="group">
                                     <!-- DEBUG: ID = <?php echo $req->id ?? 'NULL'; ?> -->
-                                    <a href="/requisiciones/<?php echo $req->id; ?>" 
+                                    <a href="<?= url('/requisiciones/' . $req->id) ?>" 
                                        class="btn btn-sm btn-outline-primary" 
                                        title="Ver detalle"
                                        onclick="console.log('Navegando a ID:', <?php echo $req->id; ?>); return true;">
@@ -208,17 +212,23 @@ View::startSection('content');
                                     </a>
                                     
                                     <?php 
-                                    // Solo permitir editar si está en estado pendiente_revision o rechazado_revision
-                                    if ($flujo && in_array($flujo->estado, ['pendiente_revision', 'rechazado_revision'])): 
+                                    // Solo permitir editar si:
+                                    // 1. El usuario es el creador de la requisición
+                                    // 2. La requisición está en estado "rechazado"
+                                    $usuarioActual = $_SESSION['user_id'] ?? null;
+                                    $estadoReal = EstadoHelper::getEstado($req->id);
+                                    $puedeEditar = ($usuarioActual == $req->usuario_id) && ($estadoReal === 'rechazado');
+                                    
+                                    if ($puedeEditar): 
                                     ?>
-                                    <a href="/requisiciones/<?php echo $req->id; ?>/editar" 
+                                    <a href="<?= url('/requisiciones/' . $req->id . '/editar') ?>" 
                                        class="btn btn-sm btn-outline-secondary" 
-                                       title="Editar">
+                                       title="Editar (solo disponible cuando está rechazado)">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     <?php endif; ?>
                                     
-                                    <a href="/requisiciones/<?php echo $req->id; ?>/imprimir" 
+                                    <a href="<?= url('/requisiciones/' . $req->id . '/imprimir') ?>" 
                                        class="btn btn-sm btn-outline-info" 
                                        target="_blank"
                                        title="Imprimir">
@@ -243,6 +253,91 @@ View::startSection('content');
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Paginación -->
+            <?php if (isset($paginacion)): ?>
+            <div class="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="text-muted">
+                        Mostrando <?= (($paginacion['pagina_actual'] - 1) * $paginacion['por_pagina']) + 1 ?> 
+                        - <?= min($paginacion['pagina_actual'] * $paginacion['por_pagina'], $paginacion['total_requisiciones']) ?> 
+                        de <?= $paginacion['total_requisiciones'] ?> requisiciones
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="por_pagina" class="text-muted small mb-0">Mostrar:</label>
+                        <select id="por_pagina" class="form-select form-select-sm" style="width: auto;" onchange="cambiarPorPagina(this.value)">
+                            <option value="5" <?= $paginacion['por_pagina'] == 5 ? 'selected' : '' ?>>5</option>
+                            <option value="10" <?= $paginacion['por_pagina'] == 10 ? 'selected' : '' ?>>10</option>
+                            <option value="15" <?= $paginacion['por_pagina'] == 15 ? 'selected' : '' ?>>15</option>
+                            <option value="20" <?= $paginacion['por_pagina'] == 20 ? 'selected' : '' ?>>20</option>
+                            <option value="25" <?= $paginacion['por_pagina'] == 25 ? 'selected' : '' ?>>25</option>
+                            <option value="50" <?= $paginacion['por_pagina'] == 50 ? 'selected' : '' ?>>50</option>
+                            <option value="100" <?= $paginacion['por_pagina'] == 100 ? 'selected' : '' ?>>100</option>
+                        </select>
+                    </div>
+                </div>
+                <?php if ($paginacion['total_paginas'] > 1): ?>
+                <nav aria-label="Paginación de requisiciones">
+                    <ul class="pagination mb-0">
+                        <?php 
+                        // Construir URL base con filtros y por_pagina
+                        $params = array_merge(array_filter($filtros), ['por_pagina' => $paginacion['por_pagina']]);
+                        $urlBase = url('/requisiciones') . '?' . http_build_query($params);
+                        $separador = '&';
+                        ?>
+                        
+                        <!-- Primera página -->
+                        <li class="page-item <?= $paginacion['pagina_actual'] <= 1 ? 'disabled' : '' ?>">
+                            <a class="page-link" href="<?= $urlBase . $separador ?>pagina=1" title="Primera página">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        
+                        <!-- Página anterior -->
+                        <li class="page-item <?= $paginacion['pagina_actual'] <= 1 ? 'disabled' : '' ?>">
+                            <a class="page-link" href="<?= $urlBase . $separador ?>pagina=<?= $paginacion['pagina_actual'] - 1 ?>">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                        
+                        <?php
+                        // Mostrar números de página
+                        $inicio = max(1, $paginacion['pagina_actual'] - 2);
+                        $fin = min($paginacion['total_paginas'], $paginacion['pagina_actual'] + 2);
+                        
+                        if ($inicio > 1): ?>
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        <?php endif;
+                        
+                        for ($i = $inicio; $i <= $fin; $i++): ?>
+                            <li class="page-item <?= $i == $paginacion['pagina_actual'] ? 'active' : '' ?>">
+                                <a class="page-link" href="<?= $urlBase . $separador ?>pagina=<?= $i ?>"><?= $i ?></a>
+                            </li>
+                        <?php endfor;
+                        
+                        if ($fin < $paginacion['total_paginas']): ?>
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        <?php endif; ?>
+                        
+                        <!-- Página siguiente -->
+                        <li class="page-item <?= $paginacion['pagina_actual'] >= $paginacion['total_paginas'] ? 'disabled' : '' ?>">
+                            <a class="page-link" href="<?= $urlBase . $separador ?>pagina=<?= $paginacion['pagina_actual'] + 1 ?>">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        
+                        <!-- Última página -->
+                        <li class="page-item <?= $paginacion['pagina_actual'] >= $paginacion['total_paginas'] ? 'disabled' : '' ?>">
+                            <a class="page-link" href="<?= $urlBase . $separador ?>pagina=<?= $paginacion['total_paginas'] ?>" title="Última página">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+            
             <?php endif; ?>
         </div>
     </div>
@@ -255,6 +350,16 @@ View::startSection('scripts');
 ?>
 <script>
 // Los efectos se aplican automáticamente por el CSS y JS global
+
+function cambiarPorPagina(valor) {
+    // Obtener parámetros actuales de la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('por_pagina', valor);
+    urlParams.set('pagina', '1'); // Resetear a la primera página
+    
+    // Redirigir con los nuevos parámetros
+    window.location.href = '<?= url('/requisiciones') ?>?' + urlParams.toString();
+}
 
 function eliminarRequisicion(id) {
     if (!confirm('¿Estás seguro de eliminar esta requisición? Esta acción no se puede deshacer.')) {

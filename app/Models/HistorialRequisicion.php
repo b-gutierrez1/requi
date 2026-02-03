@@ -13,32 +13,34 @@ namespace App\Models;
 
 class HistorialRequisicion extends Model
 {
-    protected static $table = 'historial_requisicion';
+    protected static $table = 'historial_requisiciones';
     protected static $primaryKey = 'id';
     protected static $timestamps = false;
 
     protected static $fillable = [
-        'orden_compra_id',
-        'tipo_evento',
+        'requisicion_id',
+        'accion',              // Columna real en BD (antes tipo_evento)
         'usuario_email',
         'descripcion',
-        'fecha',
+        'fecha_cambio',        // Columna real en BD (antes fecha)
+        'estado_anterior',
+        'estado_nuevo',
     ];
 
     protected static $guarded = ['id'];
 
     /**
-     * Obtiene la orden de compra asociada
+     * Obtiene la requisición asociada
      * 
-     * @return array|null
+     * @return Requisicion|null
      */
     public function ordenCompra()
     {
-        if (!isset($this->attributes['orden_compra_id'])) {
+        if (!isset($this->attributes['requisicion_id'])) {
             return null;
         }
 
-        return OrdenCompra::find($this->attributes['orden_compra_id']);
+        return Requisicion::find($this->attributes['requisicion_id']);
     }
 
     /**
@@ -61,12 +63,16 @@ class HistorialRequisicion extends Model
      * @param int $ordenCompraId
      * @return array
      */
-    public static function porOrdenCompra($ordenCompraId)
+    public static function porRequisicion($ordenCompraId)
     {
-        $sql = "SELECT h.*, h.usuario_email as usuario_nombre
+        // Usar columnas reales de la BD
+        $sql = "SELECT h.*, 
+                       h.accion as tipo_evento,
+                       h.fecha_cambio as fecha,
+                       h.usuario_email as usuario_nombre
                 FROM " . static::$table . " h
-                WHERE h.orden_compra_id = ?
-                ORDER BY h.fecha DESC";
+                WHERE h.requisicion_id = ?
+                ORDER BY h.fecha_cambio DESC";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$ordenCompraId]);
@@ -88,11 +94,11 @@ class HistorialRequisicion extends Model
     {
         try {
             return self::create([
-                'orden_compra_id' => $ordenCompraId,
-                'tipo_evento' => $evento,
+                'requisicion_id' => $ordenCompraId,
+                'accion' => $evento,                    // Columna correcta en BD
                 'usuario_email' => $usuarioEmail,
                 'descripcion' => $descripcion,
-                'fecha' => date('Y-m-d H:i:s'),
+                'fecha_cambio' => date('Y-m-d H:i:s'),  // Columna correcta en BD
             ]);
         } catch (\Exception $e) {
             error_log("Error registrando historial: " . $e->getMessage());
@@ -118,7 +124,7 @@ class HistorialRequisicion extends Model
         }
 
         return self::create([
-            'orden_compra_id' => $ordenCompraId,
+            'requisicion_id' => $ordenCompraId,
             'usuario_id' => $usuarioId,
             'evento' => 'cambio_estado',
             'descripcion' => $descripcion,
@@ -227,7 +233,7 @@ class HistorialRequisicion extends Model
         $sql = "SELECT h.*, u.azure_display_name as usuario_nombre
                 FROM {$instance->table} h
                 LEFT JOIN usuarios u ON h.usuario_id = u.id
-                WHERE h.orden_compra_id = ? AND h.evento = ?
+                WHERE h.requisicion_id = ? AND h.evento = ?
                 ORDER BY h.fecha_cambio DESC";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -249,7 +255,7 @@ class HistorialRequisicion extends Model
         $sql = "SELECT h.*, u.azure_display_name as usuario_nombre
                 FROM {$instance->table} h
                 LEFT JOIN usuarios u ON h.usuario_id = u.id
-                WHERE h.orden_compra_id = ?
+                WHERE h.requisicion_id = ?
                 ORDER BY h.fecha_cambio DESC
                 LIMIT 1";
         
@@ -273,7 +279,7 @@ class HistorialRequisicion extends Model
                     evento,
                     COUNT(*) as total
                 FROM {$instance->table}
-                WHERE orden_compra_id = ?
+                WHERE requisicion_id = ?
                 GROUP BY evento";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -301,7 +307,7 @@ class HistorialRequisicion extends Model
         
         $sql = "SELECT DATEDIFF(NOW(), MIN(fecha_cambio)) as dias
                 FROM {$instance->table}
-                WHERE orden_compra_id = ? AND evento = 'creacion'";
+                WHERE requisicion_id = ? AND evento = 'creacion'";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$ordenCompraId]);
@@ -318,7 +324,7 @@ class HistorialRequisicion extends Model
      */
     public static function getTimeline($ordenCompraId)
     {
-        $historial = self::porOrdenCompra($ordenCompraId);
+        $historial = self::porRequisicion($ordenCompraId);
         
         $timeline = [];
         foreach ($historial as $evento) {

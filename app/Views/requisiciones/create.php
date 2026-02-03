@@ -111,32 +111,26 @@ View::startSection('content');
     }
     
     .loading-spinner {
-        background: white;
-        padding: 30px;
-        border-radius: 10px;
         text-align: center;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
-    
+
     .spinner {
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #00bfa5;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid #ffffff;
         border-radius: 50%;
         width: 50px;
         height: 50px;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 15px;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto;
     }
-    
+
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
-    
+
     .loading-text {
-        color: #333;
-        font-weight: 600;
-        margin: 0;
+        display: none;
     }
     
     /* Animaciones de validación */
@@ -302,76 +296,84 @@ View::startSection('content');
         box-shadow: 0 0 0 0.2rem rgba(0,191,165,0.15);
     }
 
-    /* Autocompletado cuenta contable */
-.cuenta-contable-wrapper { 
-    position: relative !important; 
-    z-index: 2147483646 !important; /* Z-index alto para el wrapper */
-    overflow: visible !important;
-    isolation: isolate; /* Crear nuevo contexto de apilamiento */
-}
-.cuenta-contable-suggestions { 
-    position: absolute; 
-    top: 100%; 
-    left: 0; 
-    right: 0; 
-    background: white; 
-    border: 1px solid #ddd; 
-    max-height: 250px; 
-    overflow-y: auto; 
-    z-index: 999999 !important; /* Z-index máximo para estar por encima de TODO */
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-    display: none;
-    border-radius: 4px;
-}
-.cuenta-contable-suggestions.show { 
-    display: block; 
-    z-index: 999999 !important; /* Asegurar z-index cuando se muestra */
-}
-.cuenta-suggestion-item { 
-    padding: 10px 15px; 
-    cursor: pointer; 
-    border-bottom: 1px solid #f0f0f0; 
-    transition: all 0.2s; 
-}
-.cuenta-suggestion-item:hover { background: #f8f9fa; }
-.cuenta-suggestion-item:last-child { border-bottom: none; }
-.cuenta-suggestion-codigo { font-weight: 600; color: #333; font-size: 13px; }
-.cuenta-suggestion-nombre { color: #666; font-size: 12px; margin-top: 2px; }
-.cuenta-loading, .cuenta-no-results { 
-    padding: 10px 15px; 
-    text-align: center; 
-    color: #999; 
-    font-size: 13px; 
-    font-style: italic;
-}
-
-/* Asegurar que las sugerencias estén por encima de todo */
-.cuenta-contable-suggestions {
-    position: absolute !important;
-    z-index: 999999 !important; /* Z-index máximo */
-    background: white !important;
-    border: 1px solid #ccc !important;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.2) !important;
-}
-
-/* Estilos específicos para sugerencias con posición fixed */
-.cuenta-contable-suggestions[style*="position: fixed"] {
-    position: fixed !important;
-    z-index: 999999 !important; /* Z-index máximo */
-    background: white !important;
-    border: 1px solid #ccc !important;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.2) !important;
-    border-radius: 4px;
-    max-height: 250px;
-    overflow-y: auto;
-}
-
-/* Ajustar el z-index de la tabla para que no interfiera */
+    /* Autocompletado cuenta contable - SOLUCIÓN PARA MÚLTIPLES FILAS */
+    
+/* La tabla y sus contenedores deben permitir overflow visible */
 .table-responsive {
     position: relative;
     z-index: 1;
     overflow: visible !important;
     margin-bottom: 15px;
+}
+
+.table {
+    overflow: visible !important;
+}
+
+.table tbody {
+    overflow: visible !important;
+}
+
+/* Las filas de distribución tienen z-index base bajo */
+.distribucion-row {
+    position: relative;
+    z-index: 1;
+}
+
+/* Cuando una fila tiene el dropdown activo, elevar su z-index */
+.distribucion-row.dropdown-active {
+    z-index: 9999 !important;
+}
+
+.table td {
+    overflow: visible !important;
+    position: relative;
+}
+
+/* Wrapper de cuenta contable */
+.cuenta-contable-wrapper { 
+    position: relative !important; 
+    overflow: visible !important;
+}
+
+/* El dropdown de sugerencias usa position: fixed para salir del flujo */
+.cuenta-contable-suggestions { 
+    position: fixed !important;  /* FIXED para salir de cualquier contenedor */
+    background: white; 
+    border: 2px solid #007bff; 
+    max-height: 300px; 
+    overflow-y: auto; 
+    z-index: 2147483647 !important; /* Z-index máximo absoluto */
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25); 
+    display: none;
+    border-radius: 6px;
+    min-width: 300px;
+}
+
+.cuenta-contable-suggestions.show { 
+    display: block !important; 
+}
+
+.cuenta-suggestion-item { 
+    padding: 12px 15px; 
+    cursor: pointer; 
+    border-bottom: 1px solid #f0f0f0; 
+    transition: all 0.2s; 
+    background: white;
+}
+.cuenta-suggestion-item:hover { 
+    background: #e3f2fd !important; 
+}
+.cuenta-suggestion-item:last-child { border-bottom: none; }
+.cuenta-suggestion-codigo { font-weight: 600; color: #333; font-size: 14px; }
+.cuenta-suggestion-nombre { color: #666; font-size: 12px; margin-top: 3px; }
+.cuenta-loading, .cuenta-no-results { 
+    padding: 12px 15px; 
+    text-align: center; 
+    color: #999; 
+    font-size: 13px; 
+    font-style: italic;
+    background: white;
 }
 
 /* Mejorar la tabla en dispositivos móviles */
@@ -389,43 +391,23 @@ View::startSection('content');
         font-size: 0.875rem;
         padding: 6px 8px;
     }
+    
+    .cuenta-contable-suggestions {
+        min-width: 250px;
+        max-width: 90vw;
+    }
 }
 
-/* Permitir que las sugerencias se salgan de la tabla */
-.table {
-    overflow: visible !important;
-}
-
-.table td {
-    overflow: visible !important;
-    position: relative;
-}
-
-/* Asegurar que los botones NO interfieran - z-index muy bajo */
+/* Asegurar que los botones NO interfieran */
 .btn-add-item {
     position: relative;
-    z-index: 1 !important; /* Z-index muy bajo para que las sugerencias lo cubran */
+    z-index: 1 !important;
 }
 
-/* Cuando hay sugerencias activas, OCULTAR completamente el botón */
-.cuenta-contable-suggestions.show ~ * .btn-add-item,
-.cuenta-contable-suggestions.show + * .btn-add-item,
-.cuenta-contable-suggestions.show ~ .btn-add-item,
-.cuenta-contable-suggestions.show + .btn-add-item,
-.cuenta-contable-suggestions.show ~ * * .btn-add-item,
-.cuenta-contable-suggestions.show + * * .btn-add-item {
-    z-index: -1 !important; /* Z-index negativo para ocultarlo completamente */
-    opacity: 0 !important; /* Completamente invisible */
-    pointer-events: none !important; /* Deshabilitar clics en el botón */
-    visibility: hidden !important; /* Ocultar visualmente */
-}
-
-/* Ocultar CUALQUIER botón cuando hay sugerencias activas */
+/* Ocultar botones cuando hay sugerencias activas */
 body:has(.cuenta-contable-suggestions.show) .btn-add-item {
-    z-index: -1 !important;
-    opacity: 0 !important;
+    opacity: 0.3 !important;
     pointer-events: none !important;
-    visibility: hidden !important;
 }
 
 /* REGLAS AGRESIVAS PARA SOBREPONERSE A TODO */
@@ -520,7 +502,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
 </style>
 
 <div class="container py-4" style="max-width: 1200px;">
-    <form id="requisicionForm" method="POST" action="/requisiciones" enctype="multipart/form-data">
+    <form id="requisicionForm" method="POST" action="<?= url('/requisiciones') ?>" enctype="multipart/form-data">
         <?php echo App\Middlewares\CsrfMiddleware::field(); ?>
         
         <div class="card-form">
@@ -532,6 +514,19 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
             <h1 class="form-title">
                 Requisición para compra de bienes y contratación de servicios
             </h1>
+            
+            <?php if (empty($cuentas_contables)): ?>
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <strong><i class="fas fa-exclamation-triangle"></i> Atención:</strong> 
+                No hay cuentas contables disponibles en el sistema. 
+                Las sugerencias de cuenta contable no funcionarán hasta que se agreguen registros activos.
+                <br>
+                <a href="<?= url('/admin/catalogos?tipo=cuentas') ?>" class="btn btn-sm btn-warning mt-2">
+                    <i class="fas fa-plus-circle me-1"></i> Ir a Gestión de Catálogos para agregar cuentas
+                </a>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <?php endif; ?>
             
             <!-- INFORMACIÓN GENERAL -->
             <h2 class="h5 mb-4" style="border-bottom: 2px solid #000; padding-bottom: 10px;">
@@ -550,8 +545,8 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                         <option value="">Seleccione...</option>
                         <?php if (!empty($unidades_requirentes)): ?>
                             <?php foreach ($unidades_requirentes as $unidad): ?>
-                                <option value="<?= $unidad->id ?>">
-                                    <?= View::e($unidad->nombre ?? $unidad->descripcion ?? 'Sin nombre') ?>
+                                <option value="<?= $unidad['id'] ?>">
+                                    <?= View::e($unidad['nombre'] ?? $unidad['descripcion'] ?? 'Sin nombre') ?>
                                 </option>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -602,7 +597,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                     <tbody id="itemsBody">
                         <tr class="item-row">
                             <td>
-                                <input type="number" class="form-control item-cantidad" name="items[0][cantidad]" min="1" step="0.01" value="1" required>
+                                <input type="number" class="form-control item-cantidad" name="items[0][cantidad]" min="1" step="1" value="1" required>
                             </td>
                             <td>
                                 <textarea class="form-control item-descripcion" name="items[0][descripcion]" rows="2" required></textarea>
@@ -631,6 +626,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
             <div class="total-display">
                 Total: <span id="totalGeneral">Q 0.00</span>
                 <input type="hidden" id="total_general" name="total_general" value="0">
+                <input type="hidden" id="moneda_simbolo" value="Q">
             </div>
         </div>
         
@@ -662,7 +658,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                     <input type="text" 
                                            class="form-control cuenta-contable-input" 
                                            name="distribucion[0][cuenta_contable_display]"
-                                           placeholder="Buscar cuenta..." 
+                                           placeholder="🔍 Clic aquí o escriba para buscar cuenta contable..." 
                                            autocomplete="off"
                                            data-index="0">
                                     <input type="hidden" 
@@ -676,56 +672,68 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                     <option value="">Seleccione...</option>
                                     <?php if (!empty($centros_costo)): ?>
                                         <?php foreach ($centros_costo as $centro): ?>
-                                            <option value="<?= $centro->id ?>">
-                                                <?= View::e($centro->nombre ?? $centro->descripcion ?? 'Sin nombre') ?>
+                                            <option value="<?= $centro['id'] ?>"
+                                                    data-unidad-negocio-id="<?= $centro['rel_unidad_negocio_id'] ?? $centro['unidad_negocio_id'] ?? '' ?>"
+                                                    data-unidad-negocio-nombre="<?= View::e($centro['unidad_negocio_nombre'] ?? 'UNIDAD DE NEGOCIO GENERAL') ?>"
+                                                    data-factura="<?= $centro['factura'] ?? 1 ?>">
+                                                <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
                                             </option>
                                         <?php endforeach; ?>
                                     <?php endif; ?>
                                 </select></td>
-                            <td><select class="form-select" name="distribucion[0][ubicacion_id]">
+                            <td><select class="form-select" name="distribucion[0][ubicacion_id]" required>
                                     <option value="">Seleccione...</option>
                                     <?php if (!empty($ubicaciones)): ?>
                                         <?php foreach ($ubicaciones as $ubicacion): ?>
-                                            <option value="<?= $ubicacion->id ?>">
-                                                <?= View::e($ubicacion->nombre ?? $ubicacion->descripcion ?? 'Sin nombre') ?>
+                                            <option value="<?= $ubicacion['id'] ?>">
+                                                <?= View::e($ubicacion['nombre'] ?? $ubicacion['descripcion'] ?? 'Sin nombre') ?>
                                             </option>
                                         <?php endforeach; ?>
                                     <?php endif; ?>
                                 </select></td>
-                            <td><select class="form-select" name="distribucion[0][unidad_negocio_id]">
-                                    <option value="">Seleccione...</option>
-                                    <?php if (!empty($unidades_negocio)): ?>
-                                        <?php foreach ($unidades_negocio as $unidad): ?>
-                                            <option value="<?= $unidad->id ?>">
-                                                <?= View::e($unidad->nombre ?? $unidad->descripcion ?? 'Sin nombre') ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </select></td>
-                            <td><input type="number" class="form-control dist-porcentaje" name="distribucion[0][porcentaje]" min="0" max="100" step="0.01" value="100" required></td>
+                            <td>
+                                <input type="text" class="form-control" name="distribucion[0][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
+                                <input type="hidden" name="distribucion[0][unidad_negocio_id]" value="">
+                            </td>
+                            <td><input type="number" class="form-control dist-porcentaje" name="distribucion[0][porcentaje]" min="0" max="100" step="0.00001" value="100" required></td>
                             <td><input type="number" class="form-control dist-cantidad" name="distribucion[0][cantidad]" readonly></td>
-                            <td><input type="text" class="form-control dist-factura" name="distribucion[0][factura]" value="Factura 1" data-factura-numero="1" readonly></td>
+                            <td>
+                                <input type="hidden" name="distribucion[0][factura]" value="1" class="dist-factura-value">
+                                <input type="text" class="form-control dist-factura-display" value="Factura 1" data-factura-numero="1" readonly>
+                            </td>
                             <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="eliminarDistribucion(this)"><i class="fas fa-trash"></i></button></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
             
-            <a href="javascript:void(0)" class="btn-add-item" onclick="agregarDistribucion()">
-                <i class="fas fa-plus"></i>
-                Agregar Distribución
-            </a>
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                <a href="javascript:void(0)" class="btn-add-item" onclick="agregarDistribucion()">
+                    <i class="fas fa-plus"></i>
+                    Agregar Distribución
+                </a>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="aplicarCuentaContableATodas()" title="Aplicar la cuenta contable de la primera fila a todas las demás">
+                    <i class="fas fa-copy"></i>
+                    Aplicar cuenta a todas las filas
+                </button>
+            </div>
             
             <!-- Indicadores de Validación -->
             <div class="mt-3 p-3 bg-light rounded">
-                <div class="row">
-                    <div class="col-md-6">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
                         <div class="d-flex align-items-center">
                             <span class="me-2">Total de Porcentajes:</span>
                             <span id="indicadorPorcentaje" class="fw-bold">0.00%</span>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="ajustarPorcentajesA100()" title="Ajustar automáticamente para que sumen exactamente 100%">
+                            <i class="fas fa-calculator"></i>
+                            Ajustar al 100%
+                        </button>
+                    </div>
+                    <div class="col-md-4">
                         <div id="mensajeValidacionPorcentajes" class="small"></div>
                     </div>
                 </div>
@@ -784,8 +792,8 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                         </tr>
                         <tr>
                             <td><strong>TOTAL</strong></td>
-                            <td><strong id="totalPorcentajeFacturas">0.00000</strong></td>
-                            <td><strong id="totalMontoFacturas">0.00000</strong></td>
+                            <td><strong id="totalPorcentajeFacturas">0.00</strong></td>
+                            <td><strong id="totalMontoFacturas">Q 0.00</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -806,28 +814,28 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
             <div id="archivosSeleccionados" class="mt-3"></div>
         </div>
         
-        <!-- ESPECIFICACIONES TÉCNICAS Y JUSTIFICACIÓN -->
+        <!-- ESPECIFICACIONES Y DATOS DEL PROVEEDOR -->
         <div class="card-form">
             <div class="section-header">
                 <i class="fas fa-cogs"></i>
-                ESPECIFICACIONES TÉCNICAS Y JUSTIFICACIÓN
+                ESPECIFICACIONES Y DATOS DEL PROVEEDOR
             </div>
             
             <div class="mb-3">
-                <label for="datos_proveedor" class="form-label">Especificaciones Técnicas y Detalles</label>
+                <label for="datos_proveedor" class="form-label">Especificaciones y Datos del Proveedor</label>
                 <textarea class="form-control" id="datos_proveedor" name="datos_proveedor" rows="5" placeholder="Ingrese las especificaciones técnicas, características y detalles del bien o servicio solicitado..."></textarea>
             </div>
         </div>
         
-        <!-- JUSTIFICACIÓN DE LA REQUISICIÓN -->
+        <!-- RAZÓN DE SELECCIÓN DE COTIZACIÓN -->
         <div class="card-form">
             <div class="section-header">
                 <i class="fas fa-file-alt"></i>
-                JUSTIFICACIÓN DE LA REQUISICIÓN
+                RAZÓN DE SELECCIÓN DE COTIZACIÓN
             </div>
             
             <div class="mb-3">
-                <label for="razon_seleccion" class="form-label">Justificación y Razón de la Requisición</label>
+                <label for="razon_seleccion" class="form-label">Razón de Selección de Cotización</label>
                 <textarea class="form-control" id="razon_seleccion" name="razon_seleccion" rows="5" placeholder="Indique la justificación, necesidad y razones por las cuales se requiere esta compra..."></textarea>
             </div>
         </div>
@@ -835,7 +843,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
         <!-- BOTONES DE ACCIÓN -->
         <div class="card-form">
             <div class="d-flex justify-content-end gap-3">
-                <a href="/requisiciones" class="btn btn-cancelar">
+                <a href="<?= url('/requisiciones') ?>" class="btn btn-cancelar">
                     <i class="fas fa-times me-2"></i> Cancelar
                 </a>
                 <button type="button" class="btn btn-secondary btn-submit" id="saveDraftBtn">
@@ -866,12 +874,155 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
 let contadorItems = 1;
 let contadorDistribucion = 1;
 
+// Función helper para aproximar porcentajes a 100% cuando están cerca
+function aproximarPorcentaje(porcentaje, decimales = 5) {
+    // Si el porcentaje está entre 99.9% y 100.1%, aproximar a 100%
+    if (porcentaje >= 99.9 && porcentaje <= 100.1) {
+        return 100.0;
+    }
+    return porcentaje;
+}
+
+// Función para formatear porcentaje con aproximación
+function formatearPorcentaje(porcentaje, decimales = 5) {
+    const porcentajeAproximado = aproximarPorcentaje(porcentaje, decimales);
+    return porcentajeAproximado.toFixed(decimales) + '%';
+}
+
+// Función para obtener el símbolo de moneda según la selección actual
+function getSimboloMoneda() {
+    const monedaSelect = document.getElementById('moneda');
+    if (!monedaSelect) return 'Q';
+    
+    switch(monedaSelect.value) {
+        case 'USD':
+            return '$';
+        case 'EUR':
+            return '€';
+        case 'GTQ':
+        default:
+            return 'Q';
+    }
+}
+
+// Función para formatear monto con símbolo de moneda
+function formatearMonto(monto) {
+    return getSimboloMoneda() + ' ' + monto.toFixed(2);
+}
+
+// Función para actualizar facturas - Definida al inicio para estar disponible
+function actualizarFacturas() {
+    // Inicializar totales por factura
+    let factura1 = { porcentaje: 0, monto: 0 };
+    let factura2 = { porcentaje: 0, monto: 0 };
+    let factura3 = { porcentaje: 0, monto: 0 };
+    
+    // Recorrer todas las filas de distribución para sumar por factura
+    document.querySelectorAll('.distribucion-row').forEach(row => {
+        const porcentajeInput = row.querySelector('input[name*="[porcentaje]"]');
+        const cantidadInput = row.querySelector('input[name*="[cantidad]"]');
+        const facturaHidden = row.querySelector('input.dist-factura-value') || row.querySelector('input[name*="[factura]"]');
+        const facturaDisplay = row.querySelector('input.dist-factura-display');
+        
+        if (porcentajeInput && cantidadInput && facturaHidden) {
+            const porcentaje = parseFloat(porcentajeInput.value) || 0;
+            const cantidad = parseFloat(cantidadInput.value) || 0;
+            
+            // Obtener el número de factura: primero del campo hidden (valor directo), luego del display (data-attribute)
+            let numeroFactura = 1;
+            if (facturaHidden.value) {
+                // El campo hidden contiene directamente el número de factura
+                numeroFactura = parseInt(facturaHidden.value) || 1;
+            } else if (facturaDisplay && facturaDisplay.getAttribute('data-factura-numero')) {
+                // Si no hay valor en hidden, leer del atributo data del display
+                numeroFactura = parseInt(facturaDisplay.getAttribute('data-factura-numero')) || 1;
+            } else if (facturaDisplay && facturaDisplay.value) {
+                // Como último recurso, extraer del texto "Factura X"
+                const match = facturaDisplay.value.match(/Factura\s*(\d)/i);
+                if (match) {
+                    numeroFactura = parseInt(match[1]) || 1;
+                }
+            }
+            
+            switch(numeroFactura) {
+                case 1:
+                    factura1.porcentaje += porcentaje;
+                    factura1.monto += cantidad;
+                    break;
+                case 2:
+                    factura2.porcentaje += porcentaje;
+                    factura2.monto += cantidad;
+                    break;
+                case 3:
+                    factura3.porcentaje += porcentaje;
+                    factura3.monto += cantidad;
+                    break;
+            }
+        }
+    });
+    
+    // Actualizar la tabla de facturas
+    const porcentaje1El = document.getElementById('porcentaje-factura-1');
+    const monto1El = document.getElementById('monto-factura-1');
+    const porcentaje2El = document.getElementById('porcentaje-factura-2');
+    const monto2El = document.getElementById('monto-factura-2');
+    const porcentaje3El = document.getElementById('porcentaje-factura-3');
+    const monto3El = document.getElementById('monto-factura-3');
+    
+    if (porcentaje1El) porcentaje1El.textContent = formatearPorcentaje(factura1.porcentaje, 5);
+    if (monto1El) monto1El.textContent = formatearMonto(factura1.monto);
+    
+    if (porcentaje2El) porcentaje2El.textContent = formatearPorcentaje(factura2.porcentaje, 5);
+    if (monto2El) monto2El.textContent = formatearMonto(factura2.monto);
+    
+    if (porcentaje3El) porcentaje3El.textContent = formatearPorcentaje(factura3.porcentaje, 5);
+    if (monto3El) monto3El.textContent = formatearMonto(factura3.monto);
+    
+    // Actualizar totales
+    const totalPorcentaje = factura1.porcentaje + factura2.porcentaje + factura3.porcentaje;
+    const totalMonto = factura1.monto + factura2.monto + factura3.monto;
+    
+    const totalPorcentajeEl = document.getElementById('totalPorcentajeFacturas');
+    const totalMontoEl = document.getElementById('totalMontoFacturas');
+    
+    if (totalPorcentajeEl) {
+        const totalAproximado = aproximarPorcentaje(totalPorcentaje, 2);
+        totalPorcentajeEl.textContent = totalAproximado.toFixed(2);
+    }
+    if (totalMontoEl) totalMontoEl.textContent = formatearMonto(totalMonto);
+}
+
+// Función para calcular total general - Definida al inicio y globalmente disponible
+window.calcularTotalGeneral = function() {
+    let total = 0;
+    document.querySelectorAll('.item-total').forEach(input => {
+        total += parseFloat(input.value) || 0;
+    });
+    const totalElement = document.getElementById('totalGeneral');
+    if (totalElement) {
+        totalElement.textContent = formatearMonto(total);
+    }
+    const hiddenTotal = document.getElementById('total_general');
+    if (hiddenTotal) {
+        hiddenTotal.value = total.toFixed(2);
+    }
+    
+    // Call other functions if they exist
+    if (typeof actualizarFacturas === 'function') {
+        actualizarFacturas();
+    }
+    if (typeof calcularDistribucionPorcentajes === 'function') {
+        calcularDistribucionPorcentajes();
+    }
+    return total;
+};
+
 function agregarItem() {
     const tbody = document.getElementById('itemsBody');
     const newRow = document.createElement('tr');
     newRow.className = 'item-row';
     newRow.innerHTML = `
-        <td><input type="number" class="form-control item-cantidad" name="items[${contadorItems}][cantidad]" min="1" step="0.01" value="1" required></td>
+        <td><input type="number" class="form-control item-cantidad" name="items[${contadorItems}][cantidad]" min="1" step="1" value="1" required></td>
         <td><textarea class="form-control item-descripcion" name="items[${contadorItems}][descripcion]" rows="2" required></textarea></td>
         <td><input type="number" class="form-control item-precio" name="items[${contadorItems}][precio_unitario]" min="0" step="0.01" required></td>
         <td><input type="number" class="form-control item-total" name="items[${contadorItems}][total]" readonly></td>
@@ -901,17 +1052,6 @@ function calcularTotalItem(row) {
     calcularTotalGeneral();
 }
 
-function calcularTotalGeneral() {
-    let total = 0;
-    document.querySelectorAll('.item-total').forEach(input => {
-        total += parseFloat(input.value) || 0;
-    });
-    document.getElementById('totalGeneral').textContent = 'Q ' + total.toFixed(2);
-    document.getElementById('total_general').value = total.toFixed(2);
-    actualizarFacturas();
-    calcularDistribucionPorcentajes();
-    return total;
-}
 
 // Función global para agregar distribución (sobrescribe cualquier otra implementación)
 window.agregarDistribucion = function() {
@@ -924,7 +1064,7 @@ window.agregarDistribucion = function() {
                 <input type="text" 
                        class="form-control cuenta-contable-input" 
                        name="distribucion[${contadorDistribucion}][cuenta_contable_display]"
-                       placeholder="Buscar cuenta..." 
+                       placeholder="🔍 Clic aquí o escriba para buscar cuenta contable..." 
                        autocomplete="off"
                        data-index="${contadorDistribucion}">
                 <input type="hidden" 
@@ -939,40 +1079,38 @@ window.agregarDistribucion = function() {
                 <option value="">Seleccione...</option>
                 <?php if (!empty($centros_costo)): ?>
                     <?php foreach ($centros_costo as $centro): ?>
-                        <option value="<?= $centro->id ?>">
-                            <?= View::e($centro->nombre ?? $centro->descripcion ?? 'Sin nombre') ?>
+                        <option value="<?= $centro['id'] ?>"
+                                data-unidad-negocio-id="<?= $centro['rel_unidad_negocio_id'] ?? $centro['unidad_negocio_id'] ?? '' ?>"
+                                data-unidad-negocio-nombre="<?= View::e($centro['unidad_negocio_nombre'] ?? 'UNIDAD DE NEGOCIO GENERAL') ?>"
+                                data-factura="<?= $centro['factura'] ?? 1 ?>">
+                            <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
                         </option>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </select>
         </td>
         <td>
-            <select class="form-select" name="distribucion[${contadorDistribucion}][ubicacion_id]">
+            <select class="form-select" name="distribucion[${contadorDistribucion}][ubicacion_id]" required>
                 <option value="">Seleccione...</option>
                 <?php if (!empty($ubicaciones)): ?>
                     <?php foreach ($ubicaciones as $ubicacion): ?>
-                        <option value="<?= $ubicacion->id ?>">
-                            <?= View::e($ubicacion->nombre ?? $ubicacion->descripcion ?? 'Sin nombre') ?>
+                        <option value="<?= $ubicacion['id'] ?>">
+                            <?= View::e($ubicacion['nombre'] ?? $ubicacion['descripcion'] ?? 'Sin nombre') ?>
                         </option>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </select>
         </td>
         <td>
-            <select class="form-select" name="distribucion[${contadorDistribucion}][unidad_negocio_id]">
-                <option value="">Seleccione...</option>
-                <?php if (!empty($unidades_negocio)): ?>
-                    <?php foreach ($unidades_negocio as $unidad): ?>
-                        <option value="<?= $unidad->id ?>">
-                            <?= View::e($unidad->nombre ?? $unidad->descripcion ?? 'Sin nombre') ?>
-                        </option>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </select>
+            <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
+            <input type="hidden" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" value="">
         </td>
-        <td><input type="number" class="form-control dist-porcentaje" name="distribucion[${contadorDistribucion}][porcentaje]" min="0" max="100" step="0.01" required></td>
+        <td><input type="number" class="form-control dist-porcentaje" name="distribucion[${contadorDistribucion}][porcentaje]" min="0" max="100" step="0.00001" required></td>
         <td><input type="number" class="form-control dist-cantidad" name="distribucion[${contadorDistribucion}][cantidad]" readonly></td>
-        <td><input type="text" class="form-control dist-factura" name="distribucion[${contadorDistribucion}][factura]" value="Factura 1" data-factura-numero="1" readonly></td>
+        <td>
+            <input type="hidden" name="distribucion[${contadorDistribucion}][factura]" value="1" class="dist-factura-value">
+            <input type="text" class="form-control dist-factura-display" value="Factura 1" data-factura-numero="1" readonly>
+        </td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="eliminarDistribucion(this)"><i class="fas fa-trash"></i></button></td>
     `;
     tbody.appendChild(newRow);
@@ -1003,6 +1141,46 @@ function eliminarDistribucion(btn) {
         calcularDistribucionPorcentajes();
         actualizarFacturas(); // Asegurar que se actualicen las facturas después de eliminar
     }
+}
+
+/**
+ * Ajusta automáticamente los porcentajes para que sumen exactamente 100%
+ * cuando se trata de distribuciones uniformes (todos los porcentajes iguales)
+ */
+function ajustarPorcentajesA100() {
+    const filas = document.querySelectorAll('.distribucion-row');
+    if (filas.length === 0) return false;
+    
+    // Verificar si todos los porcentajes son iguales (distribución uniforme)
+    const primerPorcentaje = parseFloat(filas[0].querySelector('.dist-porcentaje').value) || 0;
+    const esDistribucionUniforme = Array.from(filas).every(row => {
+        const porcentaje = parseFloat(row.querySelector('.dist-porcentaje').value) || 0;
+        return Math.abs(porcentaje - primerPorcentaje) < 0.001;
+    });
+    
+    if (esDistribucionUniforme && filas.length > 1) {
+        // Calcular porcentaje base y ajustar para que sume 100%
+        const porcentajeBase = Math.round((100 / filas.length) * 100) / 100; // 2 decimales
+        const totalBase = porcentajeBase * filas.length;
+        const diferencia = 100 - totalBase;
+        
+        // Si hay diferencia, ajustar la última fila
+        filas.forEach((row, index) => {
+            const input = row.querySelector('.dist-porcentaje');
+            if (index === filas.length - 1 && Math.abs(diferencia) > 0.001) {
+                // Última fila: ajustar para que el total sea exactamente 100%
+                input.value = (porcentajeBase + diferencia).toFixed(2);
+            } else {
+                input.value = porcentajeBase.toFixed(2);
+            }
+        });
+        
+        // Recalcular después del ajuste
+        calcularDistribucionPorcentajes();
+        return true;
+    }
+    
+    return false;
 }
 
 function calcularDistribucionPorcentajes() {
@@ -1038,78 +1216,6 @@ function calcularDistribucionPorcentajes() {
     actualizarFacturas();
 }
 
-function actualizarFacturas() {
-    // Inicializar totales por factura
-    let factura1 = { porcentaje: 0, monto: 0 };
-    let factura2 = { porcentaje: 0, monto: 0 };
-    let factura3 = { porcentaje: 0, monto: 0 };
-    
-    // Recorrer todas las filas de distribución para sumar por factura
-    document.querySelectorAll('.distribucion-row').forEach(row => {
-        const porcentajeInput = row.querySelector('input[name*="[porcentaje]"]');
-        const cantidadInput = row.querySelector('input[name*="[cantidad]"]');
-        const facturaInput = row.querySelector('input[name*="[factura]"]');
-        
-        if (porcentajeInput && cantidadInput && facturaInput) {
-            const porcentaje = parseFloat(porcentajeInput.value) || 0;
-            const cantidad = parseFloat(cantidadInput.value) || 0;
-            
-            // Obtener el número de factura del atributo data o del valor del campo
-            let numeroFactura = 1;
-            if (facturaInput.getAttribute('data-factura-numero')) {
-                numeroFactura = parseInt(facturaInput.getAttribute('data-factura-numero')) || 1;
-            } else if (facturaInput.value) {
-                // Extraer el número del texto "Factura X"
-                const match = facturaInput.value.match(/Factura\s*(\d)/i);
-                if (match) {
-                    numeroFactura = parseInt(match[1]) || 1;
-                }
-            }
-            
-            switch(numeroFactura) {
-                case 1:
-                    factura1.porcentaje += porcentaje;
-                    factura1.monto += cantidad;
-                    break;
-                case 2:
-                    factura2.porcentaje += porcentaje;
-                    factura2.monto += cantidad;
-                    break;
-                case 3:
-                    factura3.porcentaje += porcentaje;
-                    factura3.monto += cantidad;
-                    break;
-            }
-        }
-    });
-    
-    // Actualizar la tabla de facturas
-    const porcentaje1El = document.getElementById('porcentaje-factura-1');
-    const monto1El = document.getElementById('monto-factura-1');
-    const porcentaje2El = document.getElementById('porcentaje-factura-2');
-    const monto2El = document.getElementById('monto-factura-2');
-    const porcentaje3El = document.getElementById('porcentaje-factura-3');
-    const monto3El = document.getElementById('monto-factura-3');
-    
-    if (porcentaje1El) porcentaje1El.textContent = factura1.porcentaje.toFixed(2) + '%';
-    if (monto1El) monto1El.textContent = 'Q ' + factura1.monto.toFixed(2);
-    
-    if (porcentaje2El) porcentaje2El.textContent = factura2.porcentaje.toFixed(2) + '%';
-    if (monto2El) monto2El.textContent = 'Q ' + factura2.monto.toFixed(2);
-    
-    if (porcentaje3El) porcentaje3El.textContent = factura3.porcentaje.toFixed(2) + '%';
-    if (monto3El) monto3El.textContent = 'Q ' + factura3.monto.toFixed(2);
-    
-    // Actualizar totales
-    const totalPorcentaje = factura1.porcentaje + factura2.porcentaje + factura3.porcentaje;
-    const totalMonto = factura1.monto + factura2.monto + factura3.monto;
-    
-    const totalPorcentajeEl = document.getElementById('totalPorcentajeFacturas');
-    const totalMontoEl = document.getElementById('totalMontoFacturas');
-    
-    if (totalPorcentajeEl) totalPorcentajeEl.textContent = totalPorcentaje.toFixed(5);
-    if (totalMontoEl) totalMontoEl.textContent = totalMonto.toFixed(5);
-}
 
 function mostrarArchivosSeleccionados(input) {
     const container = document.getElementById('archivosSeleccionados');
@@ -1158,17 +1264,292 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ===== AUTOCOMPLETADO DE CUENTAS CONTABLES =====
+
+// Variables globales para el dropdown portal
+let inputActivo = null;
+let portalDropdown = null;
+
+// Función para obtener o crear el portal de dropdown
+function getDropdownPortal() {
+    if (!portalDropdown) {
+        portalDropdown = document.createElement('div');
+        portalDropdown.className = 'cuenta-contable-dropdown-portal';
+        portalDropdown.style.cssText = `
+            position: absolute;
+            z-index: 9999;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            min-width: 300px;
+        `;
+        document.body.appendChild(portalDropdown);
+        
+        // Cerrar dropdown al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!portalDropdown.contains(e.target) && !e.target.classList.contains('cuenta-contable-input')) {
+                ocultarDropdownPortal();
+            }
+        });
+    }
+    
+    portalDropdown.style.display = 'block';
+    return portalDropdown;
+}
+
+// Función para ocultar el portal dropdown
+function ocultarDropdownPortal() {
+    if (portalDropdown) {
+        portalDropdown.style.display = 'none';
+        portalDropdown.innerHTML = '';
+    }
+    
+    // Remover clase activa de todas las filas
+    document.querySelectorAll('.distribucion-row').forEach(row => {
+        row.classList.remove('dropdown-active');
+    });
+    
+    inputActivo = null;
+}
+
+// Función para posicionar el portal dropdown
+function posicionarDropdownPortal(input, portal) {
+    const inputRect = input.getBoundingClientRect();
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+    
+    portal.style.top = (inputRect.bottom + scrollTop + 2) + 'px';
+    portal.style.left = (inputRect.left + scrollLeft) + 'px';
+    portal.style.width = Math.max(inputRect.width, 300) + 'px';
+}
+
+// Función para mostrar sugerencias de cuentas contables
+function mostrarSugerenciasCuentas(input, cuentas) {
+    const portal = getDropdownPortal();
+    inputActivo = input;
+    
+    if (cuentas.length === 0) {
+        portal.innerHTML = '<div class="cuenta-no-results">No se encontraron resultados</div>';
+        posicionarDropdownPortal(input, portal);
+        return;
+    }
+    
+    portal.innerHTML = cuentas.map(cuenta => {
+        const labelSeguro = cuenta.label.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+        return `
+        <div class="cuenta-suggestion-item" onclick="seleccionarCuentaDesdePortal(${cuenta.id}, '${labelSeguro}')">
+            <div class="cuenta-suggestion-codigo">${cuenta.codigo}</div>
+            <div class="cuenta-suggestion-nombre">${cuenta.nombre}</div>
+        </div>
+        `;
+    }).join('');
+    
+    posicionarDropdownPortal(input, portal);
+}
+
+// Función para seleccionar cuenta desde el portal
+function seleccionarCuentaDesdePortal(id, label) {
+    if (!inputActivo) return;
+    
+    const wrapper = inputActivo.closest('.cuenta-contable-wrapper');
+    const hidden = wrapper.querySelector('.cuenta-contable-id');
+    
+    inputActivo.value = label;
+    if (hidden) {
+        hidden.value = id;
+        console.log(`Cuenta contable seleccionada - ID: ${id}, Label: ${label}`);
+        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
+    ocultarDropdownPortal();
+}
+
+// Agregar estilos CSS para el dropdown
+const dropdownStyles = document.createElement('style');
+dropdownStyles.textContent = `
+.cuenta-contable-dropdown-portal .cuenta-suggestion-item {
+    padding: 8px 12px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+}
+
+.cuenta-contable-dropdown-portal .cuenta-suggestion-item:hover {
+    background-color: #f8f9fa;
+}
+
+.cuenta-contable-dropdown-portal .cuenta-suggestion-codigo {
+    font-weight: bold;
+    color: #007bff;
+    font-size: 0.9em;
+}
+
+.cuenta-contable-dropdown-portal .cuenta-suggestion-nombre {
+    color: #666;
+    font-size: 0.85em;
+    margin-top: 2px;
+}
+
+.cuenta-contable-dropdown-portal .cuenta-no-results {
+    padding: 12px;
+    text-align: center;
+    color: #999;
+    font-style: italic;
+}
+
+.distribucion-row.dropdown-active {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+`;
+document.head.appendChild(dropdownStyles);
+
+// ===== DEBUGGING PARA IDENTIFICAR PROBLEMAS =====
+
+// Debug form submission 
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            console.log("🚀 FORM SUBMISSION DEBUG");
+            console.log("=".repeat(50));
+            
+            const formData = new FormData(this);
+            
+            console.log("\n🎯 Distribution specific data:");
+            const distributionData = {};
+            
+            for (let [key, value] of formData.entries()) {
+                if (key.includes('distribucion')) {
+                    console.log(`${key}: ${value}`);
+                    
+                    // Parse distribution index and field
+                    const match = key.match(/^distribucion\[(\d+)\]\[(.+)\]$/);
+                    if (match) {
+                        const index = match[1];
+                        const field = match[2];
+                        
+                        if (!distributionData[index]) {
+                            distributionData[index] = {};
+                        }
+                        distributionData[index][field] = value;
+                    }
+                }
+            }
+            
+            console.log("\n📊 Parsed distribution data:");
+            console.table(distributionData);
+            
+            console.log("\n🕵️ Hidden field analysis:");
+            const hiddenFields = document.querySelectorAll('input[type="hidden"][name*="cuenta_contable_id"]');
+            hiddenFields.forEach((field, index) => {
+                const wrapper = field.closest('.cuenta-contable-wrapper') || field.closest('tr');
+                const displayField = wrapper ? wrapper.querySelector('input[name*="cuenta_contable_display"]') : null;
+                
+                console.log(`Hidden field ${index}:`);
+                console.log(`  Name: ${field.name}`);
+                console.log(`  Value: "${field.value}"`);
+                console.log(`  Display field value: "${displayField ? displayField.value : 'N/A'}"`);
+                console.log(`  Is empty: ${field.value === '' || field.value === null || field.value === undefined}`);
+            });
+            
+            console.log("\n⚠️ Issues detected:");
+            let issuesFound = 0;
+            
+            Object.keys(distributionData).forEach(index => {
+                const dist = distributionData[index];
+                
+                if (dist.centro_costo_id && (!dist.cuenta_contable_id || dist.cuenta_contable_id === '')) {
+                    console.log(`❌ Distribution ${index}: Has center cost but missing account ID`);
+                    issuesFound++;
+                }
+                
+                if (dist.cuenta_contable_id === '1') {
+                    console.log(`⚠️ Distribution ${index}: Using default account ID = 1 (Fondo de Caja Chica)`);
+                }
+                
+                if (!dist.cuenta_contable_id) {
+                    console.log(`❌ Distribution ${index}: Missing account ID completely`);
+                    issuesFound++;
+                }
+            });
+            
+            if (issuesFound === 0) {
+                console.log("✅ No obvious issues detected");
+            }
+            
+            console.log("=".repeat(50));
+        });
+    }
+});
+
+<?php
+// DEBUG PHP: Verificar si hay cuentas contables
+$totalCuentas = count($cuentas_contables ?? []);
+if ($totalCuentas === 0) {
+    // Intentar cargar directamente desde la base de datos para diagnóstico
+    try {
+        $pdo = \App\Core\Database::getInstance();
+        $stmt = $pdo->query("SELECT COUNT(*) as total FROM cuenta_contable WHERE activo = 1");
+        $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $totalEnBD = $result['total'] ?? 0;
+        
+        if ($totalEnBD == 0) {
+            $stmtAll = $pdo->query("SELECT COUNT(*) as total FROM cuenta_contable");
+            $resultAll = $stmtAll->fetch(\PDO::FETCH_ASSOC);
+            $totalTodas = $resultAll['total'] ?? 0;
+            error_log("DEBUG: Total cuentas en BD: $totalTodas, Activas: $totalEnBD");
+        }
+    } catch (\Exception $e) {
+        error_log("Error al verificar cuentas contables: " . $e->getMessage());
+        $totalEnBD = -1;
+    }
+}
+?>
+
 // Datos de cuentas contables cargados desde PHP
 const cuentasContables = <?= json_encode(array_map(function($cuenta) {
+    $codigo = $cuenta['codigo'] ?? '';
+    $descripcion = $cuenta['descripcion'] ?? '';
     return [
-        'id' => $cuenta->id,
-        'codigo' => $cuenta->codigo ?? '',
-        'nombre' => $cuenta->descripcion ?? '',
-        'label' => ($cuenta->codigo ?? '') . ' - ' . ($cuenta->descripcion ?? '')
+        'id' => $cuenta['id'],
+        'codigo' => $codigo,
+        'nombre' => $descripcion,
+        'label' => $codigo . ' - ' . $descripcion
     ];
-}, $cuentas_contables ?? [])) ?>;
+}, $cuentas_contables ?? []), JSON_UNESCAPED_UNICODE) ?>;
 
-    // Cuentas contables cargadas desde PHP
+// Debug en JavaScript - MAS DETALLADO
+console.log('=== DEBUG CUENTAS CONTABLES ===');
+console.log('Cuentas contables cargadas:', cuentasContables.length);
+console.log('Tipo de datos:', typeof cuentasContables);
+console.log('Es array?', Array.isArray(cuentasContables));
+if (cuentasContables.length > 0) {
+    console.log('Primera cuenta:', cuentasContables[0]);
+    console.log('Últimas 3 cuentas:', cuentasContables.slice(-3));
+} else {
+    console.log('ERROR: No hay cuentas contables cargadas!');
+    console.log('Verifica la tabla cuenta_contable en la base de datos');
+    // Mostrar alerta al usuario
+    document.addEventListener('DOMContentLoaded', function() {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-warning alert-dismissible fade show';
+        alertDiv.innerHTML = `
+            <strong>⚠️ Atención:</strong> No hay cuentas contables disponibles. 
+            Por favor, verifique que existan registros activos en la tabla <code>cuenta_contable</code>.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        const container = document.querySelector('.card-form');
+        if (container) {
+            container.insertBefore(alertDiv, container.firstChild);
+        }
+    });
+}
+console.log('=== FIN DEBUG ===');
 
 let timeoutBusqueda;
 
@@ -1182,27 +1563,51 @@ document.addEventListener('input', function(e) {
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('cuenta-contable-input')) {
         const input = e.target;
-        const suggestionsDiv = input.parentElement.querySelector('.cuenta-contable-suggestions');
-        
-        // Click en input de cuenta contable
+        console.log('=== CLICK EN CUENTA CONTABLE ===');
+        console.log('Input value length:', input.value.length);
+        console.log('Cuentas disponibles:', cuentasContables.length);
         
         if (input.value.length < 2) {
             // Mostrar TODAS las cuentas
+            console.log('Mostrando todas las cuentas...');
             mostrarSugerenciasCuentas(input, cuentasContables);
+        } else {
+            console.log('Input tiene más de 2 caracteres, no mostrando todas las cuentas');
         }
     }
 });
 
+// Función para buscar unidad de negocio por nombre
+function buscarUnidadNegocioPorNombre(nombreUnidad) {
+    const unidadesNegocio = [
+        <?php if (!empty($unidades_negocio)): ?>
+            <?php foreach ($unidades_negocio as $unidad): ?>
+                {
+                    id: '<?= $unidad['id'] ?>',
+                    nombre: '<?= addslashes($unidad['nombre'] ?? $unidad['descripcion'] ?? '') ?>'
+                },
+            <?php endforeach; ?>
+        <?php endif; ?>
+    ];
+    
+    return unidadesNegocio.find(unidad => 
+        unidad.nombre.toUpperCase() === nombreUnidad.toUpperCase()
+    );
+}
+
 function buscarCuentaContable(input) {
     clearTimeout(timeoutBusqueda);
     const query = input.value.trim();
-    const suggestionsDiv = input.parentElement.querySelector('.cuenta-contable-suggestions');
     
-    // Buscando cuenta contable
+    // Si no hay consulta, mostrar las primeras 10 cuentas como ayuda
+    if (query.length === 0) {
+        mostrarSugerenciasCuentas(input, cuentasContables.slice(0, 10));
+        return;
+    }
     
+    // Si hay menos de 2 caracteres pero más de 0, no buscar aún
     if (query.length < 2) {
-        suggestionsDiv.innerHTML = '';
-        suggestionsDiv.classList.remove('show');
+        ocultarDropdownPortal();
         return;
     }
     
@@ -1224,8 +1629,17 @@ function seleccionarCuenta(item, id, label) {
     const hidden = wrapper.querySelector('.cuenta-contable-id');
     const suggestionsDiv = wrapper.querySelector('.cuenta-contable-suggestions');
     
+    if (!hidden) {
+        console.error('ERROR: No se encontró el input hidden para cuenta_contable_id');
+        return;
+    }
+    
     input.value = label;
     hidden.value = id;
+    
+    // Verificar que el valor se asignó correctamente
+    console.log(`Cuenta contable seleccionada - ID: ${id}, Label: ${label}, Hidden value: ${hidden.value}, Hidden name: ${hidden.name}`);
+    
     suggestionsDiv.innerHTML = '';
     suggestionsDiv.classList.remove('show');
     
@@ -1236,105 +1650,71 @@ function seleccionarCuenta(item, id, label) {
         btn.style.visibility = '';
         btn.style.pointerEvents = '';
     });
+    
+    // Disparar evento change para que otros listeners lo detecten
+    hidden.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-// Función para cerrar todas las sugerencias
-function cerrarTodasLasSugerencias() {
-    document.querySelectorAll('.cuenta-contable-suggestions').forEach(div => {
-        div.innerHTML = '';
-        div.classList.remove('show');
-    });
-    
-    // Restaurar TODOS los botones de agregar
-    document.querySelectorAll('.btn-add-item').forEach(btn => {
-        btn.style.zIndex = '';
-        btn.style.opacity = '';
-        btn.style.visibility = '';
-        btn.style.pointerEvents = '';
-    });
-}
-
-// Cerrar sugerencias al hacer clic fuera
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('.cuenta-contable-wrapper')) {
-        cerrarTodasLasSugerencias();
-    }
-});
-
-// NO cerrar al hacer scroll DENTRO de las sugerencias
-document.addEventListener('scroll', function(e) {
-    // Solo cerrar si el scroll NO es dentro de las sugerencias
-    if (!e.target.classList.contains('cuenta-contable-suggestions') && 
-        !e.target.closest('.cuenta-contable-suggestions')) {
-        cerrarTodasLasSugerencias();
-    }
-}, true);
-
-// Cerrar cuando se redimensiona la ventana
-window.addEventListener('resize', function(e) {
-    cerrarTodasLasSugerencias();
-});
-
-// Prevenir el cierre cuando se interactúa con las sugerencias
-document.addEventListener('wheel', function(e) {
-    if (e.target.closest('.cuenta-contable-suggestions')) {
-        e.stopPropagation();
-    }
-}, true);
-
-// Asegurar que las sugerencias se muestren correctamente
-function mostrarSugerenciasCuentas(input, cuentas) {
-    const suggestionsDiv = input.parentElement.querySelector('.cuenta-contable-suggestions');
-    
-    if (cuentas.length === 0) {
-        suggestionsDiv.innerHTML = '<div class="cuenta-no-results">No se encontraron resultados</div>';
-        suggestionsDiv.classList.add('show');
+// Función para aplicar la cuenta contable de la primera fila a todas las demás
+function aplicarCuentaContableATodas() {
+    const primeraFila = document.querySelector('#distribucionBody .distribucion-row');
+    if (!primeraFila) {
+        alert('No hay filas de distribución');
         return;
     }
     
-    suggestionsDiv.innerHTML = cuentas.map(cuenta => `
-        <div class="cuenta-suggestion-item" onclick="seleccionarCuenta(this, ${cuenta.id}, '${cuenta.label.replace(/'/g, "\\'")}')">
-            <div class="cuenta-suggestion-codigo">${cuenta.codigo}</div>
-            <div class="cuenta-suggestion-nombre">${cuenta.nombre}</div>
-        </div>
-    `).join('');
+    const primeraInputDisplay = primeraFila.querySelector('.cuenta-contable-input');
+    const primeraInputHidden = primeraFila.querySelector('.cuenta-contable-id');
     
-    suggestionsDiv.classList.add('show');
+    if (!primeraInputHidden || !primeraInputHidden.value) {
+        alert('Primero seleccione una cuenta contable en la primera fila');
+        return;
+    }
     
-    // Obtener la posición del input
-    const inputRect = input.getBoundingClientRect();
+    const cuentaId = primeraInputHidden.value;
+    const cuentaLabel = primeraInputDisplay.value;
     
-    // Posicionar las sugerencias usando absolute para que se muevan con el scroll
-    suggestionsDiv.style.position = 'absolute';
-    suggestionsDiv.style.top = (inputRect.bottom - inputRect.top + 5) + 'px';
-    suggestionsDiv.style.left = '0px';
-    suggestionsDiv.style.right = '0px';
-    suggestionsDiv.style.width = 'auto';
-    suggestionsDiv.style.minWidth = '300px';
+    // Aplicar a todas las filas
+    const todasLasFilas = document.querySelectorAll('#distribucionBody .distribucion-row');
+    let filasActualizadas = 0;
     
-        // Posicionamiento absolute aplicado
-        suggestionsDiv.style.zIndex = '2147483647'; // Z-index máximo de CSS
-        suggestionsDiv.style.backgroundColor = 'white';
-        suggestionsDiv.style.border = '2px solid #007bff';
-        suggestionsDiv.style.borderRadius = '6px';
-        suggestionsDiv.style.boxShadow = '0 8px 32px rgba(0,0,0,0.3)';
-        suggestionsDiv.style.maxHeight = '250px';
-        suggestionsDiv.style.overflowY = 'auto';
-        suggestionsDiv.style.display = 'block'; // Asegurar que se muestre
-        suggestionsDiv.style.position = 'absolute'; // Forzar posición absoluta
+    todasLasFilas.forEach((fila, index) => {
+        const inputDisplay = fila.querySelector('.cuenta-contable-input');
+        const inputHidden = fila.querySelector('.cuenta-contable-id');
         
-        // Ocultar completamente TODOS los botones de agregar
-        document.querySelectorAll('.btn-add-item').forEach(btn => {
-            btn.style.zIndex = '-1';
-            btn.style.opacity = '0';
-            btn.style.visibility = 'hidden';
-            btn.style.pointerEvents = 'none';
-        });
+        if (inputDisplay && inputHidden) {
+            // Solo actualizar si no tiene cuenta o es diferente
+            if (!inputHidden.value || inputHidden.value !== cuentaId) {
+                inputDisplay.value = cuentaLabel;
+                inputHidden.value = cuentaId;
+                filasActualizadas++;
+                console.log(`Fila ${index + 1}: Cuenta contable aplicada - ID: ${cuentaId}`);
+            }
+        }
+    });
     
-    // Sugerencias mostradas correctamente
-    
-    // Sugerencias posicionadas correctamente
+    if (filasActualizadas > 0) {
+        // Mostrar mensaje de éxito
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Listo!',
+                text: `Cuenta contable aplicada a ${filasActualizadas} fila(s)`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        } else {
+            alert(`Cuenta contable aplicada a ${filasActualizadas} fila(s)`);
+        }
+    } else {
+        alert('Todas las filas ya tienen la misma cuenta contable');
+    }
 }
+
+// ============================================
+// SISTEMA DE DROPDOWN PORTAL PARA CUENTAS CONTABLES
+// ============================================
+
 
 </script>
 
@@ -1349,7 +1729,7 @@ class CalculadorAutomatico {
     init() {
         this.configurarEventListeners();
         setTimeout(() => {
-            this.calcularTotalGeneral();
+            calcularTotalGeneral();
             this.recalcularTodasLasDistribuciones();
         }, 100);
     }
@@ -1365,60 +1745,33 @@ class CalculadorAutomatico {
 
     actualizarFacturaPorCentroCosto(row) {
         const centroCostoSelect = row.querySelector('select[name*="[centro_costo_id]"]');
-        const facturaInput = row.querySelector('input[name*="[factura]"]');
-        const unidadNegocioSelect = row.querySelector('select[name*="[unidad_negocio_id]"]');
+        const facturaHidden = row.querySelector('input.dist-factura-value') || row.querySelector('input[name*="[factura]"]');
+        const facturaDisplay = row.querySelector('input.dist-factura-display');
+        const unidadNegocioDisplay = row.querySelector('input[name*="[unidad_negocio_display]"]');
+        const unidadNegocioHidden = row.querySelector('input[name*="[unidad_negocio_id]"]');
         
-        if (!centroCostoSelect || !facturaInput) return;
-
-        const centroCostoText = centroCostoSelect.options[centroCostoSelect.selectedIndex].textContent.toUpperCase();
+        if (!centroCostoSelect || !facturaHidden) return;
         
-        // Mapeo simple basado en el texto del centro de costo
-        let tipoFactura = 'Factura 1';
-        let numeroFactura = 1;
-        let unidadNegocio = 'UNIDAD DE NEGOCIO GENERAL';
+        const selectedOption = centroCostoSelect.options[centroCostoSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) return;
         
-        if (centroCostoText.includes('BASICOS') || centroCostoText.includes('BACHILLERATO') || 
-            centroCostoText.includes('PERITO') || centroCostoText.includes('SECRETARIADO') || 
-            centroCostoText.includes('PRIMARIA')) {
-            tipoFactura = 'Factura 2';
-            numeroFactura = 2;
-            unidadNegocio = 'COLEGIO';
-        } else if (centroCostoText.includes('CURSOS') || centroCostoText.includes('DIRECCION') || 
-                   centroCostoText.includes('FINANZAS') || centroCostoText.includes('SISTEMAS') || 
-                   centroCostoText.includes('MERCADEO') || centroCostoText.includes('OPERACIONES') || 
-                   centroCostoText.includes('RECURSOS HUMANOS') || centroCostoText.includes('SERVICIO') || 
-                   centroCostoText.includes('UNIDAD ACADEMICA') || centroCostoText.includes('BIBLIOTECA')) {
-            tipoFactura = 'Factura 3';
-            numeroFactura = 3;
-            if (centroCostoText.includes('CURSOS')) {
-                unidadNegocio = 'CURSOS ADULTOS';
-            } else {
-                unidadNegocio = 'ADMINISTRACION';
-            }
-        } else if (centroCostoText.includes('BODEGA') || centroCostoText.includes('DISTRIBUCION') || 
-                   centroCostoText.includes('DISTRIBUIDORA') || centroCostoText.includes('LIBRERIA')) {
-            tipoFactura = 'Factura 1';
-            numeroFactura = 1;
-            unidadNegocio = 'COMERCIAL';
-        } else if (centroCostoText.includes('ACTIVIDADES')) {
-            tipoFactura = 'Factura 1';
-            numeroFactura = 1;
-            unidadNegocio = 'ACTIVIDADES CULTURALES';
+        // Obtener datos directamente desde los data-attributes (cargados desde BD)
+        const unidadNegocioId = selectedOption.dataset.unidadNegocioId || '';
+        const unidadNegocioNombre = selectedOption.dataset.unidadNegocioNombre || 'UNIDAD DE NEGOCIO GENERAL';
+        const facturaNumero = parseInt(selectedOption.dataset.factura) || 1;
+        const tipoFactura = `Factura ${facturaNumero}`;
+        
+        // Actualizar factura - hidden recibe el número, display muestra el texto
+        facturaHidden.value = facturaNumero;
+        if (facturaDisplay) {
+            facturaDisplay.value = tipoFactura;
+            facturaDisplay.setAttribute('data-factura-numero', facturaNumero);
         }
         
-        // Actualizar factura
-        facturaInput.value = tipoFactura;
-        facturaInput.setAttribute('data-factura-numero', numeroFactura);
-        
-        // Actualizar unidad de negocio si existe el select
-        if (unidadNegocioSelect) {
-            const opciones = unidadNegocioSelect.querySelectorAll('option');
-            for (let opcion of opciones) {
-                if (opcion.textContent.trim().toUpperCase() === unidadNegocio.toUpperCase()) {
-                    unidadNegocioSelect.value = opcion.value;
-                    break;
-                }
-            }
+        // Actualizar unidad de negocio automáticamente
+        if (unidadNegocioDisplay && unidadNegocioHidden) {
+            unidadNegocioDisplay.value = unidadNegocioNombre;
+            unidadNegocioHidden.value = unidadNegocioId;
         }
         
         // Recalcular cantidad y actualizar facturas
@@ -1436,7 +1789,7 @@ class CalculadorAutomatico {
         const totalGeneral = parseFloat(document.getElementById('total_general').value) || 0;
         const cantidad = (porcentaje / 100) * totalGeneral;
         
-        cantidadInput.value = cantidad.toFixed(5);
+        cantidadInput.value = cantidad.toFixed(2);
         
         // Disparar actualización de resumen
         setTimeout(() => {
@@ -1468,7 +1821,7 @@ class CalculadorAutomatico {
             const monto = (porcentaje / 100) * totalGeneral;
             const montoElement = indicador.closest('tr').querySelector('.factura-monto');
             if (montoElement) {
-                montoElement.textContent = 'Q ' + monto.toFixed(2);
+                montoElement.textContent = formatearMonto(monto);
             }
         });
     }
@@ -1511,6 +1864,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.querySelector('#tablaDistribucion') || document.querySelector('#itemsBody')) {
         window.calculadorAutomatico = new CalculadorAutomatico();
     }
+    
+    // Listener para cambio de moneda - actualizar todos los montos mostrados
+    const monedaSelect = document.getElementById('moneda');
+    if (monedaSelect) {
+        monedaSelect.addEventListener('change', function() {
+            // Recalcular y actualizar todos los montos con el nuevo símbolo
+            calcularTotalGeneral();
+            actualizarFacturas();
+        });
+    }
 });
 </script>
 
@@ -1533,7 +1896,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <input type="text" 
                            class="form-control cuenta-contable-input" 
                            name="distribucion[${contadorDistribucion}][cuenta_contable_display]"
-                           placeholder="Buscar cuenta..." 
+                           placeholder="🔍 Clic aquí o escriba para buscar cuenta contable..." 
                            autocomplete="off"
                            data-index="${contadorDistribucion}">
                     <input type="hidden" 
@@ -1548,40 +1911,38 @@ document.addEventListener('DOMContentLoaded', function() {
                     <option value="">Seleccione...</option>
                     <?php if (!empty($centros_costo)): ?>
                         <?php foreach ($centros_costo as $centro): ?>
-                            <option value="<?= $centro->id ?>">
-                                <?= View::e($centro->nombre ?? $centro->descripcion ?? 'Sin nombre') ?>
+                            <option value="<?= $centro['id'] ?>"
+                                    data-unidad-negocio-id="<?= $centro['rel_unidad_negocio_id'] ?? $centro['unidad_negocio_id'] ?? '' ?>"
+                                    data-unidad-negocio-nombre="<?= View::e($centro['unidad_negocio_nombre'] ?? 'UNIDAD DE NEGOCIO GENERAL') ?>"
+                                    data-factura="<?= $centro['factura'] ?? 1 ?>">
+                                <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
                             </option>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </select>
             </td>
             <td>
-                <select class="form-select" name="distribucion[${contadorDistribucion}][ubicacion_id]">
+                <select class="form-select" name="distribucion[${contadorDistribucion}][ubicacion_id]" required>
                     <option value="">Seleccione...</option>
                     <?php if (!empty($ubicaciones)): ?>
                         <?php foreach ($ubicaciones as $ubicacion): ?>
-                            <option value="<?= $ubicacion->id ?>">
-                                <?= View::e($ubicacion->nombre ?? $ubicacion->descripcion ?? 'Sin nombre') ?>
+                            <option value="<?= $ubicacion['id'] ?>">
+                                <?= View::e($ubicacion['nombre'] ?? $ubicacion['descripcion'] ?? 'Sin nombre') ?>
                             </option>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </select>
             </td>
             <td>
-                <select class="form-select" name="distribucion[${contadorDistribucion}][unidad_negocio_id]">
-                    <option value="">Seleccione...</option>
-                    <?php if (!empty($unidades_negocio)): ?>
-                        <?php foreach ($unidades_negocio as $unidad): ?>
-                            <option value="<?= $unidad->id ?>">
-                                <?= View::e($unidad->nombre ?? $unidad->descripcion ?? 'Sin nombre') ?>
-                            </option>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </select>
+                <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
+                <input type="hidden" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" value="">
             </td>
-            <td><input type="number" class="form-control dist-porcentaje" name="distribucion[${contadorDistribucion}][porcentaje]" min="0" max="100" step="0.01" required></td>
+            <td><input type="number" class="form-control dist-porcentaje" name="distribucion[${contadorDistribucion}][porcentaje]" min="0" max="100" step="0.00001" required></td>
             <td><input type="number" class="form-control dist-cantidad" name="distribucion[${contadorDistribucion}][cantidad]" readonly></td>
-            <td><input type="text" class="form-control dist-factura" name="distribucion[${contadorDistribucion}][factura]" value="Factura 1" data-factura-numero="1" readonly></td>
+            <td>
+                <input type="hidden" name="distribucion[${contadorDistribucion}][factura]" value="1" class="dist-factura-value">
+                <input type="text" class="form-control dist-factura-display" value="Factura 1" data-factura-numero="1" readonly>
+            </td>
             <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="eliminarDistribucion(this)"><i class="fas fa-trash"></i></button></td>
         `;
         
@@ -1608,6 +1969,8 @@ document.addEventListener('DOMContentLoaded', function() {
         contadorDistribucion++;
     };
     
+// Inicialización cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
     // Inicializar event listeners para todas las filas de distribución existentes
     document.querySelectorAll('.distribucion-row').forEach(row => {
         const facturaSelect = row.querySelector('select[name*="[factura]"]') || row.querySelector('.dist-factura');
@@ -1616,10 +1979,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // El usuario debe seleccionar manualmente las cuentas contables
-    
     // Actualizar facturas al cargar la página
-    actualizarFacturas();
+    if (typeof actualizarFacturas === 'function') {
+        actualizarFacturas();
+    }
+});
     
     // ========================================================================
     // ANIMACIONES Y VALIDACIONES
@@ -1813,7 +2177,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const totalDisplay = document.getElementById('totalPorcentaje');
         
         if (totalDisplay) {
-            totalDisplay.textContent = total.toFixed(2) + '%';
+            totalDisplay.textContent = total.toFixed(5) + '%';
             totalDisplay.className = isValid ? 'text-success' : 'text-danger';
         }
         
@@ -1906,8 +2270,25 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Items detectados:', itemInputs.length, 'Distribución detectada:', distInputs.length);
             
             // Mostrar todos los datos de FormData
+            console.log('=== DEBUG FORMDATA COMPLETO ===');
             for (let [key, value] of formData.entries()) {
-                console.log(`${key}: ${value}`);
+                if (value instanceof File) {
+                    console.log(`${key}: [FILE] ${value.name} (${value.size} bytes, ${value.type})`);
+                } else {
+                    console.log(`${key}: ${value}`);
+                }
+            }
+            
+            // Debug específico de archivos
+            const archivosInput = form.querySelector('#archivos');
+            console.log('=== DEBUG ARCHIVOS ===');
+            console.log('Input archivos:', archivosInput);
+            console.log('Files count:', archivosInput ? archivosInput.files.length : 'NO INPUT');
+            if (archivosInput && archivosInput.files.length > 0) {
+                for (let i = 0; i < archivosInput.files.length; i++) {
+                    const file = archivosInput.files[i];
+                    console.log(`Archivo ${i}: ${file.name} (${file.size} bytes, ${file.type})`);
+                }
             }
             
             // Verificar campos críticos
@@ -1926,6 +2307,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(form.action, {
                 method: 'POST',
                 body: formData,
+                credentials: 'same-origin', // Asegurar que se envíen las cookies de sesión
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
@@ -1938,6 +2320,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     throw new Error('Token CSRF sigue siendo inválido después del reintento');
                 }
+            } else if (response.status === 401) {
+                // Sesión expirada - usuario no autenticado
+                const result = await response.json();
+                throw new Error(result.error || 'Usuario no autenticado. Por favor, inicie sesión nuevamente.');
             } else if (response.ok) {
                 // Éxito - procesar respuesta JSON
                 const result = await response.json();
@@ -1955,6 +2341,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             window.location.href = result.redirect_url || '/requisiciones';
                         });
                     } else {
+                        // Ocultar loading antes del alert
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        restoreButtonsState();
+
                         alert(result.message || 'Requisición creada exitosamente');
                         window.location.href = result.redirect_url || '/requisiciones';
                     }
@@ -1976,7 +2366,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function handleCsrfExpired(form) {
         try {
             // Renovar token CSRF
-            const tokenResponse = await fetch('/csrf-token', {
+            const tokenResponse = await fetch('<?= url('/csrf-token') ?>', {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -2050,15 +2440,47 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleSubmissionError(errorMessage) {
         const loadingOverlay = document.getElementById('loadingOverlay');
         loadingOverlay.style.display = 'none';
-        
+
         // Restaurar botón
         const submitBtn = document.getElementById('submitBtn');
         restoreButtonsState();
-        
+
         // Rehabilitar formulario
         const formElements = document.querySelectorAll('input, select, textarea, button');
         formElements.forEach(el => el.disabled = false);
-        
+
+        // Detectar error de autenticación/sesión expirada
+        const isAuthError = errorMessage && (
+            errorMessage.toLowerCase().includes('no autenticado') ||
+            errorMessage.toLowerCase().includes('sesión') ||
+            errorMessage.toLowerCase().includes('inicie sesión') ||
+            errorMessage.toLowerCase().includes('autenticado')
+        );
+
+        if (isAuthError) {
+            // Sesión expirada - mostrar mensaje y redirigir al login
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sesión Expirada',
+                    html: `
+                        <p>Tu sesión ha expirado por inactividad.</p>
+                        <p>Serás redirigido a la página de inicio de sesión.</p>
+                        <p class="text-muted small mt-2">Tip: Puedes copiar los datos importantes antes de continuar.</p>
+                    `,
+                    confirmButtonText: 'Ir al Login',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
+                }).then(() => {
+                    window.location.href = '<?= url('/login') ?>';
+                });
+            } else {
+                alert('Tu sesión ha expirado. Serás redirigido al login.');
+                window.location.href = '<?= url('/login') ?>';
+            }
+            return;
+        }
+
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 icon: 'error',
@@ -2104,38 +2526,58 @@ document.addEventListener('DOMContentLoaded', function() {
             };
         }
         
-        // 3. Validar distribución
-        let distCount = 0;
-        let hasValidDist = false;
-        let missingCuentaContable = false;
+        // 3. Validar distribución - Recopilar datos por índice
+        const distribuciones = {};
         
         for (let [key, value] of formData.entries()) {
-            if (key.match(/^distribucion\[\d+\]\[centro_costo_id\]$/)) {
-                distCount++;
-                if (value && value !== '') {
-                    hasValidDist = true;
-                }
+            // Extraer índice de distribución
+            const matchCentro = key.match(/^distribucion\[(\d+)\]\[centro_costo_id\]$/);
+            const matchCuenta = key.match(/^distribucion\[(\d+)\]\[cuenta_contable_id\]$/);
+            
+            if (matchCentro) {
+                const idx = matchCentro[1];
+                if (!distribuciones[idx]) distribuciones[idx] = {};
+                distribuciones[idx].centro_costo_id = value;
             }
             
-            // Verificar cuentas contables
-            if (key.match(/^distribucion\[\d+\]\[cuenta_contable_id\]$/)) {
-                if (!value || value === '') {
-                    missingCuentaContable = true;
+            if (matchCuenta) {
+                const idx = matchCuenta[1];
+                if (!distribuciones[idx]) distribuciones[idx] = {};
+                distribuciones[idx].cuenta_contable_id = value;
+            }
+        }
+        
+        // Verificar distribuciones válidas
+        const indices = Object.keys(distribuciones);
+        let hasValidDist = false;
+        let distribucionesSinCuenta = [];
+        
+        for (const idx of indices) {
+            const dist = distribuciones[idx];
+            
+            // Solo validar distribuciones que tienen centro de costo seleccionado
+            if (dist.centro_costo_id && dist.centro_costo_id !== '') {
+                hasValidDist = true;
+                
+                // Verificar si tiene cuenta contable
+                if (!dist.cuenta_contable_id || dist.cuenta_contable_id === '') {
+                    distribucionesSinCuenta.push(parseInt(idx) + 1);
                 }
             }
         }
         
-        if (distCount === 0 || !hasValidDist) {
+        if (!hasValidDist) {
             return {
                 valid: false,
                 message: 'Debe incluir la distribución de gastos con al menos un centro de costo'
             };
         }
         
-        if (missingCuentaContable) {
+        if (distribucionesSinCuenta.length > 0) {
+            const filas = distribucionesSinCuenta.join(', ');
             return {
                 valid: false,
-                message: 'Debe seleccionar una cuenta contable para cada distribución. Use el campo de búsqueda para seleccionar una cuenta.'
+                message: `Falta cuenta contable en la(s) fila(s): ${filas}. Use el campo de búsqueda para seleccionar una cuenta.`
             };
         }
         
@@ -2151,6 +2593,41 @@ document.addEventListener('DOMContentLoaded', function() {
             return {
                 valid: false,
                 message: `Los porcentajes deben sumar 100%. Actualmente suman ${totalPorcentaje.toFixed(2)}%`
+            };
+        }
+        
+        // 7. Validar ubicaciones en distribuciones
+        const distribucionesValidar = {};
+        for (let [key, value] of formData.entries()) {
+            const matchUbicacion = key.match(/^distribucion\[(\d+)\]\[ubicacion_id\]$/);
+            const matchCentroValidar = key.match(/^distribucion\[(\d+)\]\[centro_costo_id\]$/);
+            
+            if (matchUbicacion) {
+                const idx = matchUbicacion[1];
+                if (!distribucionesValidar[idx]) distribucionesValidar[idx] = {};
+                distribucionesValidar[idx].ubicacion_id = value;
+            }
+            
+            if (matchCentroValidar && value && value !== '') {
+                const idx = matchCentroValidar[1];
+                if (!distribucionesValidar[idx]) distribucionesValidar[idx] = {};
+                distribucionesValidar[idx].tiene_centro = true;
+            }
+        }
+        
+        // Verificar ubicaciones en distribuciones activas
+        const distribucionesSinUbicacion = [];
+        for (const [idx, dist] of Object.entries(distribucionesValidar)) {
+            if (dist.tiene_centro && (!dist.ubicacion_id || dist.ubicacion_id === '')) {
+                distribucionesSinUbicacion.push(parseInt(idx) + 1);
+            }
+        }
+        
+        if (distribucionesSinUbicacion.length > 0) {
+            const filas = distribucionesSinUbicacion.join(', ');
+            return {
+                valid: false,
+                message: `Debe seleccionar una ubicación para ${distribucionesSinUbicacion.length > 1 ? 'las filas' : 'la fila'} ${filas} de la distribución`
             };
         }
         

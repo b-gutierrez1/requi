@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Estilos personalizados locales -->
-    <link rel="stylesheet" href="/css/app.css?v=<?php echo time(); ?>">
+    <link rel="stylesheet" href="<?php echo \App\Helpers\View::asset('css/app.css?v=' . time()); ?>">
     
     <!-- Estilos personalizados -->
     <style>
@@ -46,7 +46,7 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/dashboard">
+            <a class="navbar-brand" href="<?= url('/dashboard') ?>">
                 <i class="fas fa-file-invoice me-2"></i>
                 Sistema de Requisiciones
             </a>
@@ -58,23 +58,25 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="/dashboard">
+                        <a class="nav-link" href="<?= url('/dashboard') ?>">
                             <i class="fas fa-home me-1"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/requisiciones">
+                        <a class="nav-link" href="<?= url('/requisiciones') ?>">
                             <i class="fas fa-file-alt me-1"></i> Requisiciones
                         </a>
                     </li>
+                    <?php if (isset($usuario) && (($usuario['is_revisor'] ?? 0) == 1 || ($usuario['is_autorizador'] ?? 0) == 1 || ($usuario['is_admin'] ?? $usuario['es_admin'] ?? 0) == 1)): ?>
                     <li class="nav-item">
-                        <a class="nav-link" href="/autorizaciones">
+                        <a class="nav-link" href="<?= url('/autorizaciones') ?>">
                             <i class="fas fa-check-circle me-1"></i> Autorizaciones
                         </a>
                     </li>
+                    <?php endif; ?>
                     <?php if (isset($usuario) && (($usuario['is_admin'] ?? $usuario['es_admin'] ?? 0) == 1)): ?>
                     <li class="nav-item">
-                        <a class="nav-link" href="/admin">
+                        <a class="nav-link" href="<?= url('/admin') ?>">
                             <i class="fas fa-cog me-1"></i> Administración
                         </a>
                     </li>
@@ -88,9 +90,9 @@
                             <?php echo App\Helpers\View::e($usuario['name'] ?? 'Usuario'); ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="/perfil"><i class="fas fa-user me-2"></i> Mi Perfil</a></li>
+                            <li><a class="dropdown-item" href="<?= url('/perfil') ?>"><i class="fas fa-user me-2"></i> Mi Perfil</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="/logout"><i class="fas fa-sign-out-alt me-2"></i> Cerrar Sesión</a></li>
+                            <li><a class="dropdown-item" href="<?= url('/logout') ?>"><i class="fas fa-sign-out-alt me-2"></i> Cerrar Sesión</a></li>
                         </ul>
                     </li>
                 </ul>
@@ -141,19 +143,20 @@
                     </p>
                 </div>
                 <div class="col-md-6 text-end">
-                    <p class="mb-0 text-muted">
-                        <i class="fas fa-code me-1"></i> Desarrollado con <i class="fas fa-heart text-danger"></i>
-                    </p>
+                    <!-- Footer derecho vacío -->
                 </div>
             </div>
         </div>
     </footer>
 
+    <!-- Modales (fuera del contenedor principal) -->
+    <?php App\Helpers\View::section('modals'); ?>
+
     <!-- Bootstrap Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- JavaScript personalizado -->
-    <script src="/js/app.js?v=<?php echo time(); ?>"></script>
+    <script src="<?php echo \App\Helpers\View::asset('js/app.js?v=' . time()); ?>"></script>
     
     <!-- CSRF Token for AJAX -->
     <script>

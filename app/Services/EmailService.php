@@ -83,11 +83,11 @@ class EmailService
         }
         
         $this->testMode = Config::get('mail.test_mode', false);
-        $this->testRecipient = Config::get('mail.test_recipient', '');
+        $this->testRecipient = Config::get('mail.test_recipient') ?: Config::get('mail.test_email', '');
         $this->lastError = '';
         
         // Modo desarrollo: solo logear en lugar de enviar
-        $this->skipMode = Config::get('mail.skip_sending', true); // Temporal para desarrollo
+        $this->skipMode = Config::get('mail.skip_sending', false);
     }
 
     /**
@@ -105,26 +105,31 @@ class EmailService
         try {
             // Configuración del servidor
             $this->mailer->isSMTP();
-            $this->mailer->Host = Config::get('mail.host');
+            $this->mailer->Host = Config::get('mail.mailers.smtp.host') ?: Config::get('mail.host', '');
             $this->mailer->SMTPAuth = true;
-            $this->mailer->Username = Config::get('mail.username');
-            $this->mailer->Password = Config::get('mail.password');
-            $this->mailer->SMTPSecure = Config::get('mail.encryption', PHPMailer::ENCRYPTION_STARTTLS);
-            $this->mailer->Port = Config::get('mail.port', 587);
+            $this->mailer->Username = Config::get('mail.mailers.smtp.username') ?: Config::get('mail.username', '');
+            $this->mailer->Password = Config::get('mail.mailers.smtp.password') ?: Config::get('mail.password', '');
+            $encryption = Config::get('mail.mailers.smtp.encryption') ?: Config::get('mail.encryption', 'tls');
+            $this->mailer->SMTPSecure = $encryption === 'ssl' ? PHPMailer::ENCRYPTION_SMTPS : PHPMailer::ENCRYPTION_STARTTLS;
+            $this->mailer->Port = Config::get('mail.mailers.smtp.port') ?: Config::get('mail.port', 587);
             $this->mailer->CharSet = 'UTF-8';
 
             // Remitente por defecto
-            $fromEmail = Config::get('mail.from.address');
-            $fromName = Config::get('mail.from.name');
+            $fromEmail = Config::get('mail.from.address', '');
+            $fromName = Config::get('mail.from.name', '');
             $this->mailer->setFrom($fromEmail, $fromName);
 
             // Configuración adicional
             $this->mailer->isHTML(true);
             
-            // Debug en modo desarrollo
-            if (Config::get('app.debug', false)) {
-                $this->mailer->SMTPDebug = 2;
-            }
+            // Debug desactivado - el output de SMTPDebug rompe las redirecciones HTTP
+            // Si necesitas debug, usa SMTPDebug = 2 y Debugoutput = 'error_log'
+            $this->mailer->SMTPDebug = 0;
+            // Para depurar en logs sin afectar la página, descomentar:
+            // if (Config::get('app.debug', false)) {
+            //     $this->mailer->SMTPDebug = 2;
+            //     $this->mailer->Debugoutput = 'error_log'; // Enviar a logs, no a pantalla
+            // }
         } catch (Exception $e) {
             error_log("Error configurando mailer: " . $e->getMessage());
             $this->lastError = $e->getMessage();

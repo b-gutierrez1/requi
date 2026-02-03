@@ -11,7 +11,7 @@
 
 namespace App\Helpers;
 
-use App\Models\OrdenCompra;
+use App\Models\Requisicion;
 use App\Models\AutorizacionFlujo;
 
 class EstadoHelper
@@ -25,12 +25,22 @@ class EstadoHelper
      */
     public static function getEstado($ordenCompraId)
     {
-        $orden = OrdenCompra::find($ordenCompraId);
+        // Verificar que la requisición existe
+        $orden = Requisicion::find($ordenCompraId);
         if (!$orden) {
             return 'no_encontrado';
         }
         
-        return $orden->getEstadoReal();
+        // Obtener el flujo de autorización
+        $flujo = AutorizacionFlujo::porRequisicion($ordenCompraId);
+        if (!$flujo) {
+            // Si no hay flujo, está en borrador
+            return 'borrador';
+        }
+        
+        // Mapear el estado del flujo al estado de la requisición
+        $estadoFlujo = is_object($flujo) ? $flujo->estado : $flujo['estado'];
+        return self::mapearEstadoFlujo($estadoFlujo);
     }
     
     /**
@@ -60,13 +70,17 @@ class EstadoHelper
      * @param string $estadoFlujo
      * @return string
      */
-    private static function mapearEstadoFlujo($estadoFlujo)
+    public static function mapearEstadoFlujo($estadoFlujo)
     {
         switch ($estadoFlujo) {
             case 'pendiente_revision':
                 return 'pendiente_revision';
             case 'rechazado_revision':
                 return 'rechazado';
+            // Todos los estados de autorización pendiente se mapean a pendiente_autorizacion
+            case 'pendiente_autorizacion_pago':
+            case 'pendiente_autorizacion_cuenta':
+            case 'pendiente_autorizacion_centros':
             case 'pendiente_autorizacion':
                 return 'pendiente_autorizacion';
             case 'rechazado_autorizacion':
@@ -157,8 +171,8 @@ class EstadoHelper
         ];
         
         try {
-            // Obtener todas las órdenes de compra
-            $ordenes = OrdenCompra::all();
+            // Obtener todas las requisiciones
+            $ordenes = Requisicion::all();
             
             foreach ($ordenes as $orden) {
                 $stats['total_revisados']++;
@@ -169,12 +183,12 @@ class EstadoHelper
                 if ($estadoActualBD !== $estadoRealCalculado) {
                     // Estado inconsistente - corregir
                     try {
-                        OrdenCompra::update($orden->id, ['estado' => $estadoRealCalculado]);
+                        Requisicion::update($orden->id, ['estado' => $estadoRealCalculado]);
                         $stats['corregidos']++;
-                        error_log("Estado corregido para orden {$orden->id}: '$estadoActualBD' → '$estadoRealCalculado'");
+                        error_log("Estado corregido para requisición {$orden->id}: '$estadoActualBD' → '$estadoRealCalculado'");
                     } catch (\Exception $e) {
                         $stats['errores']++;
-                        error_log("Error corrigiendo orden {$orden->id}: " . $e->getMessage());
+                        error_log("Error corrigiendo requisición {$orden->id}: " . $e->getMessage());
                     }
                 } else {
                     $stats['sin_cambios']++;

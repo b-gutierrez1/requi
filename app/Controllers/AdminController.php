@@ -19,11 +19,12 @@ use App\Models\Model;
 use App\Models\Usuario;
 use App\Models\CentroCosto;
 use App\Models\CuentaContable;
+use App\Models\UnidadNegocio;
 use App\Models\PersonaAutorizada;
 use App\Models\AutorizadorRespaldo;
 use App\Models\AutorizadorMetodoPago;
 use App\Models\AutorizadorCuentaContable;
-use App\Models\OrdenCompra;
+use App\Models\Requisicion;
 
 class AdminController extends Controller
 {
@@ -53,34 +54,79 @@ class AdminController extends Controller
      */
     public function dashboard()
     {
-        // Estadísticas generales del sistema
-        $stats = [
-            'total_usuarios' => Usuario::count(),
-            'usuarios_activos' => Usuario::countActivos(),
-            'total_requisiciones' => OrdenCompra::count(),
-            'requisiciones_mes' => OrdenCompra::countMesActual(),
-            'monto_total_mes' => OrdenCompra::montoTotalMes(),
-            'total_centros' => CentroCosto::count(),
-            'autorizadores' => PersonaAutorizada::count(),
-            'autorizaciones_pendientes' => 0 // TODO: implementar conteo de autorizaciones pendientes
-        ];
+        try {
+            error_log("=== ADMIN DASHBOARD INICIADO ===");
+            
+            // Usar conexión directa a la base de datos para evitar problemas del ORM
+            $pdo = \App\Models\Model::getConnection();
+            
+            // Estadísticas básicas con consultas directas
+            $stats = [
+                'total_usuarios' => 0,
+                'usuarios_activos' => 0,
+                'total_requisiciones' => 0,
+                'requisiciones_mes' => 0,
+                'monto_total_mes' => 0,
+                'total_centros' => 0,
+                'autorizadores' => 0,
+                'autorizaciones_pendientes' => 0
+            ];
+            
+            try {
+                // Total requisiciones
+                $stmt = $pdo->query("SELECT COUNT(*) as total FROM requisiciones");
+                $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+                $stats['total_requisiciones'] = (int) $result['total'];
+                
+                // Requisiciones del mes
+                $stmt = $pdo->query("
+                    SELECT COUNT(*) as total 
+                    FROM requisiciones 
+                    WHERE YEAR(fecha_solicitud) = YEAR(CURDATE()) 
+                    AND MONTH(fecha_solicitud) = MONTH(CURDATE())
+                ");
+                $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+                $stats['requisiciones_mes'] = (int) $result['total'];
+                
+                // Monto del mes
+                $stmt = $pdo->query("
+                    SELECT COALESCE(SUM(monto_total), 0) as total 
+                    FROM requisiciones 
+                    WHERE YEAR(fecha_solicitud) = YEAR(CURDATE()) 
+                    AND MONTH(fecha_solicitud) = MONTH(CURDATE())
+                ");
+                $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+                $stats['monto_total_mes'] = (float) $result['total'];
+                
+            } catch (\Exception $e) {
+                error_log("Error calculando estadísticas: " . $e->getMessage());
+            }
 
-        // Obtener usuarios recientes
-        $usuarios_recientes = Usuario::getRecientes(5);
-        
-        // Obtener autorizaciones pendientes
-        $autorizaciones_pendientes = [];
-        
-        // Actividad reciente
-        $actividad_reciente = $this->getActividadReciente();
+            error_log("Estadísticas calculadas: " . json_encode($stats));
 
-        View::render('admin/dashboard', [
-            'stats' => $stats,
-            'usuarios_recientes' => $usuarios_recientes,
-            'autorizaciones_pendientes' => $autorizaciones_pendientes,
-            'actividad_reciente' => $actividad_reciente,
-            'title' => 'Panel de Administración'
-        ]);
+            // Datos simples para no causar errores
+            $usuarios_recientes = [];
+            $autorizaciones_pendientes = [];
+            $actividad_reciente = [];
+
+            error_log("Renderizando vista admin/dashboard...");
+            View::render('admin/dashboard', [
+                'stats' => $stats,
+                'usuarios_recientes' => $usuarios_recientes,
+                'autorizaciones_pendientes' => $autorizaciones_pendientes,
+                'actividad_reciente' => $actividad_reciente,
+                'title' => 'Panel de Administración'
+            ]);
+            error_log("=== ADMIN DASHBOARD COMPLETADO ===");
+            
+        } catch (\Exception $e) {
+            error_log("ERROR EN ADMIN DASHBOARD: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            echo "<h1>Error en Dashboard</h1>";
+            echo "<p>Error: " . htmlspecialchars($e->getMessage()) . "</p>";
+            echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+            exit;
+        }
     }
 
     // ========================================================================
@@ -169,7 +215,7 @@ class AdminController extends Controller
         }
 
         // Obtener estadísticas del usuario
-        $estadisticas = OrdenCompra::getEstadisticasUsuario($id);
+        $estadisticas = Requisicion::getEstadisticasUsuario($id);
 
         View::render('admin/usuarios/show', [
             'usuario' => $usuario,
@@ -259,6 +305,7 @@ class AdminController extends Controller
             'azure_display_name' => trim($_POST['azure_display_name']),
             'azure_email' => trim($_POST['azure_email']),
             'is_revisor' => isset($_POST['is_revisor']) ? 1 : 0,
+            'is_autorizador' => isset($_POST['is_autorizador']) ? 1 : 0,
             'is_admin' => isset($_POST['is_admin']) ? 1 : 0,
             'activo' => isset($_POST['activo']) ? 1 : 0
         ];
@@ -274,6 +321,54 @@ class AdminController extends Controller
             Redirect::back()
                 ->withError('Error al actualizar usuario')
                 ->send();
+        }
+    }
+
+    /**
+     * Cambia el estado activo/inactivo de un usuario
+     * 
+     * @param int $id ID del usuario
+     * @return void
+     */
+    public function toggleUsuario($id)
+    {
+        try {
+            $usuario = Usuario::find($id);
+            
+            if (!$usuario) {
+                $this->jsonResponse([
+                    'success' => false,
+                    'error' => 'Usuario no encontrado'
+                ], 404);
+                return;
+            }
+
+            // Obtener datos JSON del body
+            $input = json_decode(file_get_contents('php://input'), true);
+            $nuevoEstado = $input['activo'] ?? !$usuario->activo;
+
+            // Actualizar estado
+            $resultado = Usuario::updateById($id, ['activo' => $nuevoEstado ? 1 : 0]);
+
+            if ($resultado) {
+                $this->jsonResponse([
+                    'success' => true,
+                    'message' => 'Estado del usuario actualizado exitosamente',
+                    'activo' => $nuevoEstado
+                ]);
+            } else {
+                $this->jsonResponse([
+                    'success' => false,
+                    'error' => 'Error al actualizar el estado del usuario'
+                ], 500);
+            }
+
+        } catch (\Exception $e) {
+            error_log("Error en toggleUsuario: " . $e->getMessage());
+            $this->jsonResponse([
+                'success' => false,
+                'error' => 'Error interno del servidor'
+            ], 500);
         }
     }
 
@@ -368,11 +463,10 @@ class AdminController extends Controller
                 ->send();
         }
 
+        // Solo actualizar los campos que existen en la tabla
         $data = [
-            'codigo' => $this->sanitize($_POST['codigo']),
             'nombre' => $this->sanitize($_POST['nombre']),
-            'descripcion' => $this->sanitize($_POST['descripcion'] ?? ''),
-            'activo' => isset($_POST['activo']) ? 1 : 0
+            'factura' => intval($_POST['factura'] ?? 1)
         ];
 
         $resultado = CentroCosto::updateById($id, $data);
@@ -384,6 +478,120 @@ class AdminController extends Controller
         } else {
             Redirect::back()
                 ->withError('Error al actualizar')
+                ->send();
+        }
+    }
+
+    /**
+     * Muestra los detalles de un centro de costo
+     * 
+     * @param int $id
+     * @return void
+     */
+    public function showCentro($id)
+    {
+        $centro = CentroCosto::find($id);
+        
+        if (!$centro) {
+            Redirect::to('/admin/centros')
+                ->withError('Centro de costo no encontrado')
+                ->send();
+            return;
+        }
+
+        View::render('admin/centros/show', [
+            'centro' => $centro,
+            'title' => 'Detalles del Centro de Costo'
+        ]);
+    }
+
+    /**
+     * Muestra el formulario para crear un nuevo centro de costo
+     * 
+     * @return void
+     */
+    public function createCentro()
+    {
+        $unidadesNegocio = UnidadNegocio::activas();
+        
+        View::render('admin/centros/create', [
+            'title' => 'Nuevo Centro de Costo',
+            'unidadesNegocio' => $unidadesNegocio
+        ]);
+    }
+
+    /**
+     * Muestra el formulario para editar un centro de costo
+     * 
+     * @param int $id
+     * @return void
+     */
+    public function editCentro($id)
+    {
+        $centro = CentroCosto::find($id);
+        
+        if (!$centro) {
+            Redirect::to('/admin/centros')
+                ->withError('Centro de costo no encontrado')
+                ->send();
+            return;
+        }
+
+        $unidadesNegocio = UnidadNegocio::activas();
+        
+        View::render('admin/centros/edit', [
+            'centro' => $centro,
+            'title' => 'Editar Centro de Costo',
+            'unidadesNegocio' => $unidadesNegocio
+        ]);
+    }
+
+    /**
+     * Elimina un centro de costo
+     * 
+     * @param int $id
+     * @return void
+     */
+    public function deleteCentro($id)
+    {
+        if (!$this->validateCSRF()) {
+            Redirect::back()
+                ->withError('Token inválido')
+                ->send();
+            return;
+        }
+
+        $centro = CentroCosto::find($id);
+        
+        if (!$centro) {
+            Redirect::to('/admin/centros')
+                ->withError('Centro de costo no encontrado')
+                ->send();
+            return;
+        }
+
+        // Verificar si el centro está siendo usado en requisiciones
+        $pdo = Model::getConnection();
+        $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM distribucion_gasto WHERE centro_costo_id = ?");
+        $stmt->execute([$id]);
+        $uso = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if ($uso['total'] > 0) {
+            Redirect::to('/admin/centros')
+                ->withError('No se puede eliminar: el centro de costo está siendo utilizado en ' . $uso['total'] . ' registros')
+                ->send();
+            return;
+        }
+
+        $resultado = CentroCosto::destroy($id);
+
+        if ($resultado) {
+            Redirect::to('/admin/centros')
+                ->withSuccess('Centro de costo eliminado correctamente')
+                ->send();
+        } else {
+            Redirect::to('/admin/centros')
+                ->withError('Error al eliminar el centro de costo')
                 ->send();
         }
     }
@@ -524,6 +732,22 @@ class AdminController extends Controller
             'autorizador' => $autorizador,
             'centros' => $centros,
             'title' => 'Editar Autorizador'
+        ]);
+    }
+
+    /**
+     * Muestra formulario para crear autorizador
+     * 
+     * @return void
+     */
+    public function createAutorizador()
+    {
+        // Obtener centros de costo disponibles
+        $centros = CentroCosto::all();
+        
+        View::render('admin/autorizadores/create', [
+            'centros' => $centros,
+            'title' => 'Nuevo Autorizador'
         ]);
     }
 
@@ -899,6 +1123,177 @@ class AdminController extends Controller
         ]);
     }
 
+    /**
+     * Toggle estado activo/inactivo de una cuenta contable
+     * 
+     * @param int $id
+     * @return void
+     */
+    public function toggleCuentaContable($id)
+    {
+        if (!$this->validateCSRF()) {
+            Redirect::back()->withError('Token CSRF inválido')->send();
+            return;
+        }
+
+        try {
+            $activo = $_POST['activo'] ?? 0;
+            $activo = (int) $activo; // Convertir a entero (0 o 1)
+            
+            $cuenta = CuentaContable::find($id);
+            if (!$cuenta) {
+                Redirect::back()->withError('Cuenta contable no encontrada')->send();
+                return;
+            }
+
+            // Actualizar estado
+            CuentaContable::updateById($id, ['activo' => $activo]);
+            
+            $mensaje = $activo ? 'Cuenta contable activada correctamente' : 'Cuenta contable desactivada correctamente';
+            Redirect::to('/admin/catalogos?tipo=cuentas')->withSuccess($mensaje)->send();
+            
+        } catch (\Exception $e) {
+            error_log("Error toggle cuenta contable: " . $e->getMessage());
+            Redirect::back()->withError('Error al cambiar estado de la cuenta contable')->send();
+        }
+    }
+
+    /**
+     * Crear nueva cuenta contable desde catálogos
+     * 
+     * @return void
+     */
+    public function storeCuentaContableCatalogo()
+    {
+        if (!$this->validateCSRF()) {
+            Redirect::back()->withError('Token CSRF inválido')->send();
+            return;
+        }
+
+        try {
+            $codigo = trim($_POST['codigo'] ?? '');
+            $descripcion = trim($_POST['descripcion'] ?? '');
+            
+            if (empty($codigo) || empty($descripcion)) {
+                Redirect::back()->withError('Código y descripción son requeridos')->send();
+                return;
+            }
+
+            // Verificar si ya existe el código
+            $existente = CuentaContable::where('codigo', $codigo)->first();
+            if ($existente) {
+                Redirect::back()->withError('Ya existe una cuenta contable con ese código')->send();
+                return;
+            }
+
+            // Crear nueva cuenta
+            CuentaContable::create([
+                'codigo' => $codigo,
+                'descripcion' => $descripcion,
+                'activo' => 1
+            ]);
+            
+            Redirect::to('/admin/catalogos?tipo=cuentas')->withSuccess('Cuenta contable creada correctamente')->send();
+            
+        } catch (\Exception $e) {
+            error_log("Error crear cuenta contable: " . $e->getMessage());
+            Redirect::back()->withError('Error al crear la cuenta contable')->send();
+        }
+    }
+
+    /**
+     * Actualizar cuenta contable desde catálogos
+     * 
+     * @param int $id
+     * @return void
+     */
+    public function updateCuentaContableCatalogo($id)
+    {
+        if (!$this->validateCSRF()) {
+            Redirect::back()->withError('Token CSRF inválido')->send();
+            return;
+        }
+
+        try {
+            $codigo = trim($_POST['codigo'] ?? '');
+            $descripcion = trim($_POST['descripcion'] ?? '');
+            
+            if (empty($codigo) || empty($descripcion)) {
+                Redirect::back()->withError('Código y descripción son requeridos')->send();
+                return;
+            }
+
+            $cuenta = CuentaContable::find($id);
+            if (!$cuenta) {
+                Redirect::back()->withError('Cuenta contable no encontrada')->send();
+                return;
+            }
+
+            // Verificar si el nuevo código ya existe (solo si cambió)
+            if ($codigo !== $cuenta->codigo) {
+                $existente = CuentaContable::where('codigo', $codigo)->first();
+                if ($existente) {
+                    Redirect::back()->withError('Ya existe una cuenta contable con ese código')->send();
+                    return;
+                }
+            }
+
+            // Actualizar cuenta
+            CuentaContable::updateById($id, [
+                'codigo' => $codigo,
+                'descripcion' => $descripcion
+            ]);
+            
+            Redirect::to('/admin/catalogos?tipo=cuentas')->withSuccess('Cuenta contable actualizada correctamente')->send();
+            
+        } catch (\Exception $e) {
+            error_log("Error actualizar cuenta contable: " . $e->getMessage());
+            Redirect::back()->withError('Error al actualizar la cuenta contable')->send();
+        }
+    }
+
+    /**
+     * Eliminar cuenta contable desde catálogos
+     * 
+     * @param int $id
+     * @return void
+     */
+    public function deleteCuentaContableCatalogo($id)
+    {
+        if (!$this->validateCSRF()) {
+            Redirect::back()->withError('Token CSRF inválido')->send();
+            return;
+        }
+
+        try {
+            $cuenta = CuentaContable::find($id);
+            if (!$cuenta) {
+                Redirect::back()->withError('Cuenta contable no encontrada')->send();
+                return;
+            }
+
+            // Verificar si la cuenta está siendo usada
+            $pdo = Model::getConnection();
+            $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM distribucion_gasto WHERE cuenta_contable_id = ?");
+            $stmt->execute([$id]);
+            $uso = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if ($uso['total'] > 0) {
+                Redirect::back()->withError('No se puede eliminar: la cuenta contable está siendo utilizada en ' . $uso['total'] . ' registros')->send();
+                return;
+            }
+
+            // Eliminar cuenta
+            CuentaContable::destroy($id);
+            
+            Redirect::to('/admin/catalogos?tipo=cuentas')->withSuccess('Cuenta contable eliminada correctamente')->send();
+            
+        } catch (\Exception $e) {
+            error_log("Error eliminar cuenta contable: " . $e->getMessage());
+            Redirect::back()->withError('Error al eliminar la cuenta contable')->send();
+        }
+    }
+
     // ========================================================================
     // LIMPIEZA DE BASE DE DATOS
     // ========================================================================
@@ -977,13 +1372,14 @@ class AdminController extends Controller
                     $stmt = $conn->prepare($sql);
                     $stmt->execute([$idBase, $idEliminar]);
                     
-                    // Actualizar autorizacion_centro_costo
-                    $sql = "UPDATE autorizacion_centro_costo SET centro_costo_id = ? WHERE centro_costo_id = ?";
+                    // Actualizar autorizaciones de centro de costo
+                    $sql = "UPDATE autorizaciones SET centro_costo_id = ? WHERE centro_costo_id = ? AND tipo = 'centro_costo'";
                     $stmt = $conn->prepare($sql);
                     $stmt->execute([$idBase, $idEliminar]);
                     
                     // Actualizar persona_autorizada
-                    $sql = "UPDATE persona_autorizada SET centro_costo_id = ? WHERE centro_costo_id = ?";
+                    $table = PersonaAutorizada::getTable();
+                    $sql = "UPDATE {$table} SET centro_costo_id = ? WHERE centro_costo_id = ?";
                     $stmt = $conn->prepare($sql);
                     $stmt->execute([$idBase, $idEliminar]);
                     
@@ -1162,16 +1558,16 @@ class AdminController extends Controller
             $centroCosto = $_POST['centro_costo'] ?? null;
 
             // Obtener requisiciones del período
-            $sql = "SELECT oc.*, u.azure_display_name as usuario_nombre 
-                    FROM orden_compra oc 
-                    LEFT JOIN usuarios u ON oc.usuario_id = u.id 
-                    WHERE DATE(oc.fecha) BETWEEN ? AND ?";
+            $sql = "SELECT r.*, u.azure_display_name as usuario_nombre 
+                    FROM requisiciones r 
+                    LEFT JOIN usuarios u ON r.usuario_id = u.id 
+                    WHERE DATE(r.fecha_solicitud) BETWEEN ? AND ?";
             
             $params = [$fechaInicio, $fechaFin];
             
             if ($centroCosto) {
-                $sql .= " AND oc.id IN (
-                    SELECT DISTINCT dg.orden_compra_id 
+                $sql .= " AND r.id IN (
+                    SELECT DISTINCT dg.requisicion_id 
                     FROM distribucion_gasto dg 
                     WHERE dg.centro_costo_id = ?
                 )";
@@ -1180,7 +1576,7 @@ class AdminController extends Controller
             
             $sql .= " ORDER BY oc.fecha DESC";
             
-            $stmt = OrdenCompra::query($sql, $params);
+            $stmt = Requisicion::query($sql, $params);
             $requisiciones = [];
             while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
                 $requisiciones[] = $row;
@@ -1231,17 +1627,17 @@ class AdminController extends Controller
             $formato = $_POST['formato'] ?? 'pdf';
 
             // Obtener autorizaciones del período
-            $sql = "SELECT af.*, oc.nombre_razon_social, oc.monto_total, oc.fecha,
-                           acc.autorizador_email, acc.fecha_autorizacion, acc.estado as estado_auth,
-                           cc.nombre as centro_costo_nombre
+            $sql = "SELECT af.*, r.proveedor_nombre as nombre_razon_social, r.monto_total, r.fecha_solicitud as fecha,
+                           a.autorizador_email, a.fecha_respuesta as fecha_autorizacion, a.estado as estado_auth,
+                           a.tipo as tipo_autorizacion, cc.nombre as centro_costo_nombre
                     FROM autorizacion_flujo af
-                    INNER JOIN orden_compra oc ON af.orden_compra_id = oc.id
-                    LEFT JOIN autorizacion_centro_costo acc ON af.id = acc.autorizacion_flujo_id
-                    LEFT JOIN centro_de_costo cc ON acc.centro_costo_id = cc.id
+                    INNER JOIN requisiciones r ON af.requisicion_id = r.id
+                    LEFT JOIN autorizaciones a ON r.id = a.requisicion_id
+                    LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
                     WHERE DATE(af.fecha_creacion) BETWEEN ? AND ?
                     ORDER BY af.fecha_creacion DESC";
             
-            $stmt = OrdenCompra::query($sql, [$fechaInicio, $fechaFin]);
+            $stmt = \App\Models\Requisicion::query($sql, [$fechaInicio, $fechaFin]);
             $autorizaciones = [];
             while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
                 $autorizaciones[] = $row;
@@ -1285,15 +1681,15 @@ class AdminController extends Controller
             // Obtener datos financieros por centro de costo
             $sql = "SELECT cc.id, cc.nombre, cc.codigo,
                            SUM(dg.cantidad) as monto_total,
-                           COUNT(DISTINCT dg.orden_compra_id) as total_requisiciones
+                           COUNT(DISTINCT dg.requisicion_id) as total_requisiciones
                     FROM centro_de_costo cc
                     LEFT JOIN distribucion_gasto dg ON cc.id = dg.centro_costo_id
-                    LEFT JOIN orden_compra oc ON dg.orden_compra_id = oc.id
-                    WHERE DATE(oc.fecha) BETWEEN ? AND ?
+                    LEFT JOIN requisiciones r ON dg.requisicion_id = r.id
+                    WHERE DATE(r.fecha_solicitud) BETWEEN ? AND ?
                     GROUP BY cc.id, cc.nombre, cc.codigo
                     ORDER BY monto_total DESC";
             
-            $stmt = OrdenCompra::query($sql, [$fechaInicio, $fechaFin]);
+            $stmt = \App\Models\Requisicion::query($sql, [$fechaInicio, $fechaFin]);
             $datosFinancieros = [];
             while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
                 $datosFinancieros[] = $row;
@@ -1427,19 +1823,20 @@ class AdminController extends Controller
     {
         fputcsv($output, ['Estadísticas']);
         fputcsv($output, ['Total Requisiciones', $datos['estadisticas']['total']]);
-        fputcsv($output, ['Monto Total', 'Q ' . number_format($datos['estadisticas']['monto_total'], 2)]);
+        fputcsv($output, ['Monto Total', 'Q ' . number_format($datos['estadisticas']['monto_total'], 5)]);
         fputcsv($output, []);
         
         fputcsv($output, ['Detalle de Requisiciones']);
         fputcsv($output, ['ID', 'Fecha', 'Proveedor', 'Usuario', 'Monto', 'Estado']);
         
         foreach ($datos['requisiciones'] as $req) {
+            $simbolo = ($req['moneda'] ?? 'GTQ') === 'USD' ? '$' : 'Q';
             fputcsv($output, [
                 $req['id'],
                 $req['fecha'],
                 $req['nombre_razon_social'],
                 $req['usuario_nombre'] ?? '',
-                'Q ' . number_format($req['monto_total'], 2),
+                $simbolo . ' ' . number_format($req['monto_total'], 5),
                 $req['estado']
             ]);
         }
@@ -1454,11 +1851,12 @@ class AdminController extends Controller
         fputcsv($output, ['ID Flujo', 'Fecha', 'Proveedor', 'Monto', 'Autorizador', 'Estado', 'Fecha Autorización', 'Centro Costo']);
         
         foreach ($datos['autorizaciones'] as $auth) {
+            $simbolo = ($auth['moneda'] ?? 'GTQ') === 'USD' ? '$' : 'Q';
             fputcsv($output, [
                 $auth['id'],
                 $auth['fecha_creacion'],
                 $auth['nombre_razon_social'],
-                'Q ' . number_format($auth['monto_total'], 2),
+                $simbolo . ' ' . number_format($auth['monto_total'], 5),
                 $auth['autorizador_email'] ?? '',
                 $auth['estado_auth'] ?? '',
                 $auth['fecha_autorizacion'] ?? '',
@@ -1473,7 +1871,7 @@ class AdminController extends Controller
     private function generarCSVFinanciero($output, $datos)
     {
         fputcsv($output, ['Resumen Financiero']);
-        fputcsv($output, ['Monto Total General', 'Q ' . number_format($datos['monto_total_general'], 2)]);
+        fputcsv($output, ['Monto Total General', 'Q ' . number_format($datos['monto_total_general'], 5)]);
         fputcsv($output, []);
         
         fputcsv($output, ['Gasto por Centro de Costo']);
@@ -1483,7 +1881,7 @@ class AdminController extends Controller
             fputcsv($output, [
                 $centro['codigo'],
                 $centro['nombre'],
-                'Q ' . number_format($centro['monto_total'] ?? 0, 2),
+                'Q ' . number_format($centro['monto_total'] ?? 0, 5),
                 $centro['total_requisiciones'] ?? 0
             ]);
         }
@@ -1545,20 +1943,30 @@ class AdminController extends Controller
      */
     private function getActividadReciente()
     {
-        // Obtener últimas 10 requisiciones creadas
-        $requisiciones = OrdenCompra::recientes(10);
+        try {
+            error_log("getActividadReciente: Iniciando");
+            
+            // Obtener últimas 10 requisiciones creadas
+            $requisiciones = Requisicion::recientes(10);
+            error_log("getActividadReciente: Obtenidas " . count($requisiciones) . " requisiciones");
 
-        $actividad = [];
-        foreach ($requisiciones as $req) {
-            $actividad[] = [
-                'tipo' => 'requisicion_creada',
-                'descripcion' => "Requisición #{$req->id} creada",
-                'usuario' => $req->usuario_id,
-                'fecha' => $req->fecha
-            ];
+            $actividad = [];
+            foreach ($requisiciones as $req) {
+                $actividad[] = [
+                    'tipo' => 'requisicion_creada',
+                    'descripcion' => "Requisición #{$req->id} creada",
+                    'usuario' => $req->usuario_id,
+                    'fecha' => $req->fecha ?? $req->fecha_solicitud ?? 'N/A'
+                ];
+            }
+            
+            error_log("getActividadReciente: Actividad generada con " . count($actividad) . " items");
+            return $actividad;
+            
+        } catch (\Exception $e) {
+            error_log("Error en getActividadReciente: " . $e->getMessage());
+            return [];
         }
-
-        return $actividad;
     }
 
     /**
@@ -1614,6 +2022,7 @@ class AdminController extends Controller
         $centros = PersonaAutorizada::centrosCostoPorEmail($email) ?? [];
 
         return [
+            'id' => $ultimo['id'] ?? null,  // Agregar campo id para compatibilidad con la vista
             'email' => $email,
             'nombre' => $nombre,
             'cargo' => $persona['cargo'] ?? null,
@@ -1628,7 +2037,7 @@ class AdminController extends Controller
             'fecha_actualizacion' => $ultimo['fecha_actualizacion'] ?? null,
             'actualizado_por' => $ultimo['actualizado_por'] ?? null,
             'registros' => $registros,
-            'id_registro' => $ultimo['id'] ?? null,
+            'id_registro' => $ultimo['id'] ?? null,  // Mantener para backward compatibility
             'centros_costo' => $centros,
             'centros_costo_count' => is_array($centros) ? count($centros) : 0
         ];
@@ -1732,16 +2141,16 @@ class AdminController extends Controller
             
             if ($tableExists) {
                 // Si la tabla existe, obtener datos reales - usar nombres de columnas correctos
-                // La tabla tiene: metodo_pago (no forma_pago), autorizador_email (no autorizador_nombre), no tiene activo
+                // Obtener cada registro individual para permitir eliminación específica
                 $sql = "SELECT 
+                            id,
                             autorizador_email,
-                            GROUP_CONCAT(metodo_pago ORDER BY metodo_pago SEPARATOR ',') as metodos_pago,
-                            GROUP_CONCAT(DISTINCT descripcion SEPARATOR ' | ') as observaciones,
-                            COUNT(DISTINCT metodo_pago) as cantidad_metodos
+                            metodo_pago,
+                            descripcion as observaciones,
+                            fecha_actualizacion
                         FROM autorizadores_metodos_pago
                         WHERE autorizador_email IS NOT NULL AND autorizador_email != ''
-                        GROUP BY autorizador_email
-                        ORDER BY autorizador_email ASC";
+                        ORDER BY autorizador_email ASC, metodo_pago ASC";
                 
                 $stmt = Model::getConnection()->prepare($sql);
                 $stmt->execute();
@@ -1792,9 +2201,8 @@ class AdminController extends Controller
                     }
                     
                     // Asegurar que los campos esperados existan
-                    // Usar el ID real si existe, sino usar el email codificado como identificador
-                    $row['id'] = $autorizadorId ?? urlencode($row['autorizador_email'] ?? '');
-                    $row['id_real'] = $autorizadorId; // Guardar el ID real por si se necesita
+                    // IMPORTANTE: NO sobrescribir $row['id'] - ese es el ID de autorizadores_metodos_pago que necesitamos para eliminar
+                    $row['autorizador_id'] = $autorizadorId; // ID de la tabla autorizadores
                     $row['nombre'] = $row['autorizador_nombre'] ?? null;
                     $row['email'] = $row['autorizador_email'] ?? null;
                     $row['activo'] = true;
@@ -1842,6 +2250,7 @@ class AdminController extends Controller
                 // Si las tablas existen, obtener datos reales usando nombres de columnas correctos
                 // La tabla tiene: autorizador_email, NO tiene autorizador_nombre, NO tiene activo
                 $sql = "SELECT 
+                            MIN(acc.id) AS registro_id,
                             acc.autorizador_email,
                             GROUP_CONCAT(DISTINCT cc.codigo ORDER BY cc.codigo SEPARATOR ', ') as cuentas_codigos,
                             GROUP_CONCAT(DISTINCT acc.descripcion SEPARATOR ' | ') as observaciones,
@@ -1915,9 +2324,9 @@ class AdminController extends Controller
                     }
                     
                     // Asegurar que los campos esperados existan
-                    $row['id'] = $row['autorizador_email'] ?? null;
-                    $row['nombre'] = $row['autorizador_nombre'] ?? null;
+                    $row['id'] = $row['registro_id'] ?? null;
                     $row['email'] = $row['autorizador_email'] ?? null;
+                    $row['nombre'] = $row['autorizador_nombre'] ?? null;
                     $row['activo'] = true;
                     $row['fecha_inicio'] = date('Y-01-01');
                     $row['fecha_fin'] = null;
@@ -2047,25 +2456,78 @@ class AdminController extends Controller
     public function createMetodoPago()
     {
         try {
-            // Obtener autorizadores de la base de datos
-            $sql = "SELECT DISTINCT nombre, email, cargo FROM persona_autorizada WHERE activo = 1 ORDER BY nombre ASC";
+            // Obtener autorizadores activos de la base de datos
+            $sql = "SELECT id, nombre, email FROM autorizadores WHERE activo = 1 ORDER BY nombre ASC";
             $stmt = Model::getConnection()->prepare($sql);
             $stmt->execute();
             $autorizadores = $stmt->fetchAll(\PDO::FETCH_ASSOC);
             
+            // Usar exactamente los mismos métodos de pago que están en el formulario de requisiciones
+            // Estos son los valores reales que se usan en el sistema
+            $metodosPago = [
+                'contado' => 'Contado',
+                'tarjeta_credito_lic_milton' => 'Tarjeta de Crédito (Lic. Milton)', 
+                'cheque' => 'Cheque',
+                'transferencia' => 'Transferencia',
+                'credito' => 'Crédito'
+            ];
+            
+            // También incluir métodos que pueden existir en la base de datos pero no en el formulario actual
+            $sqlMetodos = "SELECT DISTINCT forma_pago FROM requisiciones 
+                          WHERE forma_pago IS NOT NULL 
+                          ORDER BY forma_pago ASC";
+            $stmtMetodos = Model::getConnection()->prepare($sqlMetodos);
+            $stmtMetodos->execute();
+            $metodosEnUso = $stmtMetodos->fetchAll(\PDO::FETCH_COLUMN);
+            
+            // Agregar métodos adicionales que están en la BD pero no en el formulario
+            foreach ($metodosEnUso as $metodo) {
+                if (!empty($metodo) && !isset($metodosPago[$metodo])) {
+                    // Mapear métodos adicionales conocidos
+                    $metodosAdicionales = [
+                        'efectivo' => 'Efectivo',
+                        'transferencia_bancaria' => 'Transferencia Bancaria',
+                        'credito_30' => 'Crédito 30 días'
+                    ];
+                    
+                    if (isset($metodosAdicionales[$metodo])) {
+                        $metodosPago[$metodo] = $metodosAdicionales[$metodo];
+                    } else {
+                        // Crear descripción amigable para métodos desconocidos
+                        $descripcion = ucwords(str_replace(['_', '-'], ' ', $metodo));
+                        $metodosPago[$metodo] = $descripcion;
+                    }
+                }
+            }
+            
+            // Verificar autorizadores existentes para evitar duplicados
+            $sqlExistentes = "SELECT DISTINCT autorizador_email FROM autorizadores_metodos_pago";
+            $stmtExistentes = Model::getConnection()->prepare($sqlExistentes);
+            $stmtExistentes->execute();
+            $autorizadoresExistentes = $stmtExistentes->fetchAll(\PDO::FETCH_COLUMN);
+            
         } catch (\Exception $e) {
-            error_log("Error obteniendo autorizadores para método de pago: " . $e->getMessage());
+            error_log("Error obteniendo datos para crear método de pago: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            
             // Datos de fallback
             $autorizadores = [
-                ['nombre' => 'María García', 'email' => 'maria.garcia@empresa.com', 'cargo' => 'Gerente General'],
-                ['nombre' => 'Juan Pérez', 'email' => 'juan.perez@empresa.com', 'cargo' => 'Jefe de Finanzas'],
-                ['nombre' => 'Ana López', 'email' => 'ana.lopez@empresa.com', 'cargo' => 'Coordinadora'],
-                ['nombre' => 'Carlos Mendoza', 'email' => 'carlos.mendoza@empresa.com', 'cargo' => 'Contador General'],
+                ['id' => 0, 'nombre' => 'Sin datos disponibles', 'email' => '']
             ];
+            $metodosPago = [
+                'contado' => 'Contado',
+                'tarjeta_credito_lic_milton' => 'Tarjeta de Crédito (Lic. Milton)', 
+                'cheque' => 'Cheque',
+                'transferencia' => 'Transferencia',
+                'credito' => 'Crédito'
+            ];
+            $autorizadoresExistentes = [];
         }
         
         View::render('admin/autorizadores/metodos_pago_create', [
             'autorizadores' => $autorizadores,
+            'metodos_pago' => $metodosPago,
+            'autorizadores_existentes' => $autorizadoresExistentes,
             'title' => 'Crear Autorizador por Método de Pago'
         ]);
     }
@@ -2096,7 +2558,7 @@ class AdminController extends Controller
         }
 
         View::render('admin/autorizadores/metodos_pago_show', [
-            'autorizador' => $autorizador,
+            'autorizador' => (object)$autorizador,  // Convertir array a objeto para compatibilidad con la vista
             'title' => 'Detalle del Autorizador por Método de Pago'
         ]);
     }
@@ -2104,13 +2566,119 @@ class AdminController extends Controller
     public function storeMetodoPago()
     {
         try {
-            // Aquí iría la lógica para guardar en base de datos
+            // Validar CSRF
+            if (!$this->validateCSRF()) {
+                Redirect::back()
+                    ->withError('Token de seguridad inválido')
+                    ->withInput()
+                    ->send();
+                return;
+            }
+
+            // Validar datos requeridos
+            $autorizadorEmail = trim($_POST['autorizador_email'] ?? '');
+            $metodoPago = trim($_POST['metodo_pago'] ?? '');
+            $observaciones = trim($_POST['observaciones'] ?? '');
+            $activo = isset($_POST['activo']) ? 1 : 0;
+
+            if (empty($autorizadorEmail) || !filter_var($autorizadorEmail, FILTER_VALIDATE_EMAIL)) {
+                Redirect::back()
+                    ->withError('Debe seleccionar un autorizador válido')
+                    ->withInput()
+                    ->send();
+                return;
+            }
+
+            if (empty($metodoPago)) {
+                Redirect::back()
+                    ->withError('Debe seleccionar un método de pago')
+                    ->withInput()
+                    ->send();
+                return;
+            }
+
+            // Verificar que el autorizador existe
+            $sqlVerificar = "SELECT id, nombre FROM autorizadores WHERE email = ? AND activo = 1";
+            $stmtVerificar = Model::getConnection()->prepare($sqlVerificar);
+            $stmtVerificar->execute([$autorizadorEmail]);
+            $autorizador = $stmtVerificar->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$autorizador) {
+                Redirect::back()
+                    ->withError('El autorizador seleccionado no existe o no está activo')
+                    ->withInput()
+                    ->send();
+                return;
+            }
+
+            // Verificar si ya existe esta combinación
+            $sqlExiste = "SELECT id FROM autorizadores_metodos_pago 
+                         WHERE autorizador_email = ? AND metodo_pago = ?";
+            $stmtExiste = Model::getConnection()->prepare($sqlExiste);
+            $stmtExiste->execute([$autorizadorEmail, $metodoPago]);
+            
+            if ($stmtExiste->fetch()) {
+                Redirect::back()
+                    ->withError("Ya existe un autorizador para el método de pago '$metodoPago' con este email")
+                    ->withInput()
+                    ->send();
+                return;
+            }
+
+            // Crear descripción basada en el método
+            $descripciones = [
+                'contado' => 'Contado',
+                'tarjeta_credito_lic_milton' => 'Tarjeta de Crédito (Lic. Milton)',
+                'cheque' => 'Cheque',
+                'transferencia' => 'Transferencia',
+                'credito' => 'Crédito',
+                // Métodos adicionales que pueden estar en la BD
+                'efectivo' => 'Efectivo',
+                'transferencia_bancaria' => 'Transferencia Bancaria',
+                'credito_30' => 'Crédito 30 días'
+            ];
+
+            $descripcion = $descripciones[$metodoPago] ?? ucwords(str_replace(['_', '-'], ' ', $metodoPago));
+
+            $pdo = Model::getConnection();
+            $pdo->beginTransaction();
+
+            // Insertar el registro
+            $sqlInsert = "INSERT INTO autorizadores_metodos_pago 
+                         (metodo_pago, descripcion, autorizador_email, notificacion, actualizado_por) 
+                         VALUES (?, ?, ?, ?, ?)";
+            
+            $notificacion = "La requisición con forma de pago {$descripcion} requiere su autorización antes de continuar con el flujo normal.";
+            $actualizadoPor = Session::get('user.email') ?? 'sistema';
+            
+            $stmtInsert = $pdo->prepare($sqlInsert);
+            $stmtInsert->execute([
+                $metodoPago,
+                $descripcion,
+                $autorizadorEmail,
+                $notificacion,
+                $actualizadoPor
+            ]);
+
+            $pdo->commit();
+
+            // Crear mensaje de éxito
+            $mensaje = "Autorizador '{$autorizador['nombre']}' configurado exitosamente para el método de pago '{$descripcion}'.";
+
             Redirect::to('/admin/autorizadores/metodos-pago')
-                ->withSuccess('Autorizador por método de pago creado exitosamente')
+                ->withSuccess($mensaje)
                 ->send();
+
         } catch (\Exception $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            
+            error_log("Error creando autorizador método de pago: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            
             Redirect::back()
-                ->withError('Error al crear el autorizador por método de pago')
+                ->withError('Error al crear el autorizador por método de pago: ' . $e->getMessage())
                 ->withInput()
                 ->send();
         }
@@ -2123,39 +2691,38 @@ class AdminController extends Controller
     public function createCuentaContable()
     {
         try {
-            // Obtener autorizadores de la base de datos
-            $sql = "SELECT DISTINCT nombre, email, cargo FROM persona_autorizada WHERE activo = 1 ORDER BY nombre ASC";
+            // Obtener personas autorizadas de la base de datos
+            $sql = "SELECT DISTINCT nombre, email FROM persona_autorizada ORDER BY nombre ASC";
             $stmt = Model::getConnection()->prepare($sql);
             $stmt->execute();
             $autorizadores = $stmt->fetchAll(\PDO::FETCH_ASSOC);
             
-            // Obtener cuentas contables si la tabla existe
-            $cuentas_contables = [];
-            try {
-                $sqlCuentas = "SELECT codigo, descripcion as nombre FROM cuenta_contable WHERE activo = 1 ORDER BY codigo ASC";
-                $stmtCuentas = Model::getConnection()->prepare($sqlCuentas);
-                $stmtCuentas->execute();
-                $cuentas_contables = $stmtCuentas->fetchAll(\PDO::FETCH_ASSOC);
-            } catch (\Exception $e) {
-                error_log("Tabla cuenta_contable no encontrada: " . $e->getMessage());
-                $cuentas_contables = [];
-            }
+            // Obtener cuentas contables activas
+            $sqlCuentas = "SELECT id, codigo, descripcion FROM cuenta_contable WHERE activo = 1 ORDER BY codigo ASC";
+            $stmtCuentas = Model::getConnection()->prepare($sqlCuentas);
+            $stmtCuentas->execute();
+            $cuentas_contables = $stmtCuentas->fetchAll(\PDO::FETCH_ASSOC);
+            
+            // Obtener centros de costo disponibles
+            $sqlCentros = "SELECT id, nombre FROM centro_de_costo ORDER BY nombre ASC";
+            $stmtCentros = Model::getConnection()->prepare($sqlCentros);
+            $stmtCentros->execute();
+            $centros_costo = $stmtCentros->fetchAll(\PDO::FETCH_ASSOC);
+            
+            error_log("Datos cargados - Autorizadores: " . count($autorizadores) . ", Cuentas: " . count($cuentas_contables) . ", Centros: " . count($centros_costo));
             
         } catch (\Exception $e) {
             error_log("Error obteniendo datos para cuenta contable: " . $e->getMessage());
-            // Datos de fallback
-            $autorizadores = [
-                ['nombre' => 'María García', 'email' => 'maria.garcia@empresa.com', 'cargo' => 'Gerente General'],
-                ['nombre' => 'Juan Pérez', 'email' => 'juan.perez@empresa.com', 'cargo' => 'Jefe de Finanzas'],
-                ['nombre' => 'Ana López', 'email' => 'ana.lopez@empresa.com', 'cargo' => 'Coordinadora'],
-                ['nombre' => 'Carlos Mendoza', 'email' => 'carlos.mendoza@empresa.com', 'cargo' => 'Contador General'],
-            ];
+            // En caso de error, usar arrays vacíos para mostrar el error en la vista
+            $autorizadores = [];
             $cuentas_contables = [];
+            $centros_costo = [];
         }
         
         View::render('admin/autorizadores/cuentas_contables_create', [
             'autorizadores' => $autorizadores,
             'cuentas_contables' => $cuentas_contables,
+            'centros_costo' => $centros_costo,
             'title' => 'Crear Autorizador por Cuenta Contable'
         ]);
     }
@@ -2422,14 +2989,314 @@ class AdminController extends Controller
         $this->editMetodoPagoByEmail($email);
     }
     public function updateMetodoPago($id) { $this->storeMetodoPago(); }
-    public function deleteMetodoPago($id) { 
-        Redirect::to('/admin/autorizadores/metodos-pago')->withSuccess('Autorizador eliminado')->send(); 
+    public function showMetodoPagoByEmail($email)
+    {
+        $emailDecoded = urldecode($email);
+
+        if (empty($emailDecoded) || !filter_var($emailDecoded, FILTER_VALIDATE_EMAIL)) {
+            Redirect::to('/admin/autorizadores/metodos-pago')
+                ->withError('Email de autorizador inválido')
+                ->send();
+            return;
+        }
+
+        $autorizador = $this->obtenerAutorizadorMetodoPagoPorEmail($emailDecoded);
+
+        if (!$autorizador) {
+            Redirect::to('/admin/autorizadores/metodos-pago')
+                ->withError('Autorizador no encontrado para el email especificado')
+                ->send();
+            return;
+        }
+
+        View::render('admin/autorizadores/metodos_pago_show', [
+            'autorizador' => (object)$autorizador,  // Convertir array a objeto para compatibilidad con la vista
+            'title' => 'Detalle del Autorizador por Método de Pago'
+        ]);
+    }
+    public function deleteMetodoPago($id)
+    {
+        if (!$this->validateCSRF()) {
+            Redirect::back()
+                ->withError('Token de seguridad inválido')
+                ->send();
+            return;
+        }
+
+        $identificador = urldecode($id);
+
+        if (empty($identificador)) {
+            Redirect::back()
+                ->withError('Identificador de autorizador inválido')
+                ->send();
+            return;
+        }
+
+        $resultado = $this->eliminarAutorizadorMetodoPago($identificador);
+
+        if ($resultado['success']) {
+            Redirect::to('/admin/autorizadores/metodos-pago')
+                ->withSuccess($resultado['message'])
+                ->send();
+        } else {
+            Redirect::back()
+                ->withError($resultado['message'])
+                ->send();
+        }
+    }
+
+    /**
+     * Elimina un autorizador de método de pago por email
+     * 
+     * @param string $email Email del autorizador
+     * @return void
+     */
+    public function deleteMetodoPagoByEmail($email)
+    {
+        if (!$this->validateCSRF()) {
+            Redirect::back()
+                ->withError('Token de seguridad inválido')
+                ->send();
+            return;
+        }
+
+        $emailDecoded = urldecode($email);
+
+        if (empty($emailDecoded) || !filter_var($emailDecoded, FILTER_VALIDATE_EMAIL)) {
+            Redirect::back()
+                ->withError('Email de autorizador inválido')
+                ->send();
+            return;
+        }
+
+        $resultado = $this->eliminarAutorizadorMetodoPago($emailDecoded);
+
+        if ($resultado['success']) {
+            Redirect::to('/admin/autorizadores/metodos-pago')
+                ->withSuccess($resultado['message'])
+                ->send();
+        } else {
+            Redirect::back()
+                ->withError($resultado['message'])
+                ->send();
+        }
+    }
+
+    /**
+     * Elimina un autorizador de método de pago desde la ruta legacy (GET).
+     * Mantiene compatibilidad con enlaces antiguos.
+     */
+    public function deleteMetodoPagoLegacy($id)
+    {
+        $identificador = urldecode($id);
+
+        if (empty($identificador)) {
+            $this->handleLegacyResponse(false, 'Identificador de autorizador inválido');
+            return;
+        }
+
+        $resultado = $this->eliminarAutorizadorMetodoPago($identificador, false);
+
+        $this->handleLegacyResponse($resultado['success'], $resultado['message']);
+    }
+
+    /**
+     * Maneja la respuesta de las rutas legacy de manera compatible con servidor de desarrollo
+     */
+    private function handleLegacyResponse(bool $success, string $message): void
+    {
+        // Detectar si estamos en servidor de desarrollo PHP (múltiples métodos)
+        $isDevServer = (
+            // Método 1: SERVER_SOFTWARE
+            (isset($_SERVER['SERVER_SOFTWARE']) && 
+             strpos($_SERVER['SERVER_SOFTWARE'], 'Development Server') !== false) ||
+            // Método 2: SAPI name
+            php_sapi_name() === 'cli-server' ||
+            // Método 3: localhost:8000
+            (isset($_SERVER['SERVER_NAME']) && $_SERVER['SERVER_NAME'] === 'localhost' &&
+             isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 8000)
+        );
+
+        if ($isDevServer) {
+            // Para servidor de desarrollo, enviar respuesta HTML simple
+            http_response_code($success ? 200 : 400);
+            echo '<!DOCTYPE html>
+<html>
+<head>
+    <title>Resultado</title>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 50px; text-align: center; }
+        .success { color: #28a745; background: #d4edda; padding: 20px; border-radius: 5px; }
+        .error { color: #dc3545; background: #f8d7da; padding: 20px; border-radius: 5px; }
+        .btn { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="' . ($success ? 'success' : 'error') . '">
+        <h2>' . ($success ? '✅ Éxito' : '❌ Error') . '</h2>
+        <p>' . htmlspecialchars($message) . '</p>
+    </div>
+    <a href="/admin/autorizadores/metodos-pago" class="btn">Volver a Autorizadores</a>
+    <script>
+        // Auto-redirect después de 2 segundos si fue exitoso
+        ' . ($success ? 'setTimeout(() => window.location.href = "/admin/autorizadores/metodos-pago", 2000);' : '') . '
+    </script>
+</body>
+</html>';
+            return;
+        }
+
+        // Para Apache/producción, usar redirect normal
+        if ($success) {
+            Redirect::to('/admin/autorizadores/metodos-pago')
+                ->withSuccess($message)
+                ->send();
+        } else {
+            Redirect::to('/admin/autorizadores/metodos-pago')
+                ->withError($message)
+                ->send();
+        }
     }
 
     public function editCuentaContable($id) { $this->showCuentaContable($id); }
     public function updateCuentaContable($id) { $this->storeCuentaContable(); }
-    public function deleteCuentaContable($id) { 
-        Redirect::to('/admin/autorizadores/cuentas-contables')->withSuccess('Autorizador eliminado')->send(); 
+    public function deleteCuentaContable($id)
+    {
+        $identificador = urldecode($id);
+
+        if (empty($identificador)) {
+            Redirect::back()
+                ->withError('Identificador de autorizador inválido')
+                ->send();
+            return;
+        }
+
+        $pdo = Model::getConnection();
+
+        try {
+            $pdo->beginTransaction();
+
+            $isNumericId = ctype_digit($identificador);
+
+            $emailEncontrado = null;
+
+            if ($isNumericId) {
+                $stmtCheck = $pdo->prepare("SELECT autorizador_email FROM autorizadores_cuentas_contables WHERE id = ?");
+            } else {
+                $stmtCheck = $pdo->prepare("SELECT autorizador_email FROM autorizadores_cuentas_contables WHERE autorizador_email = ?");
+            }
+
+            $stmtCheck->execute([$identificador]);
+            $registros = $stmtCheck->fetchAll(\PDO::FETCH_ASSOC);
+
+            if (empty($registros)) {
+                $pdo->rollBack();
+                Redirect::back()
+                    ->withError('No se encontró el autorizador por cuenta contable especificado')
+                    ->send();
+                return;
+            }
+
+            $emailEncontrado = $registros[0]['autorizador_email'] ?? null;
+
+            if ($isNumericId) {
+                if ($emailEncontrado) {
+                    // Eliminar todas las filas asociadas al correo
+                    $stmtDelete = $pdo->prepare("DELETE FROM autorizadores_cuentas_contables WHERE autorizador_email = ?");
+                    $stmtDelete->execute([$emailEncontrado]);
+                } else {
+                    // Fallback: eliminar únicamente por ID
+                    $stmtDelete = $pdo->prepare("DELETE FROM autorizadores_cuentas_contables WHERE id = ?");
+                    $stmtDelete->execute([$identificador]);
+                }
+            } else {
+                $stmtDelete = $pdo->prepare("DELETE FROM autorizadores_cuentas_contables WHERE autorizador_email = ?");
+                $stmtDelete->execute([$identificador]);
+            }
+
+            $pdo->commit();
+
+            Redirect::to('/admin/autorizadores/cuentas-contables')
+                ->withSuccess('Autorizador por cuenta contable eliminado exitosamente')
+                ->send();
+        } catch (\Exception $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            error_log("Error eliminando autorizador por cuenta contable ($identificador): " . $e->getMessage());
+
+            Redirect::back()
+                ->withError('Error al eliminar el autorizador por cuenta contable: ' . $e->getMessage())
+                ->send();
+        }
+    }
+
+    /**
+     * Lógica común para eliminar autorizadores por método de pago.
+     * 
+     * @param string $identificador ID numérico o email del autorizador
+     * @param bool $usarTransaccion Si se debe validar CSRF (uso interno para POST) o no (legacy GET)
+     * @return array Resultado ['success' => bool, 'message' => string]
+     */
+    private function eliminarAutorizadorMetodoPago(string $identificador, bool $usarTransaccion = true): array
+    {
+        $pdo = Model::getConnection();
+        $transaccionIniciada = false;
+
+        try {
+            if ($usarTransaccion) {
+                $pdo->beginTransaction();
+                $transaccionIniciada = true;
+            }
+
+            $rows = 0;
+
+            // Si es un email, eliminar por email
+            if (filter_var($identificador, FILTER_VALIDATE_EMAIL)) {
+                $stmtDelete = $pdo->prepare("DELETE FROM autorizadores_metodos_pago WHERE autorizador_email = ?");
+                $stmtDelete->execute([$identificador]);
+                $rows = $stmtDelete->rowCount();
+            }
+            // Si es un ID numérico, eliminar directamente por ID
+            elseif (is_numeric($identificador)) {
+                $stmtById = $pdo->prepare("DELETE FROM autorizadores_metodos_pago WHERE id = ?");
+                $stmtById->execute([(int)$identificador]);
+                $rows = $stmtById->rowCount();
+            }
+
+            if ($rows > 0) {
+                if ($transaccionIniciada) {
+                    $pdo->commit();
+                }
+                return [
+                    'success' => true,
+                    'message' => 'Autorizador eliminado exitosamente'
+                ];
+            }
+
+            if ($transaccionIniciada && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            return [
+                'success' => false,
+                'message' => 'No se pudo eliminar el autorizador por método de pago'
+            ];
+
+        } catch (\Exception $e) {
+            if ($transaccionIniciada && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            error_log("Error eliminando autorizador de método de pago: " . $e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Error al eliminar el autorizador por método de pago: ' . $e->getMessage()
+            ];
+        }
     }
 
     /**
@@ -2461,7 +3328,7 @@ class AdminController extends Controller
             ];
             
             View::render('admin/autorizadores/metodos_pago_edit', [
-                'autorizador' => $autorizador,
+                'autorizador' => $autorizador,  // Mantener como array - esta vista específica espera array
                 'metodos_pago' => $metodos_pago,
                 'title' => 'Editar Autorizador de Método de Pago'
             ]);
@@ -2694,7 +3561,7 @@ class AdminController extends Controller
                     
                 case 'aprobada_cuenta_contable':
                 case 'sin_cuenta_especial':
-                    return $this->procesarAutorizacionCentroCosto($requisicion);
+                    return $this->procesarAutorizacionCentro($requisicion);
                     
                 default:
                     return [
@@ -2800,13 +3667,13 @@ class AdminController extends Controller
         }
         
         // Si no hay autorizador específico o centro excluido, continuar a centro de costo
-        return $this->procesarAutorizacionCentroCosto($requisicion);
+        return $this->procesarAutorizacionCentro($requisicion);
     }
     
     /**
      * Procesa autorización final por centro de costo
      */
-    private function procesarAutorizacionCentroCosto($requisicion)
+    private function procesarAutorizacionCentro($requisicion)
     {
         $centroCostoId = $requisicion['centro_costo_id'];
         
@@ -3030,44 +3897,16 @@ class AdminController extends Controller
     
     /**
      * Maneja rechazo de método de pago (permite edición)
+     * DEPRECADO: Usar el flujo de autorización normal
      */
     public function rechazarMetodoPago($requisicionId, $motivo = '')
     {
-        try {
-            // Cambiar estado a "rechazada_metodo_pago"
-            $sql = "UPDATE requisiciones 
-                    SET estado = 'rechazada_metodo_pago', 
-                        motivo_rechazo = ?,
-                        fecha_rechazo = NOW()
-                    WHERE id = ?";
-            
-            $stmt = Model::getConnection()->prepare($sql);
-            $stmt->execute([$motivo, $requisicionId]);
-            
-            // Obtener datos de la requisición para notificar al creador
-            $requisicion = $this->obtenerRequisicion($requisicionId);
-            
-            if ($requisicion) {
-                $this->enviarNotificacion(
-                    $requisicion['creador_email'], 
-                    $requisicion, 
-                    'rechazo_editable'
-                );
-            }
-            
-            return [
-                'success' => true,
-                'mensaje' => 'Requisición rechazada. Se notificó al creador para edición.',
-                'puede_editar' => true
-            ];
-            
-        } catch (\Exception $e) {
-            error_log("Error rechazando método de pago: " . $e->getMessage());
-            return [
-                'success' => false,
-                'mensaje' => 'Error al procesar rechazo'
-            ];
-        }
+        // DEPRECADO: El rechazo ahora se maneja a través del flujo de autorización
+        error_log("DEPRECADO: rechazarMetodoPago() - usar flujo de autorización normal");
+        return [
+            'success' => false,
+            'mensaje' => 'Método deprecado. Usar flujo de autorización normal.'
+        ];
     }
     
     /**
@@ -3085,5 +3924,61 @@ class AdminController extends Controller
             error_log("Error obteniendo requisición: " . $e->getMessage());
             return null;
         }
+    }
+    
+    /**
+     * Helper method to safely call count() on models
+     */
+    private function safeCount($modelClass)
+    {
+        try {
+            $fullClass = "App\\Models\\{$modelClass}";
+            if (class_exists($fullClass) && method_exists($fullClass, 'count')) {
+                return $fullClass::count();
+            }
+            return 0;
+        } catch (\Exception $e) {
+            error_log("Error counting {$modelClass}: " . $e->getMessage());
+            return 0;
+        }
+    }
+    
+    /**
+     * Helper method to safely call methods on models
+     */
+    private function safeMethodCall($modelClass, $method, $default = null, ...$args)
+    {
+        try {
+            $fullClass = "App\\Models\\{$modelClass}";
+            if (class_exists($fullClass) && method_exists($fullClass, $method)) {
+                return $fullClass::$method(...$args);
+            }
+            return $default;
+        } catch (\Exception $e) {
+            error_log("Error calling {$modelClass}::{$method}: " . $e->getMessage());
+            return $default;
+        }
+    }
+    
+    // ========================================================================
+    // RELACIONES CENTRO COSTO - UNIDAD NEGOCIO
+    // ========================================================================
+    
+    /**
+     * Muestra la página de relaciones entre centros de costo y unidades de negocio
+     * 
+     * @return void
+     */
+    public function relaciones()
+    {
+        // Obtener centros de costo con sus relaciones (unidad de negocio y factura)
+        $centrosCosto = CentroCosto::activos();
+        $unidadesNegocio = UnidadNegocio::activas();
+        
+        View::render('admin/relaciones/index', [
+            'title' => 'Relaciones Centro de Costo - Unidad de Negocio',
+            'centros_costo' => $centrosCosto,
+            'unidades_negocio' => $unidadesNegocio
+        ]);
     }
 }

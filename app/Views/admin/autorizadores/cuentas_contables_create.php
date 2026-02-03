@@ -20,6 +20,11 @@ $title = 'Crear Autorizador por Cuenta Contable';
     .cuenta-item { background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 8px; padding: 1rem; margin-bottom: 0.5rem; transition: all 0.3s ease; cursor: pointer; }
     .cuenta-item:hover { border-color: #6f42c1; background: #f3e5f5; }
     .cuenta-item.selected { border-color: #6f42c1; background: #f3e5f5; }
+    .cuenta-item.hidden { display: none; }
+    .search-highlight { background-color: #fff3cd; font-weight: bold; }
+    .input-group-text.bg-white { border-right: 0; }
+    .form-control.border-start-0 { border-left: 0; }
+    .form-control:focus.border-start-0 { border-left: 0; box-shadow: none; }
 </style>
 
 <div class="main-header">
@@ -30,7 +35,7 @@ $title = 'Crear Autorizador por Cuenta Contable';
                 <p class="mb-0 opacity-75">Configurar autorizador para cuentas contables específicas</p>
             </div>
             <div class="col-md-4 text-end">
-                <a href="/admin/autorizadores/cuentas-contables" class="btn btn-light">
+                <a href="<?= url('/admin/autorizadores/cuentas-contables') ?>" class="btn btn-light">
                     <i class="fas fa-arrow-left me-2"></i>Volver a la Lista
                 </a>
             </div>
@@ -46,8 +51,23 @@ $title = 'Crear Autorizador por Cuenta Contable';
                     <i class="fas fa-info-circle me-2"></i>
                     <strong>Información:</strong> Los autorizadores por cuenta contable permiten asignar personas específicas para autorizar requisiciones según las cuentas contables utilizadas.
                 </div>
+                
+                <?php if (!empty($autorizadores) && !empty($cuentas_contables)): ?>
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Datos cargados:</strong> <?= count($autorizadores) ?> autorizadores y <?= count($cuentas_contables) ?> cuentas contables disponibles.
+                    </div>
+                <?php elseif (empty($autorizadores) || empty($cuentas_contables)): ?>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Atención:</strong> 
+                        <?php if (empty($autorizadores)): ?>No se encontraron personas autorizadas en el sistema. <?php endif; ?>
+                        <?php if (empty($cuentas_contables)): ?>No se encontraron cuentas contables activas. <?php endif; ?>
+                        Usando datos de ejemplo.
+                    </div>
+                <?php endif; ?>
 
-                <form action="/admin/autorizadores/cuentas-contables" method="POST" id="cuentaContableForm">
+                <form action="<?= url('/admin/autorizadores/cuentas-contables') ?>" method="POST" id="cuentaContableForm">
                     <?= CsrfMiddleware::field() ?>
                     
                     <div class="form-section">
@@ -74,23 +94,64 @@ $title = 'Crear Autorizador por Cuenta Contable';
                         <label class="form-label">Seleccionar Cuentas Contables <span class="text-danger">*</span></label>
                         <small class="text-muted d-block mb-3">Seleccione una o más cuentas contables que este autorizador podrá autorizar</small>
                         
-                        <div class="row">
+                        <!-- Controles de búsqueda y selección -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0">
+                                        <i class="fas fa-search text-muted"></i>
+                                    </span>
+                                    <input type="text" class="form-control border-start-0" id="buscador_cuentas" 
+                                           placeholder="Buscar por código o nombre de cuenta..." 
+                                           oninput="filtrarCuentas()">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="limpiarBusqueda()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-outline-primary" onclick="seleccionarTodas()" id="btn_seleccionar_todas">
+                                        <i class="fas fa-check-square me-2"></i>Seleccionar Todas
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="deseleccionarTodas()" id="btn_deseleccionar_todas">
+                                        <i class="fas fa-square me-2"></i>Deseleccionar Todas
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Contador de selección -->
+                        <div class="mb-3">
+                            <small class="text-info">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Seleccionadas: <strong id="contador_seleccionadas">0</strong> de <strong id="contador_total">0</strong> cuentas
+                            </small>
+                        </div>
+                        
+                        <div class="row" id="cuentas_container">
                             <?php 
-                            $cuentasEjemplo = [
-                                ['codigo' => '1101', 'nombre' => 'Caja General'],
-                                ['codigo' => '1102', 'nombre' => 'Bancos Nacionales'],
-                                ['codigo' => '1103', 'nombre' => 'Bancos Extranjeros'],
-                                ['codigo' => '2101', 'nombre' => 'Proveedores Nacionales'],
-                                ['codigo' => '2102', 'nombre' => 'Proveedores Extranjeros'],
-                                ['codigo' => '5101', 'nombre' => 'Gastos de Oficina'],
-                                ['codigo' => '5102', 'nombre' => 'Gastos de Viaje'],
-                                ['codigo' => '5103', 'nombre' => 'Gastos de Capacitación']
-                            ];
-                            
+                            // Usar datos reales de cuentas contables si están disponibles
                             if (!empty($cuentas_contables)) {
-                                $cuentasDisponibles = $cuentas_contables;
+                                $cuentasDisponibles = array_map(function($cuenta) {
+                                    return [
+                                        'id' => $cuenta['id'],
+                                        'codigo' => $cuenta['codigo'],
+                                        'nombre' => $cuenta['descripcion']
+                                    ];
+                                }, $cuentas_contables);
                             } else {
-                                $cuentasDisponibles = $cuentasEjemplo;
+                                // Datos de ejemplo si no hay datos reales disponibles
+                                $cuentasDisponibles = [
+                                    ['id' => 1, 'codigo' => '1101', 'nombre' => 'Caja General'],
+                                    ['id' => 2, 'codigo' => '1102', 'nombre' => 'Bancos Nacionales'],
+                                    ['id' => 3, 'codigo' => '1103', 'nombre' => 'Bancos Extranjeros'],
+                                    ['id' => 4, 'codigo' => '2101', 'nombre' => 'Proveedores Nacionales'],
+                                    ['id' => 5, 'codigo' => '2102', 'nombre' => 'Proveedores Extranjeros'],
+                                    ['id' => 6, 'codigo' => '5101', 'nombre' => 'Gastos de Oficina'],
+                                    ['id' => 7, 'codigo' => '5102', 'nombre' => 'Gastos de Viaje'],
+                                    ['id' => 8, 'codigo' => '5103', 'nombre' => 'Gastos de Capacitación']
+                                ];
                             }
                             ?>
                             
@@ -102,8 +163,9 @@ $title = 'Crear Autorizador por Cuenta Contable';
                                                 <strong><?= View::e($cuenta['codigo']) ?></strong>
                                                 <div class="text-muted small"><?= View::e($cuenta['nombre']) ?></div>
                                             </div>
-                                            <input type="checkbox" name="cuentas_contables[]" value="<?= View::e($cuenta['codigo']) ?>" 
-                                                   id="cuenta_<?= View::e($cuenta['codigo']) ?>" class="form-check-input">
+                                            <input type="checkbox" name="cuentas_contables[]" value="<?= View::e($cuenta['id']) ?>" 
+                                                   id="cuenta_<?= View::e($cuenta['codigo']) ?>" class="form-check-input"
+                                                   data-codigo="<?= View::e($cuenta['codigo']) ?>">
                                         </div>
                                     </div>
                                 </div>
@@ -165,9 +227,20 @@ $title = 'Crear Autorizador por Cuenta Contable';
                                           placeholder="Notas adicionales sobre esta autorización (opcional)"></textarea>
                             </div>
                         </div>
-                        <div class="form-check mt-3">
-                            <input class="form-check-input" type="checkbox" name="activo" id="activo" value="1" checked>
-                            <label class="form-check-label" for="activo">Activar autorización inmediatamente</label>
+                        <div class="switch-container mt-3">
+                            <div class="flex-grow-1">
+                                <label class="switch-label" for="activo">
+                                    <i class="fas fa-power-off me-2 text-success"></i>
+                                    Activar autorización inmediatamente
+                                </label>
+                                <p class="switch-description">
+                                    Si está marcado, el autorizador estará activo desde el momento de creación
+                                </p>
+                            </div>
+                            <div class="custom-switch">
+                                <input type="checkbox" name="activo" id="activo" value="1" checked>
+                                <span class="custom-switch-slider" onclick="toggleSwitchContainer(this)"></span>
+                            </div>
                         </div>
                     </div>
                     
@@ -176,7 +249,7 @@ $title = 'Crear Autorizador por Cuenta Contable';
                             <button type="submit" class="btn btn-save me-3">
                                 <i class="fas fa-save me-2"></i>Crear Autorizador
                             </button>
-                            <a href="/admin/autorizadores/cuentas-contables" class="btn btn-secondary">
+                            <a href="<?= url('/admin/autorizadores/cuentas-contables') ?>" class="btn btn-secondary">
                                 <i class="fas fa-times me-2"></i>Cancelar
                             </a>
                         </div>
@@ -190,6 +263,35 @@ $title = 'Crear Autorizador por Cuenta Contable';
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('cuentaContableForm');
+    
+    // Inicializar contadores al cargar la página
+    const totalCuentas = document.querySelectorAll('.cuenta-item').length;
+    document.getElementById('contador_total').textContent = totalCuentas;
+    actualizarContadorSeleccionadas();
+    
+    // Agregar event listeners a todos los checkboxes para actualizar contador
+    const checkboxes = document.querySelectorAll('input[name="cuentas_contables[]"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            if (this.checked) {
+                this.closest('.cuenta-item').classList.add('selected');
+            } else {
+                this.closest('.cuenta-item').classList.remove('selected');
+            }
+            actualizarContadorSeleccionadas();
+        });
+    });
+    
+    // Agregar shortcut para limpiar búsqueda con Escape
+    const buscadorCuentas = document.getElementById('buscador_cuentas');
+    if (buscadorCuentas) {
+        buscadorCuentas.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                limpiarBusqueda();
+                this.blur(); // Quitar foco del campo
+            }
+        });
+    }
     
     form.addEventListener('submit', function(e) {
         const cuentasSeleccionadas = document.querySelectorAll('input[name="cuentas_contables[]"]:checked');
@@ -225,22 +327,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const exclusionesCount = document.getElementById('exclusiones_count');
     const excludedCountSpan = document.getElementById('excluded_count');
     
-    // Cargar centros de costo para exclusiones
-    fetch('/admin/api/centros-costo-list')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.centros && data.centros.length > 0) {
-                renderCentrosExclusion(data.centros);
-                exclusionesCount.style.display = 'block';
-                updateExcludedCount();
-            } else {
-                centrosExclusionList.innerHTML = '<p class="text-muted">No se pudieron cargar los centros de costo</p>';
-            }
-        })
-        .catch(error => {
-            console.error('Error cargando centros:', error);
-            centrosExclusionList.innerHTML = '<p class="text-danger">Error al cargar los centros de costo</p>';
-        });
+    // Usar centros de costo pasados desde PHP
+    const centrosCosto = <?= json_encode($centros_costo ?? []) ?>;
+    
+    if (centrosCosto && centrosCosto.length > 0) {
+        renderCentrosExclusion(centrosCosto);
+        exclusionesCount.style.display = 'block';
+        updateExcludedCount();
+    } else {
+        centrosExclusionList.innerHTML = '<p class="text-muted">No hay centros de costo disponibles</p>';
+    }
     
     // Renderizar centros de costo para exclusión
     function renderCentrosExclusion(centros) {
@@ -302,6 +398,202 @@ function toggleCuenta(cuentaId) {
     } else {
         item.classList.remove('selected');
     }
+    
+    // Actualizar contador
+    actualizarContadorSeleccionadas();
+}
+
+// ========================================================================
+// FUNCIONES DE BÚSQUEDA Y SELECCIÓN DE CUENTAS CONTABLES
+// ========================================================================
+
+function filtrarCuentas() {
+    const buscador = document.getElementById('buscador_cuentas');
+    const termino = buscador.value.toLowerCase();
+    const cuentas = document.querySelectorAll('.cuenta-item');
+    let contadorVisibles = 0;
+    
+    cuentas.forEach(cuenta => {
+        const codigo = cuenta.querySelector('strong').textContent.toLowerCase();
+        const nombre = cuenta.querySelector('.text-muted').textContent.toLowerCase();
+        
+        if (codigo.includes(termino) || nombre.includes(termino)) {
+            cuenta.classList.remove('hidden');
+            contadorVisibles++;
+            
+            // Resaltar términos de búsqueda
+            if (termino) {
+                resaltarTexto(cuenta, termino);
+            } else {
+                removerResaltado(cuenta);
+            }
+        } else {
+            cuenta.classList.add('hidden');
+        }
+    });
+    
+    // Actualizar contador total visible
+    document.getElementById('contador_total').textContent = contadorVisibles;
+    
+    // Mostrar mensaje si no hay resultados
+    const container = document.getElementById('cuentas_container');
+    let mensajeSinResultados = container.querySelector('.sin-resultados');
+    
+    if (contadorVisibles === 0 && termino) {
+        if (!mensajeSinResultados) {
+            mensajeSinResultados = document.createElement('div');
+            mensajeSinResultados.className = 'col-12 sin-resultados';
+            mensajeSinResultados.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No se encontraron resultados</h5>
+                    <p class="text-muted">No hay cuentas contables que coincidan con "<strong>${termino}</strong>"</p>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="limpiarBusqueda()">
+                        <i class="fas fa-times me-1"></i>Limpiar búsqueda
+                    </button>
+                </div>
+            `;
+            container.appendChild(mensajeSinResultados);
+        }
+    } else if (mensajeSinResultados) {
+        mensajeSinResultados.remove();
+    }
+}
+
+function limpiarBusqueda() {
+    document.getElementById('buscador_cuentas').value = '';
+    const cuentas = document.querySelectorAll('.cuenta-item');
+    
+    cuentas.forEach(cuenta => {
+        cuenta.classList.remove('hidden');
+        removerResaltado(cuenta);
+    });
+    
+    // Remover mensaje de sin resultados si existe
+    const mensajeSinResultados = document.querySelector('.sin-resultados');
+    if (mensajeSinResultados) {
+        mensajeSinResultados.remove();
+    }
+    
+    // Restaurar contador total
+    document.getElementById('contador_total').textContent = cuentas.length;
+}
+
+function seleccionarTodas() {
+    const cuentasVisibles = document.querySelectorAll('.cuenta-item:not(.hidden)');
+    const terminoBusqueda = document.getElementById('buscador_cuentas').value;
+    
+    // Si hay búsqueda activa, mostrar confirmación
+    if (terminoBusqueda.trim() !== '') {
+        const mensaje = `¿Seleccionar las ${cuentasVisibles.length} cuentas visibles que coinciden con la búsqueda "${terminoBusqueda}"?`;
+        if (!confirm(mensaje)) {
+            return;
+        }
+    }
+    
+    cuentasVisibles.forEach(cuenta => {
+        const checkbox = cuenta.querySelector('input[type="checkbox"]');
+        if (!checkbox.checked) {
+            checkbox.checked = true;
+            cuenta.classList.add('selected');
+        }
+    });
+    
+    actualizarContadorSeleccionadas();
+    
+    // Mensaje de confirmación
+    const mensaje = terminoBusqueda.trim() !== '' 
+        ? `Se seleccionaron ${cuentasVisibles.length} cuentas que coinciden con la búsqueda.`
+        : `Se seleccionaron todas las ${cuentasVisibles.length} cuentas disponibles.`;
+    
+    // Mostrar mensaje temporal
+    mostrarMensajeTemporal(mensaje, 'success');
+}
+
+function deseleccionarTodas() {
+    const cuentas = document.querySelectorAll('.cuenta-item input[type="checkbox"]:checked');
+    const cantidad = cuentas.length;
+    
+    if (cantidad === 0) {
+        mostrarMensajeTemporal('No hay cuentas seleccionadas para deseleccionar.', 'info');
+        return;
+    }
+    
+    cuentas.forEach(checkbox => {
+        checkbox.checked = false;
+        checkbox.closest('.cuenta-item').classList.remove('selected');
+    });
+    
+    actualizarContadorSeleccionadas();
+    mostrarMensajeTemporal(`Se deseleccionaron ${cantidad} cuentas.`, 'info');
+}
+
+function actualizarContadorSeleccionadas() {
+    const seleccionadas = document.querySelectorAll('input[name="cuentas_contables[]"]:checked');
+    document.getElementById('contador_seleccionadas').textContent = seleccionadas.length;
+}
+
+function resaltarTexto(elemento, termino) {
+    const textos = elemento.querySelectorAll('strong, .text-muted');
+    
+    textos.forEach(texto => {
+        const contenido = texto.textContent;
+        const regex = new RegExp(`(${termino})`, 'gi');
+        const contenidoResaltado = contenido.replace(regex, '<span class="search-highlight">$1</span>');
+        texto.innerHTML = contenidoResaltado;
+    });
+}
+
+function removerResaltado(elemento) {
+    const resaltados = elemento.querySelectorAll('.search-highlight');
+    resaltados.forEach(resaltado => {
+        resaltado.outerHTML = resaltado.textContent;
+    });
+}
+
+function mostrarMensajeTemporal(mensaje, tipo = 'info') {
+    // Crear elemento de mensaje
+    const mensajeDiv = document.createElement('div');
+    mensajeDiv.className = `alert alert-${tipo} alert-dismissible fade show position-fixed`;
+    mensajeDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    mensajeDiv.innerHTML = `
+        <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+        ${mensaje}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Agregar al body
+    document.body.appendChild(mensajeDiv);
+    
+    // Auto-remover después de 3 segundos
+    setTimeout(() => {
+        if (mensajeDiv.parentNode) {
+            mensajeDiv.remove();
+        }
+    }, 3000);
+}
+
+// ========================================================================
+// FUNCIÓN PARA SWITCHES MODERNOS
+// ========================================================================
+
+function toggleSwitchContainer(slider) {
+    const checkbox = slider.parentElement.querySelector('input[type="checkbox"]');
+    const container = slider.closest('.switch-container');
+    
+    // Toggle checkbox
+    checkbox.checked = !checkbox.checked;
+    
+    // Add animation class
+    container.classList.add('toggling');
+    
+    // Remove animation class after animation completes
+    setTimeout(() => {
+        container.classList.remove('toggling');
+    }, 200);
+    
+    // Dispatch change event for any listeners
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
 }
 </script>
 <?php View::endSection(); ?>

@@ -17,20 +17,19 @@ class ArchivoAdjunto extends Model
 {
     protected static $table = 'archivos_adjuntos';
     protected static $primaryKey = 'id';
-    protected static $timestamps = true;
-    protected static $timestampFields = ['fecha_subida'];
+    protected static $timestamps = false;  // La tabla solo tiene created_at auto
 
     protected static $fillable = [
-        'orden_compra_id',
+        'requisicion_id',
         'nombre_original',
         'nombre_archivo',
-        'tipo_archivo',
+        'tipo_mime',
         'ruta_archivo',
-        'tamano',
+        'tamano_bytes',
         'descripcion',
     ];
 
-    protected static $guarded = ['id', 'fecha_subida'];
+    protected static $guarded = ['id', 'created_at'];
 
     /**
      * Obtiene la orden de compra asociada
@@ -39,24 +38,36 @@ class ArchivoAdjunto extends Model
      */
     public function ordenCompra()
     {
-        if (!isset($this->attributes['orden_compra_id'])) {
+        if (!isset($this->attributes['requisicion_id'])) {
             return null;
         }
 
-        return OrdenCompra::find($this->attributes['orden_compra_id']);
+        return Requisicion::find($this->attributes['requisicion_id']);
     }
 
     /**
-     * Obtiene todos los archivos de una orden de compra
+     * Obtiene todos los archivos de una requisición
+     * 
+     * @param int $requisicionId
+     * @return array
+     */
+    public static function porRequisicion($requisicionId)
+    {
+        return self::porOrdenCompra($requisicionId);
+    }
+
+    /**
+     * Obtiene todos los archivos de una orden de compra (alias legacy)
      * 
      * @param int $ordenCompraId
      * @return array
+     * @deprecated Usar porRequisicion() en su lugar
      */
     public static function porOrdenCompra($ordenCompraId)
     {
         $sql = "SELECT * FROM " . static::$table . " 
-                WHERE orden_compra_id = ? 
-                ORDER BY fecha_creacion DESC";
+                WHERE requisicion_id = ? 
+                ORDER BY created_at DESC";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$ordenCompraId]);
@@ -73,26 +84,44 @@ class ArchivoAdjunto extends Model
      */
     public static function subirArchivo($archivo, $ordenCompraId)
     {
+        error_log("=== DEBUG ArchivoAdjunto::subirArchivo ===");
+        error_log("Archivo: " . json_encode($archivo));
+        error_log("Orden ID: " . $ordenCompraId);
+        
         try {
             // Validar archivo
             if ($archivo['error'] !== UPLOAD_ERR_OK) {
-                throw new \Exception('Error al subir el archivo');
+                error_log("Error de upload: " . $archivo['error']);
+                throw new \Exception('Error al subir el archivo: ' . $archivo['error']);
             }
+            
+            error_log("Upload OK, continuando...");
 
             // Obtener configuración
             $uploadPath = Config::get('app.uploads.path');
             $maxSize = Config::get('app.uploads.max_size');
             $allowedTypes = Config::get('app.uploads.allowed_types');
+            
+            error_log("Configuración:");
+            error_log("  Upload path: " . $uploadPath);
+            error_log("  Max size: " . $maxSize);
+            error_log("  Allowed types: " . json_encode($allowedTypes));
 
             // Validar tamaño
+            error_log("Validando tamaño: " . $archivo['size'] . " vs " . $maxSize);
             if ($archivo['size'] > $maxSize) {
+                error_log("Archivo excede tamaño máximo");
                 throw new \Exception('El archivo excede el tamaño máximo permitido');
             }
 
             // Validar tipo
+            error_log("Validando tipo: " . $archivo['type']);
             if (!in_array($archivo['type'], $allowedTypes)) {
-                throw new \Exception('Tipo de archivo no permitido');
+                error_log("Tipo no permitido. Tipos permitidos: " . implode(', ', $allowedTypes));
+                throw new \Exception('Tipo de archivo no permitido: ' . $archivo['type']);
             }
+            
+            error_log("Validaciones OK, creando archivo...");
 
             // Crear directorio si no existe
             if (!is_dir($uploadPath)) {
@@ -111,12 +140,12 @@ class ArchivoAdjunto extends Model
 
             // Crear registro
             return self::create([
-                'orden_compra_id' => $ordenCompraId,
+                'requisicion_id' => $ordenCompraId,
                 'nombre_original' => $archivo['name'],
                 'nombre_archivo' => $nombreArchivo,
-                'tipo_archivo' => $archivo['type'],
+                'tipo_mime' => $archivo['type'],
                 'ruta_archivo' => $rutaCompleta,
-                'tamano' => $archivo['size'],
+                'tamano_bytes' => $archivo['size'],
             ]);
         } catch (\Exception $e) {
             error_log("Error subiendo archivo: " . $e->getMessage());
@@ -159,11 +188,11 @@ class ArchivoAdjunto extends Model
      */
     public function getTamanoFormateado()
     {
-        if (!isset($this->attributes['tamano'])) {
+        if (!isset($this->attributes['tamano_bytes'])) {
             return '0 B';
         }
 
-        $bytes = $this->attributes['tamano'];
+        $bytes = $this->attributes['tamano_bytes'];
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
         
         for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
@@ -258,7 +287,7 @@ class ArchivoAdjunto extends Model
     {
         $instance = new static();
         
-        $sql = "SELECT COUNT(*) as total FROM {$instance->table} WHERE orden_compra_id = ?";
+        $sql = "SELECT COUNT(*) as total FROM {$instance->table} WHERE requisicion_id = ?";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$ordenCompraId]);
         
@@ -276,7 +305,7 @@ class ArchivoAdjunto extends Model
     {
         $instance = new static();
         
-        $sql = "SELECT SUM(tamano) as total FROM {$instance->table} WHERE orden_compra_id = ?";
+        $sql = "SELECT SUM(tamano_bytes) as total FROM {$instance->table} WHERE requisicion_id = ?";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$ordenCompraId]);
         

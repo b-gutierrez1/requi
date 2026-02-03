@@ -21,7 +21,6 @@ class CuentaContable extends Model
         'codigo',
         'descripcion',
         'activo',
-        'tipo',
     ];
 
     protected static $guarded = ['id'];
@@ -98,9 +97,7 @@ class CuentaContable extends Model
      */
     public static function activas()
     {
-        $instance = new static();
-        
-        $sql = "SELECT * FROM {$instance->table} WHERE activo = 1 ORDER BY codigo ASC";
+        $sql = "SELECT * FROM " . static::$table . " WHERE activo = 1 ORDER BY codigo ASC";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute();
         
@@ -114,10 +111,8 @@ class CuentaContable extends Model
      */
     public static function activasConNombreCompleto()
     {
-        $instance = new static();
-        
         $sql = "SELECT id, CONCAT(codigo, ' - ', descripcion) as nombre_completo 
-                FROM {$instance->table} 
+                FROM " . static::$table . " 
                 WHERE activo = 1 
                 ORDER BY codigo ASC";
         
@@ -135,10 +130,10 @@ class CuentaContable extends Model
      */
     public static function buscar($termino)
     {
-        $instance = new static();
+        $table = static::$table;
         
         $sql = "SELECT *, CONCAT(codigo, ' - ', descripcion) as nombre_completo 
-                FROM {$instance->table} 
+                FROM {$table} 
                 WHERE (codigo LIKE ? OR descripcion LIKE ?) 
                 AND activo = 1 
                 ORDER BY codigo ASC";
@@ -152,23 +147,15 @@ class CuentaContable extends Model
 
     /**
      * Obtiene cuentas contables por tipo
+     * NOTA: El campo 'tipo' fue removido de la BD, este método queda para compatibilidad
      * 
      * @param string $tipo
      * @return array
      */
     public static function porTipo($tipo)
     {
-        $instance = new static();
-        
-        $sql = "SELECT * FROM {$instance->table} 
-                WHERE tipo = ? 
-                AND activo = 1 
-                ORDER BY codigo ASC";
-        
-        $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$tipo]);
-        
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        // Como no existe el campo 'tipo', retornamos todas las activas
+        return static::activas();
     }
 
     /**
@@ -182,7 +169,7 @@ class CuentaContable extends Model
     {
         $sql = "SELECT SUM(dg.cantidad) as total
                 FROM distribucion_gasto dg
-                INNER JOIN orden_compra oc ON dg.orden_compra_id = oc.id
+                INNER JOIN requisiciones oc ON dg.requisicion_id = oc.id
                 WHERE dg.cuenta_contable_id = ?";
         
         $params = [$this->attributes['id']];
@@ -233,7 +220,7 @@ class CuentaContable extends Model
     public function getEstadisticas()
     {
         $sql = "SELECT 
-                    COUNT(DISTINCT dg.orden_compra_id) as total_requisiciones,
+                    COUNT(DISTINCT dg.requisicion_id) as total_requisiciones,
                     SUM(dg.cantidad) as monto_total,
                     AVG(dg.cantidad) as monto_promedio
                 FROM distribucion_gasto dg

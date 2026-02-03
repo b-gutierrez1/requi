@@ -1,0 +1,90 @@
+# ===========================================
+# ARCHIVO .env PARA PRODUCCIÓN
+# ===========================================
+# Copiar este archivo como .env en el servidor
+# y actualizar con los valores de producción
+
+# ===========================================
+# CONFIGURACIÓN DE BASE DE DATOS
+# ===========================================
+DB_CONNECTION=mysql
+DB_HOST=servidor.produccion.com
+DB_PORT=3306
+DB_DATABASE=nombre_bd_produccion
+DB_USERNAME=usuario_produccion
+DB_PASSWORD=contraseña_super_segura
+
+# Base de datos de testing (opcional)
+DB_TEST_HOST=localhost
+DB_TEST_DATABASE=bd_test
+DB_TEST_USERNAME=usuario_test
+DB_TEST_PASSWORD=contraseña_test
+
+# ===========================================
+# CONFIGURACIÓN DE APLICACIÓN  
+# ===========================================
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://requisiciones.empresa.com
+
+# Clave de encriptación para datos sensibles
+DB_ENCRYPTION_KEY=clave_encriptacion_muy_segura_32_chars
+
+# ===========================================
+# CONFIGURACIÓN DE LOGS
+# ===========================================
+DB_LOG_QUERIES=false
+LOG_LEVEL=error
+
+# ===========================================
+# CONFIGURACIÓN DE EMAIL
+# ===========================================
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.empresa.com
+MAIL_PORT=587
+MAIL_USERNAME=requisiciones@empresa.com
+MAIL_PASSWORD=contraseña_email
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=requisiciones@empresa.com
+MAIL_FROM_NAME="Sistema de Requisiciones"
+
+# ===========================================
+# CONFIGURACIÓN DE AZURE AD (Si aplica)
+# ===========================================
+AZURE_CLIENT_ID=tu_client_id
+AZURE_CLIENT_SECRET=tu_client_secret
+AZURE_TENANT_ID=tu_tenant_id
+AZURE_REDIRECT_URI=https://requisiciones.empresa.com/auth/azure/callback
+
+# ===========================================
+# CONFIGURACIÓN DE CACHE Y SESIONES
+# ===========================================
+CACHE_DRIVER=file
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+
+# ===========================================
+# CONFIGURACIÓN DE UPLOADS
+# ===========================================
+UPLOAD_MAX_SIZE=10MB
+ALLOWED_EXTENSIONS=pdf,doc,docx,xls,xlsx,jpg,jpeg,png
+
+# ===========================================
+# CONFIGURACIÓN DE BACKUP
+# ===========================================
+BACKUP_ENABLED=true
+BACKUP_SCHEDULE=daily
+BACKUP_RETENTION_DAYS=30
+
+# ===========================================
+# CONFIGURACIÓN DE NOTIFICACIONES
+# ===========================================
+NOTIFICATIONS_ENABLED=true
+NOTIFICATION_EMAIL_ADMIN=admin@empresa.com
+
+# ===========================================
+# CONFIGURACIÓN DE SEGURIDAD
+# ===========================================
+CSRF_PROTECTION=true
+FORCE_HTTPS=true
+SECURE_COOKIES=true

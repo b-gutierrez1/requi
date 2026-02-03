@@ -18,7 +18,7 @@ class DetalleItem extends Model
     protected static $timestamps = false;
 
     protected static $fillable = [
-        'orden_compra_id',
+        'requisicion_id',
         'cantidad',
         'descripcion',
         'precio_unitario',
@@ -34,11 +34,11 @@ class DetalleItem extends Model
      */
     public function ordenCompra()
     {
-        if (!isset($this->attributes['orden_compra_id'])) {
+        if (!isset($this->attributes['requisicion_id'])) {
             return null;
         }
 
-        return OrdenCompra::find($this->attributes['orden_compra_id']);
+        return Requisicion::find($this->attributes['requisicion_id']);
     }
 
     /**
@@ -67,15 +67,27 @@ class DetalleItem extends Model
     }
 
     /**
-     * Obtiene todos los items de una orden de compra
+     * Obtiene todos los items de una requisición
+     * 
+     * @param int $requisicionId
+     * @return array
+     */
+    public static function porRequisicion($requisicionId)
+    {
+        return self::porOrdenCompra($requisicionId);
+    }
+
+    /**
+     * Obtiene todos los items de una orden de compra (alias legacy)
      * 
      * @param int $ordenCompraId
      * @return array
+     * @deprecated Usar porRequisicion() en su lugar
      */
     public static function porOrdenCompra($ordenCompraId)
     {
         $sql = "SELECT * FROM " . static::$table . " 
-                WHERE orden_compra_id = ? 
+                WHERE requisicion_id = ? 
                 ORDER BY id ASC";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -96,7 +108,7 @@ class DetalleItem extends Model
         
         $sql = "SELECT SUM(total) as total_orden 
                 FROM {$instance->table} 
-                WHERE orden_compra_id = ?";
+                WHERE requisicion_id = ?";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$ordenCompraId]);
@@ -168,13 +180,13 @@ class DetalleItem extends Model
 
             // Eliminar items existentes
             $instance = new static();
-            $sql = "DELETE FROM {$instance->table} WHERE orden_compra_id = ?";
+            $sql = "DELETE FROM {$instance->table} WHERE requisicion_id = ?";
             $stmt = $conn->prepare($sql);
             $stmt->execute([$ordenCompraId]);
 
             // Insertar nuevos items
             foreach ($items as $item) {
-                $item['orden_compra_id'] = $ordenCompraId;
+                $item['requisicion_id'] = $ordenCompraId;
                 $item['total'] = floatval($item['cantidad']) * floatval($item['precio_unitario']);
                 self::create($item);
             }
@@ -199,7 +211,7 @@ class DetalleItem extends Model
     public function getPrecioFormateado($moneda = 'GTQ')
     {
         $simbolo = $moneda === 'USD' ? '$' : 'Q';
-        $precio = number_format($this->attributes['precio_unitario'] ?? 0, 2);
+        $precio = number_format($this->attributes['precio_unitario'] ?? 0, 5);
         
         return $simbolo . ' ' . $precio;
     }
@@ -213,7 +225,7 @@ class DetalleItem extends Model
     public function getTotalFormateado($moneda = 'GTQ')
     {
         $simbolo = $moneda === 'USD' ? '$' : 'Q';
-        $total = number_format($this->attributes['total'] ?? 0, 2);
+        $total = number_format($this->attributes['total'] ?? 0, 5);
         
         return $simbolo . ' ' . $total;
     }
@@ -234,7 +246,7 @@ class DetalleItem extends Model
                     SUM(total) as monto_total,
                     AVG(precio_unitario) as precio_promedio
                 FROM {$instance->table} 
-                WHERE orden_compra_id = ?";
+                WHERE requisicion_id = ?";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$ordenCompraId]);

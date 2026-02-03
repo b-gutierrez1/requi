@@ -147,10 +147,18 @@ class AuthController extends Controller
             $this->logLogout($this->getUsuarioId());
         }
 
-        // Destruir sesión
+        // Limpiar todas las cookies relacionadas con autenticación
+        $this->clearAllAuthCookies();
+
+        // Destruir sesión completamente
         Session::logout();
 
-        // Redirigir al login con mensaje
+        // Agregar headers para prevenir cache
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Cache-Control: post-check=0, pre-check=0', false);
+        header('Pragma: no-cache');
+
+        // Redirigir al login con mensaje y forzar recarga completa
         Redirect::toLogin('Sesión cerrada exitosamente');
     }
 
@@ -364,8 +372,7 @@ class AuthController extends Controller
             $nuevoUsuario = Usuario::create([
                 'nombre' => $displayName, // Campo obligatorio de la tabla
                 'email' => $email,
-                'password' => '', // No se usa con Azure AD
-                'password_hash' => password_hash('azure_user_temp', PASSWORD_DEFAULT), // Campo obligatorio
+                'password' => password_hash('azure_user_temp', PASSWORD_DEFAULT), // Campo obligatorio
                 'rol' => 'usuario', // Rol por defecto
                 'azure_id' => $azureId,
                 'azure_email' => $email,
@@ -378,8 +385,6 @@ class AuthController extends Controller
                 'is_autorizador' => 0,
                 'is_admin' => 0,
                 'activo' => 1,
-                'username' => $email, // Usar email como username
-                'nombre_completo' => $displayName,
                 'last_login' => date('Y-m-d H:i:s')
             ]);
             
@@ -528,5 +533,40 @@ class AuthController extends Controller
             'success' => false,
             'message' => 'Refresh token no implementado'
         ], 501);
+    }
+
+    /**
+     * Limpia todas las cookies relacionadas con autenticación
+     * 
+     * @return void
+     */
+    private function clearAllAuthCookies()
+    {
+        $cookiesToClear = [
+            'user_id',
+            'auth_token',
+            'remember_token',
+            'azure_token',
+            'access_token',
+            session_name() // PHPSESSID
+        ];
+
+        foreach ($cookiesToClear as $cookieName) {
+            if (isset($_COOKIE[$cookieName])) {
+                setcookie($cookieName, '', time() - 3600, '/', '', false, true);
+                setcookie($cookieName, '', time() - 3600, '/requi/', '', false, true);
+                setcookie($cookieName, '', time() - 3600, '/requi', '', false, true);
+                unset($_COOKIE[$cookieName]);
+            }
+        }
+
+        // También limpiar cualquier cookie que empiece con 'auth_' o 'session_'
+        foreach ($_COOKIE as $cookieName => $value) {
+            if (strpos($cookieName, 'auth_') === 0 || strpos($cookieName, 'session_') === 0) {
+                setcookie($cookieName, '', time() - 3600, '/', '', false, true);
+                setcookie($cookieName, '', time() - 3600, '/requi/', '', false, true);
+                unset($_COOKIE[$cookieName]);
+            }
+        }
     }
 }

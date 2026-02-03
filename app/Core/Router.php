@@ -356,6 +356,7 @@ class Router
                     error_log("Router: Match encontrado! Parámetros: " . json_encode($matches));
                 }
                 
+                
                 return [
                     'action' => $routeData['action'],
                     'params' => $matches,

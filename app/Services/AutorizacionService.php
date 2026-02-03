@@ -25,11 +25,10 @@ namespace App\Services;
 use App\Models\Model;
 use App\Models\AutorizacionFlujo;
 use App\Models\AutorizacionFlujoAdaptador;
-use App\Models\AutorizacionCentroCosto;
-use App\Models\AutorizacionCentroCostoAdaptador;
+use App\Repositories\AutorizacionCentroRepository;
 use App\Models\AutorizadorMetodoPago;
 use App\Models\AutorizadorCuentaContable;
-use App\Models\OrdenCompra;
+use App\Models\Requisicion;
 use App\Models\Usuario;
 use App\Models\HistorialRequisicion;
 
@@ -51,10 +50,17 @@ class AutorizacionService extends Model
      * 
      * @param NotificacionService $notificacionService Servicio de notificaciones opcional
      */
+    /**
+     * Repositorio de autorizaciones de centro
+     * @var AutorizacionCentroRepository
+     */
+    private $autorizacionCentroRepo;
+
     public function __construct(NotificacionService $notificacionService = null)
     {
         try {
             $this->notificacionService = $notificacionService ?? new NotificacionService();
+            $this->autorizacionCentroRepo = new AutorizacionCentroRepository();
         } catch (\Exception $e) {
             // Si falla crear NotificacionService, crear un mock básico
             error_log("Warning: Failed to create NotificacionService, using mock: " . $e->getMessage());
@@ -64,6 +70,7 @@ class AutorizacionService extends Model
                     return true;
                 }
             };
+            $this->autorizacionCentroRepo = new AutorizacionCentroRepository();
         }
     }
 
@@ -143,7 +150,7 @@ class AutorizacionService extends Model
         if (is_object($flujo)) {
             return [
                 'id' => $flujo->id,
-                'orden_compra_id' => $flujo->orden_compra_id,
+                'requisicion_id' => $flujo->requisicion_id,
                 'estado' => $flujo->estado,
                 'revisor_email' => $flujo->revisor_email ?? null,
                 'revisor_comentario' => $flujo->revisor_comentario ?? null,
@@ -163,7 +170,7 @@ class AutorizacionService extends Model
      */
     private function validateEstadoFlujo($flujo, $estadoEsperado)
     {
-        $estadoActual = $flujo['estado'];
+        $estadoActual = is_object($flujo) ? $flujo->estado : $flujo['estado'];
         
         if ($estadoActual !== $estadoEsperado) {
             $mensajesEstado = [
@@ -193,7 +200,7 @@ class AutorizacionService extends Model
     /**
      * Aprueba una requisición en nivel de revisión (MÉTODO PRINCIPAL REFACTORIZADO)
      * 
-     * CAMBIO IMPORTANTE: Ahora busca por orden_compra_id PRIMERO
+     * CAMBIO IMPORTANTE: Ahora busca por requisicion_id PRIMERO
      * porque el controlador normalmente pasa el ID de la orden
      * 
      * @param int $idAmbiguo ID que puede ser de orden o flujo (se asume orden por defecto)
@@ -218,12 +225,14 @@ class AutorizacionService extends Model
                 ];
             }
 
-            // ESTRATEGIA 1: Buscar por orden_compra_id (MÁS COMÚN)
-            error_log("Estrategia 1: Buscando flujo por orden_compra_id = $idAmbiguo");
+            // ESTRATEGIA 1: Buscar por requisicion_id (MÁS COMÚN)
+            error_log("Estrategia 1: Buscando flujo por requisicion_id = $idAmbiguo");
             $flujo = $this->findFlujoByOrdenId($idAmbiguo);
             
             if ($flujo) {
-                error_log("✅ Flujo encontrado por orden ID: {$flujo['id']}, Estado: {$flujo['estado']}");
+                $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
+                $flujoEstado = is_object($flujo) ? $flujo->estado : $flujo['estado'];
+                error_log("✅ Flujo encontrado por orden ID: $flujoId, Estado: $flujoEstado");
                 return $this->ejecutarAprobacionRevision($flujo, $usuarioId, $comentario);
             }
 
@@ -232,7 +241,10 @@ class AutorizacionService extends Model
             $flujo = $this->findFlujoByFlujoId($idAmbiguo);
             
             if ($flujo) {
-                error_log("✅ Flujo encontrado por flujo ID: {$flujo['id']}, Orden: {$flujo['orden_compra_id']}, Estado: {$flujo['estado']}");
+                $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
+                $ordenId = is_object($flujo) ? $flujo->requisicion_id : $flujo['requisicion_id'];
+                $flujoEstado = is_object($flujo) ? $flujo->estado : $flujo['estado'];
+                error_log("✅ Flujo encontrado por flujo ID: $flujoId, Orden: $ordenId, Estado: $flujoEstado");
                 return $this->ejecutarAprobacionRevision($flujo, $usuarioId, $comentario);
             }
 
@@ -266,8 +278,8 @@ class AutorizacionService extends Model
     private function ejecutarAprobacionRevision($flujo, $usuarioId, $comentario = '')
     {
         try {
-            $flujoId = $flujo['id'];
-            $ordenId = $flujo['orden_compra_id'];
+            $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
+            $ordenId = is_object($flujo) ? $flujo->requisicion_id : $flujo['requisicion_id'];
             
             error_log("Ejecutando aprobación: Flujo $flujoId, Orden $ordenId");
 
@@ -282,8 +294,8 @@ class AutorizacionService extends Model
             error_log("Llamando AutorizacionFlujo::aprobarRevision($flujoId, $usuarioId, '$comentario')");
             $resultado = AutorizacionFlujo::aprobarRevision($flujoId, $usuarioId, $comentario);
             
-            if (!$resultado) {
-                error_log("❌ Error en AutorizacionFlujo::aprobarRevision()");
+            if ($resultado !== true) {
+                error_log("❌ Error en AutorizacionFlujo::aprobarRevision() - resultado: " . var_export($resultado, true));
                 return [
                     'success' => false,
                     'error' => 'Error al aprobar la revisión en el modelo',
@@ -454,8 +466,8 @@ class AutorizacionService extends Model
                 }
             }
 
-            $flujoId = $flujo['id'];
-            $ordenId = $flujo['orden_compra_id'];
+            $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
+            $ordenId = is_object($flujo) ? $flujo->requisicion_id : $flujo['requisicion_id'];
 
             $resultado = AutorizacionFlujo::rechazarRevision($flujoId, $usuarioId, $motivo);
             
@@ -467,9 +479,12 @@ class AutorizacionService extends Model
                 ];
             }
 
+            // Notificar al creador que puede editar la requisición
+            $this->notificacionService->notificarRechazoRevision($ordenId, $motivo);
+
             return [
                 'success' => true,
-                'message' => 'Requisición rechazada exitosamente'
+                'message' => 'Requisición rechazada exitosamente. El creador ha sido notificado para realizar correcciones.'
             ];
         } catch (\Exception $e) {
             error_log("Error en rechazarRevision: " . $e->getMessage());
@@ -492,7 +507,7 @@ class AutorizacionService extends Model
     public function autorizarCentroCosto($autorizacionId, $autorizadorEmail, $comentario = '')
     {
         try {
-            $autorizacion = AutorizacionCentroCostoAdaptador::find($autorizacionId);
+            $autorizacion = $this->autorizacionCentroRepo->findById($autorizacionId);
             if (!$autorizacion) {
                 return [
                     'success' => false,
@@ -510,7 +525,7 @@ class AutorizacionService extends Model
                 ];
             }
 
-            $resultado = AutorizacionCentroCostoAdaptador::autorizar($autorizacionId, $autorizadorEmail, $comentario);
+            $resultado = $this->autorizacionCentroRepo->authorize($autorizacionId, $autorizadorEmail, $comentario);
             
             if (!$resultado) {
                 return [
@@ -527,8 +542,8 @@ class AutorizacionService extends Model
 
                 if ($ordenId) {
                     $flujo = AutorizacionFlujo::porOrdenCompra($ordenId);
-                    if ($flujo && isset($flujo['id'])) {
-                        $flujoIdReal = $flujo['id'];
+                    if ($flujo) {
+                        $flujoIdReal = is_object($flujo) ? $flujo->id : $flujo['id'];
                     }
                 }
 
@@ -562,7 +577,7 @@ class AutorizacionService extends Model
     public function rechazarCentroCosto($autorizacionId, $autorizadorEmail, $motivo)
     {
         try {
-            $autorizacion = AutorizacionCentroCostoAdaptador::find($autorizacionId);
+            $autorizacion = $this->autorizacionCentroRepo->findById($autorizacionId);
             if (!$autorizacion) {
                 return [
                     'success' => false,
@@ -571,7 +586,7 @@ class AutorizacionService extends Model
                 ];
             }
 
-            $resultado = AutorizacionCentroCostoAdaptador::rechazar($autorizacionId, $autorizadorEmail, $motivo);
+            $resultado = $this->autorizacionCentroRepo->reject($autorizacionId, $autorizadorEmail, $motivo);
             
             if (!$resultado) {
                 return [
@@ -581,20 +596,18 @@ class AutorizacionService extends Model
                 ];
             }
 
-            // Marcar flujo como rechazado
-            $flujoIdReal = $autorizacion['autorizacion_flujo_id'] ?? null;
+            // Obtener el ID de la requisición y marcar flujo como rechazado
+            $ordenId = (int)($autorizacion['requisicion_id'] ?? 0);
+            
             if ($ordenId) {
-                $flujo = AutorizacionFlujo::porOrdenCompra($ordenId);
-                if ($flujo && isset($flujo['id'])) {
-                    $flujoIdReal = $flujo['id'];
+                // Buscar el flujo por requisicion_id
+                $flujo = AutorizacionFlujo::porRequisicion($ordenId);
+                if ($flujo) {
+                    $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
+                    AutorizacionFlujo::marcarComoRechazado($flujoId, $motivo);
                 }
-            }
-
-            if ($flujoIdReal) {
-                AutorizacionFlujo::marcarComoRechazado($flujoIdReal);
-            }
-
-            if ($ordenId) {
+                
+                // Notificar al revisor y al creador que el flujo fue rechazado (terminado)
                 $this->notificacionService->notificarRechazo($ordenId, $motivo);
             }
 
@@ -633,19 +646,22 @@ class AutorizacionService extends Model
      */
     public function esAutorizadorDe($email, $ordenId)
     {
-        $flujo = $this->findFlujoByOrdenId($ordenId);
-        if (!$flujo) {
-            return false;
-        }
-
-        $autorizaciones = AutorizacionCentroCostoAdaptador::porFlujo($flujo['id']);
+        // Verificar directamente en la tabla autorizaciones usando el requisicion_id
+        // (que es el ID de la orden/requisición)
+        $autorizaciones = $this->autorizacionCentroRepo->getByRequisicion((int)$ordenId);
+        
+        error_log("esAutorizadorDe: Verificando permisos para $email en requisición $ordenId");
+        error_log("esAutorizadorDe: Autorizaciones encontradas: " . count($autorizaciones));
         
         foreach ($autorizaciones as $auth) {
-            if ($auth['autorizador_email'] === $email) {
+            error_log("esAutorizadorDe: Comparando con {$auth['autorizador_email']}");
+            if (strtolower($auth['autorizador_email']) === strtolower($email)) {
+                error_log("esAutorizadorDe: ✅ Coincidencia encontrada");
                 return true;
             }
         }
 
+        error_log("esAutorizadorDe: ❌ No se encontró coincidencia");
         return false;
     }
 
@@ -662,8 +678,8 @@ class AutorizacionService extends Model
             return false;
         }
 
-        $estadoAnterior = $flujoAntes['estado'] ?? ($flujoAntes->estado ?? null);
-        $ordenId = $flujoAntes['orden_compra_id'] ?? ($flujoAntes->orden_compra_id ?? null);
+        $estadoAnterior = is_object($flujoAntes) ? $flujoAntes->estado : $flujoAntes['estado'];
+        $ordenId = is_object($flujoAntes) ? $flujoAntes->requisicion_id : $flujoAntes['requisicion_id'];
 
         $resultado = AutorizacionFlujo::verificarYActualizarEstado($flujoId);
 
@@ -676,7 +692,7 @@ class AutorizacionService extends Model
             return $resultado;
         }
 
-        $nuevoEstado = $flujoDespues['estado'] ?? ($flujoDespues->estado ?? null);
+        $nuevoEstado = is_object($flujoDespues) ? $flujoDespues->estado : ($flujoDespues['estado'] ?? null);
 
         if ($nuevoEstado && $nuevoEstado !== $estadoAnterior) {
             if ($nuevoEstado === AutorizacionFlujo::ESTADO_AUTORIZADO) {
@@ -700,7 +716,8 @@ class AutorizacionService extends Model
             return [];
         }
 
-        $todasAutorizaciones = AutorizacionCentroCostoAdaptador::porFlujo($flujo['id']);
+        $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
+        $todasAutorizaciones = $this->autorizacionCentroRepo->getByRequisicion($flujoId);
         
         // Filtrar solo las pendientes
         return array_filter($todasAutorizaciones, function($auth) {
@@ -717,7 +734,7 @@ class AutorizacionService extends Model
     public function getAutorizacionesPendientes($usuarioEmail)
     {
         try {
-            $autorizaciones = AutorizacionCentroCostoAdaptador::pendientesPorAutorizador($usuarioEmail);
+            $autorizaciones = $this->autorizacionCentroRepo->getPendingByEmail($usuarioEmail);
 
             $autorizaciones = array_filter($autorizaciones, function ($auth) {
                 $ordenId = $auth['orden_id'] ?? $auth['requisicion_id'] ?? null;
@@ -799,7 +816,19 @@ class AutorizacionService extends Model
     public function getProgresoAutorizacion($flujoId)
     {
         try {
-            return AutorizacionCentroCostoAdaptador::getProgreso($flujoId);
+            $flujoId = (int)$flujoId;
+
+            if ($flujoId <= 0) {
+                return [
+                    'total' => 0,
+                    'aprobadas' => 0,
+                    'rechazadas' => 0,
+                    'pendientes' => 0,
+                    'porcentaje_completado' => 0,
+                ];
+            }
+
+            return $this->autorizacionCentroRepo->getProgress($flujoId);
         } catch (\Exception $e) {
             error_log("Error obteniendo progreso de autorización: " . $e->getMessage());
             return null;
@@ -844,8 +873,8 @@ class AutorizacionService extends Model
             $stmt = $pdo->prepare("
                 UPDATE autorizaciones 
                 SET estado = 'aprobada', 
-                    comentario = ?, 
-                    fecha_decision = NOW() 
+                    comentarios = ?, 
+                    fecha_respuesta = NOW() 
                 WHERE id = ?
             ");
             $stmt->execute([$comentario, $autorizacionId]);
@@ -860,7 +889,28 @@ class AutorizacionService extends Model
 
             $pdo->commit();
 
+            // Si todas las autorizaciones especiales están completas, crear autorizaciones de centros de costo
             if ($pendientesAntes && !$this->tieneAutorizacionesEspecialesPendientes($ordenId)) {
+                error_log("Todas las autorizaciones especiales completadas para requisición $ordenId, creando autorizaciones de centros de costo");
+                
+                // Verificar si ya existen autorizaciones de centros de costo
+                $stmt = $pdo->prepare("
+                    SELECT COUNT(*) FROM autorizaciones 
+                    WHERE requisicion_id = ? AND tipo = 'centro_costo'
+                ");
+                $stmt->execute([$ordenId]);
+                $centrosExistentes = (int)$stmt->fetchColumn();
+                
+                // Si no existen, crearlas
+                if ($centrosExistentes === 0) {
+                    error_log("Creando autorizaciones de centros de costo para requisición $ordenId");
+                    $this->autorizacionCentroRepo->createFromDistribucion($ordenId);
+                    error_log("✅ Autorizaciones de centros de costo creadas exitosamente");
+                } else {
+                    error_log("Las autorizaciones de centros de costo ya existen ($centrosExistentes) para requisición $ordenId");
+                }
+                
+                // Notificar a los autorizadores de centros
                 $this->notificacionService->notificarAutorizadoresCentros($ordenId);
             }
 
@@ -917,8 +967,8 @@ class AutorizacionService extends Model
             $stmt = $pdo->prepare("
                 UPDATE autorizaciones 
                 SET estado = 'rechazada', 
-                    comentario = ?, 
-                    fecha_decision = NOW() 
+                    motivo_rechazo = ?, 
+                    fecha_respuesta = NOW() 
                 WHERE id = ?
             ");
             $stmt->execute([$motivo, $autorizacionId]);
@@ -934,7 +984,8 @@ class AutorizacionService extends Model
 
             $flujo = AutorizacionFlujo::porOrdenCompra($ordenId);
             if ($flujo) {
-                AutorizacionFlujo::marcarComoRechazado($flujo['id']);
+                $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
+                AutorizacionFlujo::marcarComoRechazado($flujoId);
             }
 
             $this->notificacionService->notificarRechazo($ordenId, $motivo);
@@ -994,8 +1045,8 @@ class AutorizacionService extends Model
             $stmt = $pdo->prepare("
                 UPDATE autorizaciones 
                 SET estado = 'aprobada', 
-                    comentario = ?, 
-                    fecha_decision = NOW() 
+                    comentarios = ?, 
+                    fecha_respuesta = NOW() 
                 WHERE id = ?
             ");
             $stmt->execute([$comentario, $autorizacionId]);
@@ -1010,7 +1061,28 @@ class AutorizacionService extends Model
 
             $pdo->commit();
 
+            // Si todas las autorizaciones especiales están completas, crear autorizaciones de centros de costo
             if ($pendientesAntes && !$this->tieneAutorizacionesEspecialesPendientes($ordenId)) {
+                error_log("Todas las autorizaciones especiales completadas para requisición $ordenId, creando autorizaciones de centros de costo");
+                
+                // Verificar si ya existen autorizaciones de centros de costo
+                $stmt = $pdo->prepare("
+                    SELECT COUNT(*) FROM autorizaciones 
+                    WHERE requisicion_id = ? AND tipo = 'centro_costo'
+                ");
+                $stmt->execute([$ordenId]);
+                $centrosExistentes = (int)$stmt->fetchColumn();
+                
+                // Si no existen, crearlas
+                if ($centrosExistentes === 0) {
+                    error_log("Creando autorizaciones de centros de costo para requisición $ordenId");
+                    $this->autorizacionCentroRepo->createFromDistribucion($ordenId);
+                    error_log("✅ Autorizaciones de centros de costo creadas exitosamente");
+                } else {
+                    error_log("Las autorizaciones de centros de costo ya existen ($centrosExistentes) para requisición $ordenId");
+                }
+                
+                // Notificar a los autorizadores de centros
                 $this->notificacionService->notificarAutorizadoresCentros($ordenId);
             }
 
@@ -1068,8 +1140,8 @@ class AutorizacionService extends Model
             $stmt = $pdo->prepare("
                 UPDATE autorizaciones 
                 SET estado = 'rechazada', 
-                    comentario = ?, 
-                    fecha_decision = NOW() 
+                    motivo_rechazo = ?, 
+                    fecha_respuesta = NOW() 
                 WHERE id = ?
             ");
             $stmt->execute([$motivo, $autorizacionId]);
@@ -1085,7 +1157,8 @@ class AutorizacionService extends Model
 
             $flujo = AutorizacionFlujo::porOrdenCompra($ordenId);
             if ($flujo) {
-                AutorizacionFlujo::marcarComoRechazado($flujo['id']);
+                $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
+                AutorizacionFlujo::marcarComoRechazado($flujoId);
             }
 
             $this->notificacionService->notificarRechazo($ordenId, $motivo);
@@ -1124,11 +1197,12 @@ class AutorizacionService extends Model
                     a.tipo,
                     a.metadata,
                     a.created_at,
-                    oc.nombre_razon_social,
-                    oc.monto_total,
-                    oc.fecha
+                    r.numero_requisicion,
+                    r.proveedor_nombre as nombre_razon_social,
+                    r.monto_total,
+                    r.fecha_solicitud as fecha
                 FROM autorizaciones a
-                INNER JOIN orden_compra oc ON a.requisicion_id = oc.id
+                INNER JOIN requisiciones r ON a.requisicion_id = r.id
                 WHERE a.autorizador_email = ? 
                 AND a.tipo = 'forma_pago' 
                 AND a.estado = 'pendiente'
@@ -1160,12 +1234,13 @@ class AutorizacionService extends Model
                     a.cuenta_contable_id,
                     a.metadata,
                     a.created_at,
-                    oc.nombre_razon_social,
-                    oc.monto_total,
-                    oc.fecha,
+                    r.numero_requisicion,
+                    r.proveedor_nombre as nombre_razon_social,
+                    r.monto_total,
+                    r.fecha_solicitud as fecha,
                     cc.descripcion as cuenta_nombre
                 FROM autorizaciones a
-                INNER JOIN orden_compra oc ON a.requisicion_id = oc.id
+                INNER JOIN requisiciones r ON a.requisicion_id = r.id
                 LEFT JOIN cuenta_contable cc ON a.cuenta_contable_id = cc.id
                 WHERE a.autorizador_email = ? 
                 AND a.tipo = 'cuenta_contable' 
@@ -1383,5 +1458,194 @@ class AutorizacionService extends Model
         // Este método ya no se usa porque la lógica se movió al modelo
         // Se mantiene para compatibilidad
         return true;
+    }
+
+    /**
+     * Obtiene el historial de autorizaciones con filtros
+     * 
+     * @param int $usuarioId ID del usuario que solicita
+     * @param array $filtros Filtros de búsqueda
+     * @return array
+     */
+    public function getHistorialAutorizaciones($usuarioId, $filtros = [])
+    {
+        try {
+            $pdo = Model::getConnection();
+            
+            // Obtener email del usuario
+            $usuario = Usuario::find($usuarioId);
+            if (!$usuario) {
+                error_log("getHistorialAutorizaciones: Usuario no encontrado con ID: $usuarioId");
+                return [];
+            }
+            $usuarioEmail = $usuario->azure_email ?? $usuario->email ?? null;
+            if (!$usuarioEmail) {
+                error_log("getHistorialAutorizaciones: Usuario sin email - ID: $usuarioId");
+                return [];
+            }
+            
+            error_log("getHistorialAutorizaciones: Buscando historial para usuario: $usuarioEmail");
+            
+            // Primero, verificar si hay autorizaciones del usuario en la BD
+            $stmtTest = $pdo->prepare("
+                SELECT COUNT(*) as total, 
+                       COUNT(CASE WHEN estado = 'aprobada' THEN 1 END) as aprobadas,
+                       COUNT(CASE WHEN estado = 'rechazada' THEN 1 END) as rechazadas,
+                       COUNT(CASE WHEN estado = 'pendiente' THEN 1 END) as pendientes
+                FROM autorizaciones 
+                WHERE autorizador_email = ?
+            ");
+            $stmtTest->execute([$usuarioEmail]);
+            $stats = $stmtTest->fetch(\PDO::FETCH_ASSOC);
+            error_log("getHistorialAutorizaciones: Estadísticas - Total: " . ($stats['total'] ?? 0) . 
+                     ", Aprobadas: " . ($stats['aprobadas'] ?? 0) . 
+                     ", Rechazadas: " . ($stats['rechazadas'] ?? 0) . 
+                     ", Pendientes: " . ($stats['pendientes'] ?? 0));
+            
+            // Consulta para obtener historial de autorizaciones del usuario
+            // Combina datos de la tabla autorizaciones (donde el usuario es autorizador)
+            $sql = "
+                SELECT DISTINCT
+                    a.id as autorizacion_id,
+                    a.requisicion_id as orden_id,
+                    a.estado as estado_autorizacion,
+                    a.comentarios as comentario,
+                    a.motivo_rechazo as motivo,
+                    COALESCE(a.fecha_respuesta, a.fecha_asignacion, NOW()) as fecha_autorizacion,
+                    a.tipo as tipo_autorizacion,
+                    r.numero_requisicion,
+                    r.proveedor_nombre as nombre_razon_social,
+                    r.monto_total,
+                    COALESCE(af.estado, r.estado, 'pendiente') as estado_actual,
+                    CASE 
+                        WHEN a.estado = 'aprobada' AND a.tipo = 'centro_costo' THEN 'centro_autorizado'
+                        WHEN a.estado = 'rechazada' AND a.tipo = 'centro_costo' THEN 'centro_rechazado'
+                        WHEN a.estado = 'aprobada' AND a.tipo IN ('forma_pago', 'cuenta_contable', 'revision') THEN 'revision_aprobada'
+                        WHEN a.estado = 'rechazada' AND a.tipo IN ('forma_pago', 'cuenta_contable', 'revision') THEN 'revision_rechazada'
+                        ELSE 'accion_desconocida'
+                    END as tipo_accion
+                FROM autorizaciones a
+                INNER JOIN requisiciones r ON a.requisicion_id = r.id
+                LEFT JOIN autorizacion_flujo af ON r.id = af.requisicion_id
+                WHERE a.autorizador_email = :usuario_email
+                  AND a.estado IN ('aprobada', 'rechazada')
+            ";
+            
+            $params = ['usuario_email' => $usuarioEmail];
+            
+            // Aplicar filtros
+            if (!empty($filtros['accion'])) {
+                // Mapear filtros de la vista a estados de autorización
+                $tipoFiltro = match($filtros['accion']) {
+                    'revision_aprobada' => "a.estado = 'aprobada' AND a.tipo IN ('forma_pago', 'cuenta_contable', 'revision')",
+                    'revision_rechazada' => "a.estado = 'rechazada' AND a.tipo IN ('forma_pago', 'cuenta_contable', 'revision')",
+                    'centro_autorizado' => "a.estado = 'aprobada' AND a.tipo = 'centro_costo'",
+                    'centro_rechazado' => "a.estado = 'rechazada' AND a.tipo = 'centro_costo'",
+                    default => null
+                };
+                
+                if ($tipoFiltro) {
+                    $sql .= " AND ($tipoFiltro)";
+                }
+            }
+            
+            if (!empty($filtros['fecha_desde'])) {
+                $sql .= " AND DATE(COALESCE(a.fecha_respuesta, a.fecha_asignacion)) >= :fecha_desde";
+                $params['fecha_desde'] = $filtros['fecha_desde'];
+            }
+            
+            if (!empty($filtros['fecha_hasta'])) {
+                $sql .= " AND DATE(COALESCE(a.fecha_respuesta, a.fecha_asignacion)) <= :fecha_hasta";
+                $params['fecha_hasta'] = $filtros['fecha_hasta'];
+            }
+            
+            if (!empty($filtros['busqueda'])) {
+                $sql .= " AND (r.numero_requisicion LIKE :busqueda OR r.proveedor_nombre LIKE :busqueda)";
+                $params['busqueda'] = '%' . $filtros['busqueda'] . '%';
+            }
+            
+            $sql .= " ORDER BY COALESCE(a.fecha_respuesta, a.fecha_asignacion) DESC LIMIT 100";
+            
+            error_log("getHistorialAutorizaciones SQL: " . $sql);
+            error_log("getHistorialAutorizaciones Params: " . json_encode($params));
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            
+            $resultados = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            
+            error_log("getHistorialAutorizaciones: Resultados encontrados: " . count($resultados));
+            
+            // Mapear resultados para que coincidan con lo que espera la vista
+            $autorizaciones = [];
+            foreach ($resultados as $row) {
+                $autorizaciones[] = [
+                    'id' => $row['autorizacion_id'],
+                    'orden_id' => $row['orden_id'],
+                    'fecha_autorizacion' => $row['fecha_autorizacion'] ?? date('Y-m-d H:i:s'),
+                    'nombre_razon_social' => $row['nombre_razon_social'] ?? '',
+                    'tipo_accion' => $row['tipo_accion'] ?? 'accion_desconocida',
+                    'comentario' => $row['comentario'] ?? '',
+                    'motivo' => $row['motivo'] ?? '',
+                    'monto_total' => $row['monto_total'] ?? 0,
+                    'estado_actual' => $row['estado_actual'] ?? 'pendiente',
+                    'numero_requisicion' => $row['numero_requisicion'] ?? ''
+                ];
+            }
+            
+            error_log("getHistorialAutorizaciones: Autorizaciones mapeadas: " . count($autorizaciones));
+            
+            return $autorizaciones;
+            
+        } catch (\Exception $e) {
+            error_log("Error obteniendo historial de autorizaciones: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            return [];
+        }
+    }
+
+    /**
+     * Verifica si un email es autorizador general (tiene algún tipo de autorización)
+     * 
+     * @param string $email Email a verificar
+     * @return bool
+     */
+    public function esAutorizadorGeneral($email)
+    {
+        try {
+            // Verificar si es autorizador de centro de costo
+            $pdo = static::getConnection();
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) 
+                FROM autorizacion_centro_costo 
+                WHERE autorizador_email = ?
+            ");
+            $stmt->execute([$email]);
+            
+            if ($stmt->fetchColumn() > 0) {
+                return true;
+            }
+            
+            // Verificar si es autorizador de forma de pago
+            if ($this->esAutorizadorPago($email)) {
+                return true;
+            }
+            
+            // Verificar si es autorizador de cuenta contable
+            if ($this->esAutorizadorCuenta($email)) {
+                return true;
+            }
+            
+            // Verificar si es autorizador de respaldo
+            if ($this->esAutorizadorRespaldo($email)) {
+                return true;
+            }
+            
+            return false;
+            
+        } catch (\Exception $e) {
+            error_log("Error verificando si es autorizador general: " . $e->getMessage());
+            return false;
+        }
     }
 }

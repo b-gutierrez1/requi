@@ -14,9 +14,8 @@ namespace App\Controllers\Admin;
 use App\Controllers\Controller;
 use App\Helpers\View;
 use App\Models\Model;
-use App\Models\OrdenCompra;
+use App\Models\Requisicion;
 use App\Models\AutorizacionFlujo;
-use App\Models\AutorizacionCentroCosto;
 use App\Models\DistribucionGasto;
 use App\Models\Autorizacion;
 use App\Models\AutorizadorRespaldo;
@@ -31,32 +30,32 @@ class RequisicionesController extends Controller
     {
         try {
             // Obtener todas las requisiciones con información de flujo
+            // Usar consulta más simple y robusta para evitar errores
             $sql = "
                 SELECT 
-                    oc.id,
-                    oc.nombre_razon_social,
-                    oc.forma_pago,
-                    oc.monto_total,
-                    oc.fecha,
-                    oc.estado as estado_orden,
-                    af.estado as estado_flujo,
-                    af.requiere_autorizacion_especial_pago,
-                    af.requiere_autorizacion_especial_cuenta,
+                    r.id,
+                    COALESCE(r.proveedor_nombre, '') as nombre_razon_social,
+                    COALESCE(r.forma_pago, '') as forma_pago,
+                    COALESCE((SELECT SUM(total) FROM detalle_items WHERE requisicion_id = r.id), 0) as monto_total,
+                    COALESCE(r.fecha_solicitud, NOW()) as fecha,
+                    COALESCE(af.estado, '') as estado_flujo,
                     af.fecha_creacion as fecha_inicio_flujo,
-                    af.fecha_completado,
-                    u.email as solicitante,
-                    -- Estadísticas de autorizaciones
-                    (SELECT COUNT(*) FROM autorizaciones a WHERE a.requisicion_id = oc.id AND a.estado = 'pendiente') as especiales_pendientes,
-                    (SELECT COUNT(*) FROM autorizaciones a WHERE a.requisicion_id = oc.id AND a.estado = 'autorizada') as especiales_autorizadas,
-                    (SELECT COUNT(*) FROM autorizacion_centro_costo acc WHERE acc.autorizacion_flujo_id = af.id AND acc.estado = 'pendiente') as centros_pendientes,
-                    (SELECT COUNT(*) FROM autorizacion_centro_costo acc WHERE acc.autorizacion_flujo_id = af.id AND acc.estado = 'autorizado') as centros_autorizados
-                FROM orden_compra oc
-                LEFT JOIN autorizacion_flujo af ON oc.id = af.orden_compra_id
-                LEFT JOIN usuarios u ON oc.usuario_id = u.id
-                ORDER BY oc.fecha DESC, oc.id DESC
+                    COALESCE(af.requiere_autorizacion_especial_pago, 0) as requiere_autorizacion_especial_pago,
+                    COALESCE(af.requiere_autorizacion_especial_cuenta, 0) as requiere_autorizacion_especial_cuenta,
+                    COALESCE(u.azure_email, '') as solicitante,
+                    COALESCE(u.azure_display_name, '') as solicitante_nombre,
+                    0 as especiales_pendientes,
+                    0 as especiales_autorizadas,
+                    0 as centros_pendientes,
+                    0 as centros_autorizados
+                FROM requisiciones r
+                LEFT JOIN autorizacion_flujo af ON r.id = af.requisicion_id
+                LEFT JOIN usuarios u ON r.usuario_id = u.id
+                ORDER BY COALESCE(r.fecha_solicitud, NOW()) DESC, r.id DESC
             ";
             
-            $stmt = Model::getConnection()->prepare($sql);
+            $pdo = Model::getConnection();
+            $stmt = $pdo->prepare($sql);
             $stmt->execute();
             $requisiciones = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
@@ -66,10 +65,19 @@ class RequisicionesController extends Controller
             ];
 
             View::render('admin/requisiciones/index', $data);
+        } catch (\PDOException $e) {
+            error_log("Error PDO en admin requisiciones index: " . $e->getMessage());
+            error_log("SQL State: " . $e->getCode());
+            error_log("Error Info: " . print_r($e->errorInfo, true));
+            \App\Helpers\Redirect::to('/admin/dashboard')
+                ->withError('Error al cargar requisiciones: ' . $e->getMessage())
+                ->send();
         } catch (\Exception $e) {
             error_log("Error en admin requisiciones index: " . $e->getMessage());
-            header('Location: /admin/dashboard?error=Error al cargar requisiciones');
-            exit;
+            error_log("Stack trace: " . $e->getTraceAsString());
+            \App\Helpers\Redirect::to('/admin/dashboard')
+                ->withError('Error al cargar requisiciones: ' . $e->getMessage())
+                ->send();
         }
     }
 
@@ -82,7 +90,7 @@ class RequisicionesController extends Controller
             error_log("=== ADMIN SHOW INICIADO - ID: $id ===");
             
             // 1. Información básica de la requisición
-            $orden = OrdenCompra::find($id);
+            $orden = Requisicion::find($id);
             error_log("Orden encontrada: " . ($orden ? 'SÍ' : 'NO'));
             if (!$orden) {
                 error_log("Orden no encontrada, redirigiendo...");
@@ -91,7 +99,7 @@ class RequisicionesController extends Controller
             }
 
             // 2. Información del flujo
-            $flujo = AutorizacionFlujo::porOrdenCompra($id);
+            $flujo = AutorizacionFlujo::porRequisicion($id);
             error_log("Flujo encontrado: " . ($flujo ? 'SÍ' : 'NO'));
             
             // 3. Items de la requisición
@@ -111,7 +119,7 @@ class RequisicionesController extends Controller
             error_log("Autorizaciones especiales cargadas: " . count($autorizacionesEspeciales));
             
             // 7. Autorizaciones por centro
-            $autorizacionesCentros = $this->getAutorizacionesCentros($flujo['id'] ?? null);
+            $autorizacionesCentros = $this->getAutorizacionesCentros($id);
             error_log("Autorizaciones centros cargadas: " . count($autorizacionesCentros));
             
             // 8. Respaldos relacionados
@@ -147,7 +155,7 @@ class RequisicionesController extends Controller
      */
     private function getItems($ordenId)
     {
-        $sql = "SELECT * FROM detalle_items WHERE orden_compra_id = ? ORDER BY id";
+        $sql = "SELECT * FROM detalle_items WHERE requisicion_id = ? ORDER BY id";
         $stmt = Model::getConnection()->prepare($sql);
         $stmt->execute([$ordenId]);
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -167,7 +175,7 @@ class RequisicionesController extends Controller
             FROM distribucion_gasto dg
             LEFT JOIN centro_de_costo cc ON dg.centro_costo_id = cc.id
             LEFT JOIN cuenta_contable ct ON dg.cuenta_contable_id = ct.id
-            WHERE dg.orden_compra_id = ?
+            WHERE dg.requisicion_id = ?
             ORDER BY dg.id
         ";
         $stmt = Model::getConnection()->prepare($sql);
@@ -183,7 +191,7 @@ class RequisicionesController extends Controller
         $timeline = [];
 
         // 1. Creación de la requisición
-        $sql = "SELECT fecha, usuario_id FROM orden_compra WHERE id = ?";
+        $sql = "SELECT fecha_solicitud, usuario_id FROM requisiciones WHERE id = ?";
         $stmt = Model::getConnection()->prepare($sql);
         $stmt->execute([$ordenId]);
         $orden = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -193,7 +201,7 @@ class RequisicionesController extends Controller
                 'tipo' => 'creacion',
                 'titulo' => 'Requisición Creada',
                 'descripcion' => 'La requisición fue creada en el sistema',
-                'fecha' => $orden['fecha'],
+                'fecha' => $orden['fecha_solicitud'],
                 'usuario' => $this->getUsuarioInfo($orden['usuario_id']),
                 'estado' => 'completado',
                 'icono' => 'fas fa-plus-circle',
@@ -202,12 +210,13 @@ class RequisicionesController extends Controller
         }
 
         // 2. Inicio del flujo de autorización
-        if ($flujo && isset($flujo['fecha_creacion'])) {
+        $fechaInicioFlujo = $flujo['fecha_inicio'] ?? $flujo['fecha_creacion'] ?? null;
+        if ($flujo && $fechaInicioFlujo) {
             $timeline[] = [
                 'tipo' => 'inicio_flujo',
                 'titulo' => 'Flujo de Autorización Iniciado',
                 'descripcion' => 'Se inició el proceso de autorización',
-                'fecha' => $flujo['fecha_creacion'],
+                'fecha' => $fechaInicioFlujo,
                 'estado' => 'completado',
                 'icono' => 'fas fa-play-circle',
                 'color' => 'info'
@@ -247,7 +256,7 @@ class RequisicionesController extends Controller
         $timeline = array_merge($timeline, $especialesTimeline);
 
         // 6. Autorizaciones por centro
-        $centrosTimeline = $this->getAutorizacionesCentrosTimeline($flujo['id'] ?? null);
+        $centrosTimeline = $this->getAutorizacionesCentrosTimeline($ordenId);
         $timeline = array_merge($timeline, $centrosTimeline);
 
         // 7. Finalización
@@ -263,9 +272,33 @@ class RequisicionesController extends Controller
             ];
         }
 
-        // Ordenar timeline por fecha
+        // Ordenar timeline por fecha (manejar "Pendiente" al final)
         usort($timeline, function($a, $b) {
-            return strtotime($a['fecha']) - strtotime($b['fecha']);
+            $fechaA = $a['fecha'] ?? 'Pendiente';
+            $fechaB = $b['fecha'] ?? 'Pendiente';
+            
+            // Si ambas son "Pendiente", mantener orden original
+            if ($fechaA === 'Pendiente' && $fechaB === 'Pendiente') {
+                return 0;
+            }
+            
+            // "Pendiente" siempre va al final
+            if ($fechaA === 'Pendiente') {
+                return 1;
+            }
+            if ($fechaB === 'Pendiente') {
+                return -1;
+            }
+            
+            // Comparar fechas normales
+            $timestampA = strtotime($fechaA);
+            $timestampB = strtotime($fechaB);
+            
+            // Si alguna fecha no es válida, ponerla al final
+            if ($timestampA === false) return 1;
+            if ($timestampB === false) return -1;
+            
+            return $timestampA - $timestampB;
         });
 
         return $timeline;
@@ -285,6 +318,7 @@ class RequisicionesController extends Controller
                 END as fecha_accion
             FROM autorizaciones a
             WHERE a.requisicion_id = ?
+              AND a.tipo IN ('forma_pago', 'cuenta_contable')
             ORDER BY a.created_at, a.tipo, 
                 CASE WHEN JSON_EXTRACT(a.metadata, '$.es_respaldo') = true THEN 1 ELSE 0 END
         ";
@@ -296,23 +330,29 @@ class RequisicionesController extends Controller
     /**
      * Obtiene autorizaciones por centro
      */
-    private function getAutorizacionesCentros($flujoId)
+    private function getAutorizacionesCentros($requisicionId)
     {
-        if (!$flujoId) return [];
+        if (!$requisicionId) return [];
 
         $sql = "
             SELECT 
-                acc.*,
+                a.*,
                 cc.nombre as centro_nombre,
-                acc.autorizador_fecha as fecha_accion
-            FROM autorizacion_centro_costo acc
-            LEFT JOIN centro_de_costo cc ON acc.centro_costo_id = cc.id
-            WHERE acc.autorizacion_flujo_id = ?
-            ORDER BY acc.id,
-                CASE WHEN JSON_EXTRACT(acc.metadata, '$.es_respaldo') = true THEN 1 ELSE 0 END
+                COALESCE(dg.porcentaje, 0) as porcentaje,
+                CASE 
+                    WHEN a.fecha_respuesta IS NOT NULL THEN a.fecha_respuesta
+                    ELSE NULL
+                END as fecha_accion
+            FROM autorizaciones a
+            LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+            LEFT JOIN distribucion_gasto dg ON dg.requisicion_id = a.requisicion_id AND dg.centro_costo_id = a.centro_costo_id
+            WHERE a.requisicion_id = ?
+              AND a.tipo = 'centro_costo'
+            ORDER BY a.id,
+                CASE WHEN JSON_EXTRACT(COALESCE(a.metadata, '{}'), '$.es_respaldo') = true THEN 1 ELSE 0 END
         ";
         $stmt = Model::getConnection()->prepare($sql);
-        $stmt->execute([$flujoId]);
+        $stmt->execute([$requisicionId]);
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
@@ -372,12 +412,12 @@ class RequisicionesController extends Controller
     /**
      * Timeline de autorizaciones por centro
      */
-    private function getAutorizacionesCentrosTimeline($flujoId)
+    private function getAutorizacionesCentrosTimeline($requisicionId)
     {
         $timeline = [];
-        if (!$flujoId) return $timeline;
+        if (!$requisicionId) return $timeline;
 
-        $centros = $this->getAutorizacionesCentros($flujoId);
+        $centros = $this->getAutorizacionesCentros($requisicionId);
 
         foreach ($centros as $auth) {
             $metadata = json_decode($auth['metadata'] ?? '{}', true);
@@ -389,11 +429,12 @@ class RequisicionesController extends Controller
             }
 
             // Descripción con asignación
-            $descripcion = 'Porcentaje: ' . $auth['porcentaje'] . '%';
+            $porcentaje = $auth['porcentaje'] ?? 0;
+            $descripcion = 'Porcentaje: ' . number_format($porcentaje, 5) . '%';
             if ($auth['estado'] === 'pendiente') {
                 $descripcion .= ' - Asignado a: ' . $auth['autorizador_email'];
-            } elseif ($auth['autorizador_fecha']) {
-                $descripcion .= ' - Autorizado por: ' . $auth['autorizador_email'];
+            } elseif ($auth['fecha_respuesta']) {
+                $descripcion .= ' - Respuesta por: ' . $auth['autorizador_email'];
             }
 
             $item = [
@@ -421,20 +462,25 @@ class RequisicionesController extends Controller
      */
     private function getRespaldosRelacionados($ordenId)
     {
-        // Obtener respaldos que podrían estar involucrados
-        $sql = "
-            SELECT DISTINCT
-                ar.*,
-                cc.nombre as centro_nombre
-            FROM autorizador_respaldo ar
-            LEFT JOIN centro_de_costo cc ON ar.centro_costo_id = cc.id
-            WHERE ar.estado = 'activo'
-            AND CURRENT_DATE BETWEEN ar.fecha_inicio AND ar.fecha_fin
-        ";
-        
-        $stmt = Model::getConnection()->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        try {
+            // Obtener respaldos que podrían estar involucrados
+            $sql = "
+                SELECT DISTINCT
+                    ar.*,
+                    cc.nombre as centro_nombre
+                FROM autorizador_respaldo ar
+                LEFT JOIN centro_de_costo cc ON ar.centro_costo_id = cc.id
+                WHERE ar.estado = 'activo'
+                AND CURRENT_DATE BETWEEN ar.fecha_inicio AND ar.fecha_fin
+            ";
+            
+            $stmt = Model::getConnection()->prepare($sql);
+            $stmt->execute();
+            return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error en getRespaldosRelacionados: " . $e->getMessage());
+            return [];
+        }
     }
 
     /**
@@ -442,76 +488,89 @@ class RequisicionesController extends Controller
      */
     private function getEstadisticasFlujo($ordenId, $flujo)
     {
-        $stats = [
-            'tiempo_total' => null,
-            'tiempo_revision' => null,
-            'autorizaciones_especiales' => ['total' => 0, 'pendientes' => 0, 'autorizadas' => 0, 'rechazadas' => 0],
-            'autorizaciones_centros' => ['total' => 0, 'pendientes' => 0, 'autorizadas' => 0, 'rechazadas' => 0],
-            'progreso_porcentaje' => 0
-        ];
+        try {
+            $stats = [
+                'tiempo_total' => null,
+                'tiempo_revision' => null,
+                'autorizaciones_especiales' => ['total' => 0, 'pendientes' => 0, 'autorizadas' => 0, 'rechazadas' => 0],
+                'autorizaciones_centros' => ['total' => 0, 'pendientes' => 0, 'autorizadas' => 0, 'rechazadas' => 0],
+                'progreso_porcentaje' => 0
+            ];
 
-        if ($flujo) {
-            $fechaInicioFlujo = $flujo['fecha_inicio_flujo'] ?? null;
-            $fechaCompletado = $flujo['fecha_completado'] ?? null;
-            $fechaRevision = $flujo['revisor_fecha'] ?? null;
+            if ($flujo) {
+                $fechaInicioFlujo = $flujo['fecha_inicio'] ?? $flujo['fecha_inicio_flujo'] ?? $flujo['fecha_creacion'] ?? null;
+                $fechaCompletado = $flujo['fecha_completado'] ?? null;
+                $fechaRevision = $flujo['revisor_fecha'] ?? null;
 
-            // Tiempo total (solo si hay fecha de inicio)
-            if ($fechaInicioFlujo) {
-                $inicio = new \DateTime($fechaInicioFlujo);
-                $fin = $fechaCompletado ? new \DateTime($fechaCompletado) : new \DateTime();
-                $stats['tiempo_total'] = $inicio->diff($fin)->days;
+                // Tiempo total (solo si hay fecha de inicio)
+                if ($fechaInicioFlujo) {
+                    $inicio = new \DateTime($fechaInicioFlujo);
+                    $fin = $fechaCompletado ? new \DateTime($fechaCompletado) : new \DateTime();
+                    $stats['tiempo_total'] = $inicio->diff($fin)->days;
 
-                // Tiempo de revisión
-                if ($fechaRevision) {
-                    $revision = new \DateTime($fechaRevision);
-                    $stats['tiempo_revision'] = $inicio->diff($revision)->days;
+                    // Tiempo de revisión
+                    if ($fechaRevision) {
+                        $revision = new \DateTime($fechaRevision);
+                        $stats['tiempo_revision'] = $inicio->diff($revision)->days;
+                    }
+                }
+
+                // Estadísticas de autorizaciones especiales
+                $sql = "
+                    SELECT 
+                        COUNT(*) as total,
+                        SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
+                        SUM(CASE WHEN estado = 'aprobada' THEN 1 ELSE 0 END) as autorizadas,
+                        SUM(CASE WHEN estado = 'rechazada' THEN 1 ELSE 0 END) as rechazadas
+                    FROM autorizaciones 
+                    WHERE requisicion_id = ?
+                      AND tipo IN ('forma_pago', 'cuenta_contable', 'revision')
+                ";
+                $stmt = Model::getConnection()->prepare($sql);
+                $stmt->execute([$ordenId]);
+                $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+                if ($result) {
+                    $stats['autorizaciones_especiales'] = $result;
+                }
+
+                // Estadísticas de centros
+                $sql = "
+                    SELECT 
+                        COUNT(*) as total,
+                        SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
+                        SUM(CASE WHEN estado = 'aprobada' THEN 1 ELSE 0 END) as autorizadas,
+                        SUM(CASE WHEN estado = 'rechazada' THEN 1 ELSE 0 END) as rechazadas
+                    FROM autorizaciones 
+                    WHERE requisicion_id = ?
+                      AND tipo = 'centro_costo'
+                ";
+                $stmt = Model::getConnection()->prepare($sql);
+                $stmt->execute([$ordenId]);
+                $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+                if ($result) {
+                    $stats['autorizaciones_centros'] = $result;
+                }
+
+                // Calcular progreso
+                $totalAutorizaciones = $stats['autorizaciones_especiales']['total'] + $stats['autorizaciones_centros']['total'];
+                $totalAutorizadas = $stats['autorizaciones_especiales']['autorizadas'] + $stats['autorizaciones_centros']['autorizadas'];
+                
+                if ($totalAutorizaciones > 0) {
+                    $stats['progreso_porcentaje'] = round(($totalAutorizadas / $totalAutorizaciones) * 100, 1);
                 }
             }
 
-            // Estadísticas de autorizaciones especiales
-            $sql = "
-                SELECT 
-                    COUNT(*) as total,
-                    SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
-                    SUM(CASE WHEN estado = 'autorizada' THEN 1 ELSE 0 END) as autorizadas,
-                    SUM(CASE WHEN estado = 'rechazada' THEN 1 ELSE 0 END) as rechazadas
-                FROM autorizaciones 
-                WHERE requisicion_id = ?
-            ";
-            $stmt = Model::getConnection()->prepare($sql);
-            $stmt->execute([$ordenId]);
-            $result = $stmt->fetch(\PDO::FETCH_ASSOC);
-            if ($result) {
-                $stats['autorizaciones_especiales'] = $result;
-            }
-
-            // Estadísticas de centros
-            $sql = "
-                SELECT 
-                    COUNT(*) as total,
-                    SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
-                    SUM(CASE WHEN estado = 'autorizado' THEN 1 ELSE 0 END) as autorizadas,
-                    SUM(CASE WHEN estado = 'rechazado' THEN 1 ELSE 0 END) as rechazadas
-                FROM autorizacion_centro_costo 
-                WHERE autorizacion_flujo_id = ?
-            ";
-            $stmt = Model::getConnection()->prepare($sql);
-            $stmt->execute([$flujo['id']]);
-            $result = $stmt->fetch(\PDO::FETCH_ASSOC);
-            if ($result) {
-                $stats['autorizaciones_centros'] = $result;
-            }
-
-            // Calcular progreso
-            $totalAutorizaciones = $stats['autorizaciones_especiales']['total'] + $stats['autorizaciones_centros']['total'];
-            $totalAutorizadas = $stats['autorizaciones_especiales']['autorizadas'] + $stats['autorizaciones_centros']['autorizadas'];
-            
-            if ($totalAutorizaciones > 0) {
-                $stats['progreso_porcentaje'] = round(($totalAutorizadas / $totalAutorizaciones) * 100, 1);
-            }
+            return $stats;
+        } catch (\Exception $e) {
+            error_log("Error en getEstadisticasFlujo: " . $e->getMessage());
+            return [
+                'tiempo_total' => null,
+                'tiempo_revision' => null,
+                'autorizaciones_especiales' => ['total' => 0, 'pendientes' => 0, 'autorizadas' => 0, 'rechazadas' => 0],
+                'autorizaciones_centros' => ['total' => 0, 'pendientes' => 0, 'autorizadas' => 0, 'rechazadas' => 0],
+                'progreso_porcentaje' => 0
+            ];
         }
-
-        return $stats;
     }
 
     /**
@@ -521,12 +580,24 @@ class RequisicionesController extends Controller
     {
         if (!$usuarioId) return 'Sistema';
 
-        $sql = "SELECT email, nombre FROM usuarios WHERE id = ?";
-        $stmt = Model::getConnection()->prepare($sql);
-        $stmt->execute([$usuarioId]);
-        $usuario = $stmt->fetch(\PDO::FETCH_ASSOC);
+        try {
+            $sql = "SELECT azure_email, azure_display_name, nombre, email FROM usuarios WHERE id = ?";
+            $stmt = Model::getConnection()->prepare($sql);
+            $stmt->execute([$usuarioId]);
+            $usuario = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        return $usuario ? ($usuario['email'] ?? $usuario['nombre'] ?? 'Usuario') : 'Desconocido';
+            if ($usuario) {
+                return $usuario['azure_display_name'] 
+                    ?? $usuario['azure_email'] 
+                    ?? $usuario['nombre'] 
+                    ?? $usuario['email'] 
+                    ?? 'Usuario';
+            }
+        } catch (\Exception $e) {
+            error_log("Error obteniendo usuario info: " . $e->getMessage());
+        }
+
+        return 'Desconocido';
     }
 
     /**
@@ -538,6 +609,7 @@ class RequisicionesController extends Controller
             'pendiente' => 'Pendiente',
             'autorizado' => 'Autorizado',
             'autorizada' => 'Autorizada',
+            'aprobada' => 'Aprobada',
             'rechazado' => 'Rechazado',
             'rechazada' => 'Rechazada',
             'completado' => 'Completado'
@@ -555,11 +627,243 @@ class RequisicionesController extends Controller
             'pendiente' => 'warning',
             'autorizado' => 'success',
             'autorizada' => 'success',
+            'aprobada' => 'success',
             'rechazado' => 'danger',
             'rechazada' => 'danger',
             'completado' => 'success'
         ];
 
         return $colores[$estado] ?? 'secondary';
+    }
+
+    /**
+     * Muestra los logs detallados de una requisición
+     * 
+     * @param int $id ID de la requisición
+     */
+    public function logs($id)
+    {
+        // Verificar permisos de administrador
+        if (!$this->isAdmin() && !$this->isRevisor()) {
+            \App\Helpers\Redirect::to('/requisiciones')
+                ->withError('No tienes permisos para acceder a los logs de administración')
+                ->send();
+        }
+
+        // Obtener la requisición
+        $orden = Requisicion::find($id);
+        if (!$orden) {
+            \App\Helpers\Redirect::to('/admin/requisiciones')
+                ->withError('Requisición no encontrada')
+                ->send();
+        }
+
+        // Convertir objeto a array para la vista
+        $ordenArray = $orden->toArray();
+        // Asegurar que tenga los campos esperados por la vista usando el mapeo del modelo
+        if (!isset($ordenArray['nombre_razon_social'])) {
+            $ordenArray['nombre_razon_social'] = $orden->nombre_razon_social ?? $orden->proveedor_nombre ?? '';
+        }
+        // Asegurar que el ID esté disponible
+        if (!isset($ordenArray['id'])) {
+            $ordenArray['id'] = $orden->id ?? $id;
+        }
+
+        // Obtener logs del sistema
+        $logs = $this->getSystemLogs($id);
+        
+        // Obtener logs de archivos adjuntos
+        $archivoLogs = $this->getArchivoLogs($id);
+        
+        // Obtener logs de autorizaciones
+        $autorizacionLogs = $this->getAutorizacionLogs($id);
+        
+        // Obtener logs de errores PHP relacionados
+        $errorLogs = $this->getErrorLogs($id);
+
+        View::render('admin/requisiciones/logs', [
+            'orden' => $ordenArray,
+            'logs' => $logs,
+            'archivo_logs' => $archivoLogs,
+            'autorizacion_logs' => $autorizacionLogs,
+            'error_logs' => $errorLogs,
+            'title' => 'Logs - Requisición #' . $id
+        ]);
+    }
+
+    /**
+     * Obtiene logs del sistema para una requisición
+     */
+    private function getSystemLogs($requisicionId)
+    {
+        try {
+            // Obtener del historial de requisiciones
+            // Manejar tanto 'fecha' como 'fecha_cambio' para compatibilidad
+            $sql = "
+                SELECT 
+                    hr.*,
+                    COALESCE(hr.tipo_evento, hr.accion, 'evento') as tipo_evento,
+                    COALESCE(hr.usuario_email, 'Sistema') as usuario_email,
+                    COALESCE(hr.usuario_email, 'Sistema') as usuario_nombre,
+                    COALESCE(hr.fecha, hr.fecha_cambio, NOW()) as fecha_log
+                FROM historial_requisiciones hr
+                WHERE hr.requisicion_id = ?
+                ORDER BY COALESCE(hr.fecha, hr.fecha_cambio, NOW()) DESC
+            ";
+        
+            $stmt = \App\Models\Model::getConnection()->prepare($sql);
+            $stmt->execute([$requisicionId]);
+            
+            return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error en getSystemLogs: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Obtiene logs de archivos adjuntos
+     */
+    private function getArchivoLogs($requisicionId)
+    {
+        try {
+            $sql = "
+                SELECT 
+                    aa.*,
+                    'archivo_subido' as tipo_log,
+                    COALESCE(aa.fecha_creacion, aa.created_at) as fecha_log
+                FROM archivos_adjuntos aa
+                WHERE aa.requisicion_id = ?
+                ORDER BY COALESCE(aa.fecha_creacion, aa.created_at) DESC
+            ";
+            
+            $stmt = \App\Models\Model::getConnection()->prepare($sql);
+            $stmt->execute([$requisicionId]);
+            
+            return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error en getArchivoLogs: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Obtiene logs de autorizaciones
+     */
+    private function getAutorizacionLogs($requisicionId)
+    {
+        try {
+            $sql = "
+                SELECT 
+                    a.*,
+                    'autorizacion' as tipo_log,
+                    COALESCE(a.fecha_respuesta, a.created_at) as fecha_log,
+                    CASE 
+                        WHEN a.fecha_respuesta IS NOT NULL THEN 'respuesta'
+                        ELSE 'creacion'
+                    END as subtipo_log
+                FROM autorizaciones a
+                WHERE a.requisicion_id = ?
+                ORDER BY COALESCE(a.fecha_respuesta, a.created_at) DESC
+            ";
+            
+            $stmt = \App\Models\Model::getConnection()->prepare($sql);
+            $stmt->execute([$requisicionId]);
+            
+            return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Error en getAutorizacionLogs: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Obtiene logs de errores PHP relacionados con la requisición
+     */
+    private function getErrorLogs($requisicionId)
+    {
+        try {
+            // Buscar en los logs de PHP errores relacionados con esta requisición
+            $errorLogPath = ini_get('error_log');
+            if (!$errorLogPath || !file_exists($errorLogPath)) {
+                // Intentar ubicaciones comunes
+                $possiblePaths = [
+                    'C:\xampp\apache\logs\error.log',
+                    'C:\xampp\php\logs\php_error.log',
+                    __DIR__ . '/../../../storage/logs/app.log'
+                ];
+                
+                foreach ($possiblePaths as $path) {
+                    if (file_exists($path)) {
+                        $errorLogPath = $path;
+                        break;
+                    }
+                }
+            }
+
+            $logs = [];
+            
+            if ($errorLogPath && file_exists($errorLogPath)) {
+                // Leer últimas 1000 líneas del log
+                $lines = $this->tailFile($errorLogPath, 1000);
+                
+                // Filtrar líneas que contengan el ID de la requisición
+                foreach ($lines as $line) {
+                    if (strpos($line, "requisicion_id: $requisicionId") !== false || 
+                        strpos($line, "orden_id: $requisicionId") !== false ||
+                        strpos($line, "Orden ID: $requisicionId") !== false ||
+                        strpos($line, "#$requisicionId") !== false) {
+                        
+                        // Extraer timestamp si existe
+                        preg_match('/\[(.*?)\]/', $line, $matches);
+                        $timestamp = $matches[1] ?? null;
+                        
+                        $logs[] = [
+                            'timestamp' => $timestamp,
+                            'message' => $line,
+                            'type' => $this->detectLogType($line)
+                        ];
+                    }
+                }
+            }
+
+            return array_reverse($logs); // Mostrar más recientes primero
+        } catch (\Exception $e) {
+            error_log("Error en getErrorLogs: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Detecta el tipo de log basado en el contenido
+     */
+    private function detectLogType($message)
+    {
+        if (strpos($message, 'ERROR') !== false || strpos($message, 'Fatal error') !== false) {
+            return 'error';
+        } elseif (strpos($message, 'WARNING') !== false || strpos($message, 'Warning') !== false) {
+            return 'warning';
+        } elseif (strpos($message, 'DEBUG') !== false) {
+            return 'debug';
+        } else {
+            return 'info';
+        }
+    }
+
+    /**
+     * Obtiene las últimas N líneas de un archivo (como tail)
+     */
+    private function tailFile($filename, $lines = 100)
+    {
+        if (!file_exists($filename)) {
+            return [];
+        }
+
+        $file = file($filename);
+        if ($file === false) {
+            return [];
+        }
+
+        return array_slice($file, -$lines);
     }
 }

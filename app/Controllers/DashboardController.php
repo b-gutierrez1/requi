@@ -13,8 +13,8 @@ namespace App\Controllers;
 
 use App\Helpers\View;
 use App\Helpers\Session;
-use App\Models\OrdenCompra;
-use App\Models\AutorizacionCentroCosto;
+use App\Models\Requisicion;
+use App\Repositories\AutorizacionCentroRepository;
 use App\Services\AutorizacionService;
 use App\Services\RequisicionService;
 
@@ -35,6 +35,13 @@ class DashboardController extends Controller
     private $requisicionService;
 
     /**
+     * Repositorio centralizado para autorizaciones de centro de costo
+     *
+     * @var AutorizacionCentroRepository|null
+     */
+    private $autorizacionCentroRepo;
+
+    /**
      * Constructor
      */
     public function __construct()
@@ -43,6 +50,7 @@ class DashboardController extends Controller
         
         $this->autorizacionService = new AutorizacionService();
         $this->requisicionService = new RequisicionService();
+        $this->autorizacionCentroRepo = null;
     }
 
     /**
@@ -59,7 +67,7 @@ class DashboardController extends Controller
         
         // Verificar que el usuario esté autenticado
         if (!Session::isAuthenticated()) {
-            header('Location: /login');
+            header('Location: ' . \App\Helpers\Redirect::url('/login'));
             exit;
         }
         
@@ -69,7 +77,7 @@ class DashboardController extends Controller
         if (!$usuario || !isset($usuario['id']) || !isset($usuario['email'])) {
             error_log("DashboardController: Datos de usuario inválidos o nulos");
             Session::logout();
-            header('Location: /login?error=session_invalid');
+            header('Location: ' . \App\Helpers\Redirect::url('/login?error=session_invalid'));
             exit;
         }
         
@@ -87,17 +95,19 @@ class DashboardController extends Controller
         error_log("Dashboard Debug - Requisiciones recientes: " . count($requisiciones_recientes));
         error_log("Dashboard Debug - Resumen mensual: " . json_encode($resumen_mensual));
         
+        // Determinar roles del usuario
+        $esRevisor = $this->isRevisor() || $this->isRevisorPorEmail($usuarioEmail);
+        $esAutorizador = isset($usuario['es_autorizador']) || $this->isAutorizadorDeCentro($usuarioEmail);
+        
         $data = [
             'usuario' => $usuario,
             'estadisticas' => $estadisticas,
             'requisiciones_recientes' => $requisiciones_recientes,
             'autorizaciones_pendientes' => [],
-            'resumen_mensual' => $resumen_mensual
+            'resumen_mensual' => $resumen_mensual,
+            'es_revisor' => $esRevisor, // Para mostrar/ocultar sección de revisiones
+            'es_autorizador' => $esAutorizador
         ];
-
-        // Si es revisor o autorizador (incluyendo autorizadores de centro), agregar sus pendientes
-        $esRevisor = $this->isRevisor() || $this->isRevisorPorEmail($usuarioEmail);
-        $esAutorizador = isset($usuario['es_autorizador']) || $this->isAutorizadorDeCentro($usuarioEmail);
         
         if ($esRevisor || $esAutorizador) {
             // Si es autorizador, obtener sus autorizaciones pendientes
@@ -134,7 +144,7 @@ class DashboardController extends Controller
     private function getEstadisticasUsuario($usuarioId)
     {
         try {
-            $stats = OrdenCompra::getEstadisticasUsuario($usuarioId);
+            $stats = Requisicion::getEstadisticasUsuario($usuarioId);
 
             return [
                 'total_requisiciones' => $stats['total'] ?? 0,
@@ -165,7 +175,7 @@ class DashboardController extends Controller
     private function getEstadisticasGenerales()
     {
         try {
-            $stats = OrdenCompra::getEstadisticasGenerales();
+            $stats = Requisicion::getEstadisticasGenerales();
 
             return [
                 'total_requisiciones' => $stats['total'] ?? 0,
@@ -193,7 +203,7 @@ class DashboardController extends Controller
         try {
             // Obtener requisiciones del mes actual
             $mesActual = date('Y-m');
-            $requisiciones = OrdenCompra::porUsuarioYMes($usuarioId, $mesActual);
+            $requisiciones = Requisicion::porUsuarioYMes($usuarioId, $mesActual);
 
             $resumen = [
                 'total' => count($requisiciones),
@@ -242,11 +252,25 @@ class DashboardController extends Controller
     private function getRequisicionesRecientes($usuarioId)
     {
         try {
-            return OrdenCompra::recentesPorUsuario($usuarioId, 5);
+            return Requisicion::recentesPorUsuario($usuarioId, 5);
         } catch (\Exception $e) {
             error_log("Error obteniendo requisiciones recientes: " . $e->getMessage());
             return [];
         }
+    }
+
+    /**
+     * Obtiene (o inicializa) el repositorio de autorizaciones de centros.
+     *
+     * @return AutorizacionCentroRepository
+     */
+    private function getAutorizacionCentroRepo(): AutorizacionCentroRepository
+    {
+        if ($this->autorizacionCentroRepo === null) {
+            $this->autorizacionCentroRepo = new AutorizacionCentroRepository();
+        }
+
+        return $this->autorizacionCentroRepo;
     }
 
     // ========================================================================
@@ -262,48 +286,19 @@ class DashboardController extends Controller
     private function isAutorizadorDeCentro($usuarioEmail)
     {
         try {
-            // Verificar si tiene autorizaciones pendientes o está configurado como autorizador
-            $autorizaciones = AutorizacionCentroCosto::where(['autorizador_email' => $usuarioEmail]);
-            return count($autorizaciones) > 0;
+            $repo = $this->getAutorizacionCentroRepo();
+
+            if ($repo->countPendingByEmail($usuarioEmail) > 0) {
+                return true;
+            }
+
+            return $repo->existsByEmail($usuarioEmail);
         } catch (\Exception $e) {
             error_log("Error verificando si es autorizador de centro: " . $e->getMessage());
             return false;
         }
     }
 
-    /**
-     * Verifica si un usuario es revisor basándose en su email
-     * 
-     * @param string $usuarioEmail Email del usuario
-     * @return bool
-     */
-    private function isRevisorPorEmail($usuarioEmail)
-    {
-        // Lista de emails que siempre son revisores
-        $revisoresPorDefecto = [
-            'bgutierrez@sp.iga.edu',
-            'bgutierrez@iga.edu',
-            'admin@iga.edu',
-            // Agregar más emails según sea necesario
-        ];
-        
-        // Verificar si está en la lista de revisores por defecto
-        if (in_array($usuarioEmail, $revisoresPorDefecto)) {
-            return true;
-        }
-        
-        // Verificar si es administrador (los admins suelen ser revisores)
-        if ($this->isAdmin()) {
-            return true;
-        }
-        
-        // Verificar por dominio (ejemplo: todos los @sp.iga.edu)
-        if (strpos($usuarioEmail, '@sp.iga.edu') !== false) {
-            return true;
-        }
-        
-        return false;
-    }
 
     /**
      * Obtiene autorizaciones pendientes del usuario
@@ -479,7 +474,7 @@ class DashboardController extends Controller
         $autorizaciones = $this->getAutorizacionesPendientes($usuario['email']);
         
         // Obtener requisiciones con actualización reciente
-        $requisicionesActualizadas = OrdenCompra::actualizadasReciente($usuario['id'], 24); // últimas 24 horas
+        $requisicionesActualizadas = Requisicion::actualizadasReciente($usuario['id'], 24); // últimas 24 horas
 
         $notificaciones = [];
 
@@ -545,7 +540,7 @@ class DashboardController extends Controller
                 $fecha = date('Y-m', strtotime("-{$i} months"));
                 $meses[] = date('M Y', strtotime($fecha . '-01'));
                 
-                $requisiciones = OrdenCompra::porUsuarioYMes($usuarioId, $fecha);
+                $requisiciones = Requisicion::porUsuarioYMes($usuarioId, $fecha);
                 $monto = array_sum(array_column($requisiciones, 'monto_total'));
                 $datos[] = $monto;
             }

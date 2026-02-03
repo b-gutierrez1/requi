@@ -10,8 +10,8 @@ namespace App\Models;
  */
 class Autorizacion extends Model
 {
-    protected $table = 'autorizaciones';
-    protected $primaryKey = 'id';
+    protected static $table = 'autorizaciones';
+    protected static $primaryKey = 'id';
     
     // Tipos de autorización
     const TIPO_REVISION = 'revision';
@@ -24,7 +24,7 @@ class Autorizacion extends Model
     const ESTADO_APROBADA = 'aprobada';
     const ESTADO_RECHAZADA = 'rechazada';
 
-    protected $fillable = [
+    protected static $fillable = [
         'requisicion_id',
         'tipo',
         'nivel',
@@ -342,9 +342,10 @@ class Autorizacion extends Model
     private static function obtenerAutorizadorCentroCosto(int $centroCostoId): array
     {
         $pdo = static::getConnection();
+        $table = \App\Models\PersonaAutorizada::getTable();
         $stmt = $pdo->prepare("
             SELECT pa.email, pa.nombre 
-            FROM persona_autorizada pa 
+            FROM {$table} pa 
             WHERE pa.centro_costo_id = ? AND pa.activo = 1
             LIMIT 1
         ");

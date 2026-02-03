@@ -15,7 +15,7 @@ View::startSection('content');
             <p class="text-muted mb-0">Información completa del usuario</p>
         </div>
         <div class="col-md-4 text-end">
-            <a href="/admin/usuarios" class="btn btn-outline-secondary">
+            <a href="<?= url('/admin/usuarios') ?>" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>
                 Volver a Usuarios
             </a>
@@ -134,7 +134,7 @@ View::startSection('content');
                         <i class="fas fa-file-alt me-2"></i>
                         Requisiciones Recientes
                     </h5>
-                    <a href="/requisiciones?usuario=<?php echo $usuario->id; ?>" class="btn btn-sm btn-outline-primary">
+                    <a href="<?= url('/requisiciones?usuario=' . $usuario->id) ?>" class="btn btn-sm btn-outline-primary">
                         Ver Todas
                     </a>
                 </div>

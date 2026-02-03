@@ -80,7 +80,14 @@ $composerAutoloader = BASE_PATH . '/vendor/autoload.php';
 if (file_exists($composerAutoloader)) {
     require $composerAutoloader;
 }
+// ============================================================================
+// 4.5. CARGAR HELPERS GLOBALES
+// ============================================================================
 
+$helpersFile = APP_PATH . '/Helpers/helpers.php';
+if (file_exists($helpersFile)) {
+    require $helpersFile;
+}
 // ============================================================================
 // 5. CARGAR VARIABLES DE ENTORNO
 // ============================================================================
@@ -174,11 +181,10 @@ if (file_exists($webRoutes)) {
 // ============================================================================
 
 try {
-    // Obtener URI y método HTTP
-    // parse_url NO decodifica automáticamente, así que obtenemos la URI tal cual
-    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    // El router se encargará de decodificar cuando sea necesario
-    $method = $_SERVER['REQUEST_METHOD'];
+    // Obtener URI y método HTTP con validaciones
+    $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+    $uri = parse_url($requestUri, PHP_URL_PATH);
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     
     // Si el método es POST, verificar si hay _method para simular PUT/DELETE
     if ($method === 'POST' && isset($_POST['_method'])) {
@@ -186,7 +192,7 @@ try {
     }
     
     // Remover el subdirectorio si la app está en un subdirectorio
-    $scriptName = dirname($_SERVER['SCRIPT_NAME']);
+    $scriptName = dirname($_SERVER['SCRIPT_NAME'] ?? '');
     if ($scriptName !== '/' && str_starts_with($uri, $scriptName)) {
         $uri = substr($uri, strlen($scriptName));
     }

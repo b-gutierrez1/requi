@@ -18,7 +18,7 @@ class DistribucionGasto extends Model
     protected static $timestamps = false;
 
     protected static $fillable = [
-        'orden_compra_id',
+        'requisicion_id',
         'cuenta_contable_id',
         'centro_costo_id',
         'ubicacion_id',
@@ -42,7 +42,7 @@ class DistribucionGasto extends Model
         foreach ($this->attributes as $key => $value) {
             if ($this->isFillable($key)) {
                 // Convertir strings vacíos a null para campos de ID
-                if (in_array($key, ['ubicacion_id', 'unidad_negocio_id']) && ($value === '' || $value === '0')) {
+                if (in_array($key, ['cuenta_contable_id', 'centro_costo_id', 'ubicacion_id', 'unidad_negocio_id']) && ($value === '' || $value === '0')) {
                     $fillable[$key] = null;
                 } else {
                     $fillable[$key] = $value;
@@ -60,11 +60,11 @@ class DistribucionGasto extends Model
      */
     public function ordenCompra()
     {
-        if (!isset($this->attributes['orden_compra_id'])) {
+        if (!isset($this->attributes['requisicion_id'])) {
             return null;
         }
 
-        return OrdenCompra::find($this->attributes['orden_compra_id']);
+        return Requisicion::find($this->attributes['requisicion_id']);
     }
 
     /**
@@ -132,10 +132,23 @@ class DistribucionGasto extends Model
     }
 
     /**
-     * Obtiene todas las distribuciones de una orden de compra
+     * Obtiene todas las distribuciones de una requisición
+     * 
+     * @param int $requisicionId
+     * @return array
+     */
+    public static function porRequisicion($requisicionId)
+    {
+        // Mismo código pero con nombre actualizado
+        return self::porOrdenCompra($requisicionId);
+    }
+
+    /**
+     * Obtiene todas las distribuciones de una orden de compra (alias legacy)
      * 
      * @param int $ordenCompraId
      * @return array
+     * @deprecated Usar porRequisicion() en su lugar
      */
     public static function porOrdenCompra($ordenCompraId)
     {
@@ -145,14 +158,14 @@ class DistribucionGasto extends Model
                        cu.descripcion as cuenta_nombre,
                        u.nombre as ubicacion_nombre,
                        un.nombre as unidad_negocio_nombre,
-                       (dg.porcentaje * oc.monto_total / 100) as monto
+                       (dg.porcentaje * r.monto_total / 100) as monto
                    FROM " . static::$table . " dg
                    LEFT JOIN centro_de_costo cc ON dg.centro_costo_id = cc.id
                    LEFT JOIN cuenta_contable cu ON dg.cuenta_contable_id = cu.id
                    LEFT JOIN ubicacion u ON dg.ubicacion_id = u.id
                    LEFT JOIN unidad_de_negocio un ON dg.unidad_negocio_id = un.id
-                   LEFT JOIN orden_compra oc ON dg.orden_compra_id = oc.id
-                   WHERE dg.orden_compra_id = ?
+                   LEFT JOIN requisiciones r ON dg.requisicion_id = r.id
+                   WHERE dg.requisicion_id = ?
                    ORDER BY dg.id ASC";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -169,12 +182,12 @@ class DistribucionGasto extends Model
      */
     public static function getCentrosCostoOrden($ordenCompraId)
     {
-        $instance = new static();
+        $table = static::$table;
         
         $sql = "SELECT DISTINCT dg.centro_costo_id, cc.nombre
-                FROM {$instance->table} dg
+                FROM {$table} dg
                 INNER JOIN centro_de_costo cc ON dg.centro_costo_id = cc.id
-                WHERE dg.orden_compra_id = ?
+                WHERE dg.requisicion_id = ?
                 ORDER BY cc.nombre ASC";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -259,7 +272,7 @@ class DistribucionGasto extends Model
 
             // Crear cada distribución
             foreach ($distribuciones as $dist) {
-                $dist['orden_compra_id'] = $ordenCompraId;
+                $dist['requisicion_id'] = $ordenCompraId;
                 
                 $errores = self::validar($dist);
                 if (!empty($errores)) {
@@ -294,8 +307,8 @@ class DistribucionGasto extends Model
             $conn->beginTransaction();
 
             // Eliminar distribuciones existentes
-            $instance = new static();
-            $sql = "DELETE FROM {$instance->table} WHERE orden_compra_id = ?";
+            $table = static::$table;
+            $sql = "DELETE FROM {$table} WHERE requisicion_id = ?";
             $stmt = $conn->prepare($sql);
             $stmt->execute([$ordenCompraId]);
 
@@ -326,11 +339,11 @@ class DistribucionGasto extends Model
      */
     public static function getTotalPorCentroCosto($ordenCompraId, $centroCostoId)
     {
-        $instance = new static();
+        $table = static::$table;
         
         $sql = "SELECT SUM(cantidad) as total
-                FROM {$instance->table}
-                WHERE orden_compra_id = ? AND centro_costo_id = ?";
+                FROM {$table}
+                WHERE requisicion_id = ? AND centro_costo_id = ?";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$ordenCompraId, $centroCostoId]);
@@ -348,7 +361,7 @@ class DistribucionGasto extends Model
     public function getCantidadFormateada($moneda = 'GTQ')
     {
         $simbolo = $moneda === 'USD' ? '$' : 'Q';
-        $cantidad = number_format($this->attributes['cantidad'] ?? 0, 2);
+        $cantidad = number_format($this->attributes['cantidad'] ?? 0, 5);
         
         return $simbolo . ' ' . $cantidad;
     }
@@ -361,15 +374,15 @@ class DistribucionGasto extends Model
      */
     public static function getEstadisticas($ordenCompraId)
     {
-        $instance = new static();
+        $table = static::$table;
         
         $sql = "SELECT 
                     COUNT(*) as total_distribuciones,
                     COUNT(DISTINCT centro_costo_id) as centros_costo_distintos,
                     SUM(porcentaje) as suma_porcentajes,
                     SUM(cantidad) as monto_total
-                FROM {$instance->table}
-                WHERE orden_compra_id = ?";
+                FROM {$table}
+                WHERE requisicion_id = ?";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$ordenCompraId]);

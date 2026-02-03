@@ -46,8 +46,8 @@ return [
     |--------------------------------------------------------------------------
     */
     'url' => getenv('APP_URL') ?: 'http://localhost',
-    'base_path' => getenv('APP_BASE_PATH') ?: '/requi-mvc',
-    'public_path' => getenv('APP_PUBLIC_PATH') ?: '/requi-mvc/public',
+    'base_path' => getenv('APP_BASE_PATH') ?: '/requi',
+    'public_path' => getenv('APP_PUBLIC_PATH') ?: '/requi/public',
 
     /*
     |--------------------------------------------------------------------------
@@ -233,7 +233,7 @@ return [
     'system' => [
         'company_name' => 'Instituto Guatemalteco Americano',
         'company_short_name' => 'IGA',
-        'logo_path' => '/requi-mvc/public/images/logo.png',
+        'logo_path' => '/requi/public/images/logo.png',
         'support_email' => 'soporte@iga.edu',
         'support_phone' => '+502 2422-5555',
     ],

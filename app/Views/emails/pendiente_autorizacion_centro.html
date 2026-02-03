@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autorización de Centro de Costo Requerida</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; padding: 30px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+        .header .subtitle { font-size: 14px; margin-top: 10px; opacity: 0.9; }
+        .alert-banner { background-color: #fef3cd; border: 1px solid #ffc107; padding: 15px; text-align: center; }
+        .alert-banner strong { color: #856404; }
+        .content { padding: 30px 20px; }
+        .content h2 { color: #d97706; font-size: 20px; margin-bottom: 15px; }
+        .content p { margin-bottom: 15px; color: #555; }
+        .badge { display: inline-block; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-warning { background-color: #fff3cd; color: #856404; }
+        .badge-centro { background-color: #fef3cd; color: #92400e; border: 2px solid #f59e0b; padding: 10px 15px; font-size: 14px; }
+        .info-box { background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; }
+        .info-box .label { font-weight: 600; color: #92400e; display: block; margin-bottom: 5px; }
+        .info-box .value { color: #333; }
+        .centro-destacado { background-color: #fef3cd; border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
+        .centro-destacado .label { font-size: 12px; color: #92400e; text-transform: uppercase; letter-spacing: 1px; }
+        .centro-destacado .value { font-size: 20px; font-weight: 700; color: #92400e; margin-top: 5px; }
+        .button { display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff !important; text-decoration: none; border-radius: 5px; font-weight: 600; margin: 10px 0; font-size: 16px; }
+        .button-center { text-align: center; margin: 30px 0; }
+        .footer { background-color: #fffbeb; padding: 20px; text-align: center; color: #6c757d; font-size: 12px; border-top: 1px solid #fde68a; }
+        .divider { height: 1px; background-color: #fde68a; margin: 20px 0; }
+        .paso-info { background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 5px; padding: 15px; margin: 20px 0; }
+        .paso-info .titulo { font-weight: 600; color: #166534; margin-bottom: 5px; }
+        .paso-info .descripcion { font-size: 13px; color: #15803d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔔 Autorización Requerida</h1>
+            <div class="subtitle">Centro de Costo</div>
+        </div>
+        
+        <div class="alert-banner">
+            <strong>⚠️ ACCIÓN REQUERIDA:</strong> Esta requisición ya pasó revisión y requiere tu autorización como responsable del centro de costo.
+        </div>
+        
+        <div class="content">
+            <h2>Requisición Pendiente de tu Autorización</h2>
+            
+            <p>Hola <strong>{{destinatario_nombre}}</strong>,</p>
+            
+            <p>Una requisición ha sido <strong>aprobada en revisión</strong> y ahora requiere tu autorización como responsable del centro de costo asignado.</p>
+            
+            <div class="centro-destacado">
+                <div class="label">Centro de Costo a Autorizar</div>
+                <div class="value">{{centro_costo}}</div>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Número de Requisición:</span>
+                <span class="value">#{{numero_orden}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Proveedor:</span>
+                <span class="value">{{proveedor}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Monto Total:</span>
+                <span class="value">{{monto_total}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Solicitante:</span>
+                <span class="value">{{solicitante_nombre}}</span>
+            </div>
+            
+            <div class="paso-info">
+                <div class="titulo">✅ Etapa Actual: Autorización por Centro de Costo</div>
+                <div class="descripcion">Esta requisición ya pasó la revisión inicial. Como responsable del centro de costo, debes aprobar o rechazar la distribución del gasto.</div>
+            </div>
+            
+            <div class="button-center">
+                <a href="{{url_revision}}" class="button">📋 Ver y Autorizar Requisición</a>
+            </div>
+            
+            <p style="font-size: 14px; color: #6c757d;">Por favor revisa y autoriza esta requisición lo antes posible para continuar con el proceso.</p>
+        </div>
+        
+        <div class="footer">
+            <p>Este es un mensaje automático del Sistema de Requisiciones</p>
+            <p>Por favor no responda a este correo</p>
+            <div class="divider"></div>
+            <p>&copy; {{year}} Sistema de Requisiciones. Todos los derechos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>
+
+
+

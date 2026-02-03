@@ -12,7 +12,8 @@
 namespace App\Services;
 
 use App\Models\Usuario;
-use App\Models\OrdenCompra;
+use App\Models\Requisicion;
+use App\Models\Autorizacion;
 use App\Models\AutorizacionFlujo;
 use App\Models\Recordatorio;
 use App\Models\CentroCosto;
@@ -59,8 +60,14 @@ class NotificacionService
     {
         $this->emailService = $emailService ?? new EmailService();
         
-        // Modo desarrollo: deshabilitar envío de emails
-        $this->skipEmails = true; // Temporal para desarrollo
+        // Verificar si el envío de emails está deshabilitado en la configuración
+        // Si skip_sending está activo, no enviar emails
+        $skipSending = Config::get('mail.skip_sending', false);
+        $this->skipEmails = $skipSending;
+        
+        if ($this->skipEmails) {
+            error_log("NotificacionService: Modo skip activado - Los emails no se enviarán");
+        }
     }
 
     /**
@@ -94,7 +101,7 @@ class NotificacionService
     public function notificarNuevaRequisicion($ordenId)
     {
         try {
-            $orden = OrdenCompra::find($ordenId);
+            $orden = Requisicion::find($ordenId);
             if (!$orden) {
                 return [
                     'success' => false,
@@ -159,7 +166,7 @@ class NotificacionService
     public function notificarAprobacionRevision($ordenId)
     {
         try {
-            $orden = OrdenCompra::find($ordenId);
+            $orden = Requisicion::find($ordenId);
             if (!$orden) {
                 return ['success' => false, 'error' => 'Orden no encontrada'];
             }
@@ -178,6 +185,7 @@ class NotificacionService
             // Determinar siguiente paso según el flujo
             $flujo = AutorizacionFlujo::porOrdenCompra($ordenId);
             $estadoFlujo = $flujo ? (is_object($flujo) ? $flujo->estado : $flujo['estado']) : '';
+            $siguientePaso = $this->determinarSiguientePaso($ordenId);
             
             $data['destinatario_nombre'] = $creadorNombre;
             $data['nivel_aprobacion'] = 'Revisión';
@@ -187,16 +195,16 @@ class NotificacionService
             $data['url_detalle'] = $this->obtenerUrlAccion($ordenId, 'detalle');
 
             // Personalizar mensaje según el siguiente paso
-            switch ($estadoFlujo) {
-                case AutorizacionFlujo::ESTADO_PENDIENTE_AUTORIZACION_PAGO:
+            switch ($siguientePaso) {
+                case 'forma_pago':
                     $data['estado_actual'] = 'Pendiente de Autorización de Forma de Pago';
                     $data['mensaje_siguiente_paso'] = 'Ahora requiere autorización especial por la forma de pago seleccionada.';
                     break;
-                case AutorizacionFlujo::ESTADO_PENDIENTE_AUTORIZACION_CUENTA:
+                case 'cuenta_contable':
                     $data['estado_actual'] = 'Pendiente de Autorización de Cuenta Contable';
                     $data['mensaje_siguiente_paso'] = 'Ahora requiere autorización especial por las cuentas contables utilizadas.';
                     break;
-                case AutorizacionFlujo::ESTADO_PENDIENTE_AUTORIZACION_CENTROS:
+                case 'centro_costo':
                     $data['estado_actual'] = 'Pendiente de Autorización por Centros';
                     $data['mensaje_siguiente_paso'] = 'Ahora está pendiente de autorización por los centros de costo correspondientes.';
                     break;
@@ -214,8 +222,15 @@ class NotificacionService
             );
 
             // Notificar al siguiente nivel según el estado
+            error_log("NotificacionService: Resultado envío correo creador: " . ($result['success'] ? 'OK' : 'FALLO'));
+            error_log("NotificacionService: Siguiente paso detectado: " . $siguientePaso);
+            
             if ($result['success']) {
-                $this->notificarSiguienteNivel($ordenId, $estadoFlujo);
+                error_log("NotificacionService: Llamando a notificarSiguienteNivel($ordenId, $siguientePaso)");
+                $resultadoSiguiente = $this->notificarSiguienteNivel($ordenId, $siguientePaso);
+                error_log("NotificacionService: Resultado notificarSiguienteNivel: " . json_encode($resultadoSiguiente));
+            } else {
+                error_log("NotificacionService: NO se llamó notificarSiguienteNivel porque el correo al creador falló");
             }
 
             return $result;
@@ -235,7 +250,7 @@ class NotificacionService
     public function notificarRechazoRevision($ordenId, $motivo)
     {
         try {
-            $orden = OrdenCompra::find($ordenId);
+            $orden = Requisicion::find($ordenId);
             if (!$orden) {
                 return ['success' => false, 'error' => 'Orden no encontrada'];
             }
@@ -257,24 +272,18 @@ class NotificacionService
             $data['motivo_rechazo'] = $motivo;
             $data['url_detalle'] = $this->obtenerUrlAccion($ordenId, 'detalle');
 
+            // Obtener emails de revisores para BCC
+            $revisores = $this->getRevisores();
+            $bccEmails = array_column($revisores, 'email');
+
+            // Enviar un solo correo con BCC a los revisores
             $resultado = $this->emailService->sendWithTemplate(
                 $creadorEmail,
                 "Requisición #{$data['numero_orden']} Rechazada",
                 'rechazo',
-                $data
+                $data,
+                ['bcc' => $bccEmails]
             );
-
-            // Notificar en copia a los revisores
-            $revisores = $this->getRevisores();
-            foreach ($revisores as $revisor) {
-                $this->emailService->sendWithTemplate(
-                    $revisor['email'],
-                    "Requisición #{$data['numero_orden']} Rechazada",
-                    'rechazo',
-                    $data,
-                    ['reply_to' => $creadorEmail]
-                );
-            }
 
             return $resultado;
         } catch (\Exception $e) {
@@ -292,7 +301,7 @@ class NotificacionService
     public function notificarAutorizacionCompleta($ordenId)
     {
         try {
-            $orden = OrdenCompra::find($ordenId);
+            $orden = Requisicion::find($ordenId);
             if (!$orden) {
                 return ['success' => false, 'error' => 'Orden no encontrada'];
             }
@@ -354,7 +363,7 @@ class NotificacionService
     public function notificarRechazo($ordenId, $motivo)
     {
         try {
-            $orden = OrdenCompra::find($ordenId);
+            $orden = Requisicion::find($ordenId);
             if (!$orden) {
                 return ['success' => false, 'error' => 'Orden no encontrada'];
             }
@@ -397,7 +406,7 @@ class NotificacionService
     public function notificarUrgenteAutorizacionPendiente($ordenId, $centrosIds)
     {
         try {
-            $orden = OrdenCompra::find($ordenId);
+            $orden = Requisicion::find($ordenId);
             if (!$orden) {
                 return [
                     'success' => false,
@@ -417,11 +426,14 @@ class NotificacionService
                     continue;
                 }
 
+                // Obtener nombre del centro (compatible con objeto o array)
+                $centroNombre = is_object($centro) ? ($centro->nombre ?? '') : ($centro['nombre'] ?? '');
+
                 $autorizadores = $this->getAutorizadoresCentro($centroId);
                 
                 foreach ($autorizadores as $autorizador) {
                     $data['destinatario_nombre'] = $autorizador['nombre'];
-                    $data['centro_costo'] = $centro['nombre'];
+                    $data['centro_costo'] = $centroNombre;
                     $data['url_revision'] = $this->obtenerUrlAccion($ordenId, 'autorizar');
                     $data['tiempo_limite'] = '24 horas'; // Tiempo límite para respuesta
 
@@ -485,7 +497,7 @@ class NotificacionService
             $errores = 0;
 
             foreach ($recordatorios as $recordatorio) {
-                $orden = OrdenCompra::find($recordatorio['orden_compra_id']);
+                $orden = Requisicion::find($recordatorio['requisicion_id']);
                 if (!$orden) {
                     continue;
                 }
@@ -585,21 +597,73 @@ class NotificacionService
     {
         $centro = CentroCosto::find($centroId);
         if (!$centro) {
+            error_log("NotificacionService: Centro de costo no encontrado: $centroId");
             return [];
         }
 
-        // Obtener autorizador activo (respaldo o principal)
-        $emailAutorizador = (new CentroCosto())->getEmailAutorizador();
-        
-        if (!$emailAutorizador) {
-            return [];
-        }
-
+        $autorizadores = [];
         $centroNombre = is_object($centro) ? ($centro->nombre ?? '') : ($centro['nombre'] ?? '');
-        return [[
-            'email' => $emailAutorizador,
-            'nombre' => 'Autorizador de ' . $centroNombre
-        ]];
+
+        // Si $centro es un objeto CentroCosto, usar sus métodos
+        if (is_object($centro) && method_exists($centro, 'getEmailAutorizador')) {
+            $emailAutorizador = $centro->getEmailAutorizador();
+            if ($emailAutorizador) {
+                $autorizadores[] = [
+                    'email' => $emailAutorizador,
+                    'nombre' => 'Autorizador de ' . $centroNombre
+                ];
+            }
+        } else {
+            // Si es array, buscar directamente en la base de datos
+            try {
+                $pdo = \App\Core\Database::getInstance();
+                
+                // Buscar respaldo activo primero
+                $sqlRespaldo = "SELECT autorizador_respaldo_email 
+                                FROM autorizador_respaldo 
+                                WHERE centro_costo_id = ? 
+                                AND estado = 'activo'
+                                AND CURRENT_DATE BETWEEN fecha_inicio AND fecha_fin
+                                LIMIT 1";
+                $stmt = $pdo->prepare($sqlRespaldo);
+                $stmt->execute([$centroId]);
+                $respaldo = $stmt->fetch(\PDO::FETCH_ASSOC);
+                
+                if ($respaldo && !empty($respaldo['autorizador_respaldo_email'])) {
+                    $autorizadores[] = [
+                        'email' => $respaldo['autorizador_respaldo_email'],
+                        'nombre' => 'Autorizador de Respaldo'
+                    ];
+                } else {
+                    // Buscar autorizador principal
+                    $sqlPrincipal = "SELECT email, nombre 
+                                     FROM persona_autorizada 
+                                     WHERE centro_costo_id = ? 
+                                     ORDER BY id ASC 
+                                     LIMIT 1";
+                    $stmt = $pdo->prepare($sqlPrincipal);
+                    $stmt->execute([$centroId]);
+                    $principal = $stmt->fetch(\PDO::FETCH_ASSOC);
+                    
+                    if ($principal && !empty($principal['email'])) {
+                        $autorizadores[] = [
+                            'email' => $principal['email'],
+                            'nombre' => $principal['nombre'] ?? 'Autorizador de ' . $centroNombre
+                        ];
+                    }
+                }
+            } catch (\Exception $e) {
+                error_log("Error buscando autorizadores del centro $centroId: " . $e->getMessage());
+            }
+        }
+
+        if (empty($autorizadores)) {
+            error_log("NotificacionService: No se encontraron autorizadores para el centro: $centroId ($centroNombre)");
+        } else {
+            error_log("NotificacionService: Autorizadores encontrados para centro $centroId: " . json_encode($autorizadores));
+        }
+
+        return $autorizadores;
     }
 
     /**
@@ -722,23 +786,75 @@ class NotificacionService
      * @param string $estado Estado del flujo
      * @return void
      */
-    private function notificarSiguienteNivel($ordenId, $estado)
+    private function notificarSiguienteNivel($ordenId, $etapa)
     {
         try {
-            switch ($estado) {
-                case AutorizacionFlujo::ESTADO_PENDIENTE_AUTORIZACION_PAGO:
-                    $this->notificarAutorizadorEspecialPago($ordenId);
+            error_log("notificarSiguienteNivel: Iniciando para orden $ordenId, etapa: $etapa");
+            $resultado = null;
+            
+            switch ($etapa) {
+                case 'forma_pago':
+                    error_log("notificarSiguienteNivel: Llamando a notificarAutorizadorEspecialPago");
+                    $resultado = $this->notificarAutorizadorEspecialPago($ordenId);
                     break;
-                case AutorizacionFlujo::ESTADO_PENDIENTE_AUTORIZACION_CUENTA:
-                    $this->notificarAutorizadorEspecialCuentas($ordenId);
+                case 'cuenta_contable':
+                    error_log("notificarSiguienteNivel: Llamando a notificarAutorizadorEspecialCuentas");
+                    $resultado = $this->notificarAutorizadorEspecialCuentas($ordenId);
                     break;
-                case AutorizacionFlujo::ESTADO_PENDIENTE_AUTORIZACION_CENTROS:
-                    $this->notificarAutorizadoresCentros($ordenId);
+                case 'centro_costo':
+                    error_log("notificarSiguienteNivel: Llamando a notificarAutorizadoresCentros");
+                    $resultado = $this->notificarAutorizadoresCentros($ordenId);
+                    break;
+                default:
+                    error_log("notificarSiguienteNivel: Etapa no reconocida: $etapa");
                     break;
             }
+            
+            error_log("notificarSiguienteNivel: Resultado: " . json_encode($resultado));
+            return $resultado;
         } catch (\Exception $e) {
             error_log("Error notificando siguiente nivel: " . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Determina cuál es la siguiente etapa pendiente para una requisición.
+     */
+    private function determinarSiguientePaso(int $ordenId): string
+    {
+        try {
+            $pendientePago = count(Autorizacion::where([
+                'requisicion_id' => $ordenId,
+                'tipo' => Autorizacion::TIPO_FORMA_PAGO,
+                'estado' => Autorizacion::ESTADO_PENDIENTE
+            ]));
+            if ($pendientePago > 0) {
+                return 'forma_pago';
+            }
+
+            $pendienteCuenta = count(Autorizacion::where([
+                'requisicion_id' => $ordenId,
+                'tipo' => Autorizacion::TIPO_CUENTA_CONTABLE,
+                'estado' => Autorizacion::ESTADO_PENDIENTE
+            ]));
+            if ($pendienteCuenta > 0) {
+                return 'cuenta_contable';
+            }
+
+            $pendienteCentros = count(Autorizacion::where([
+                'requisicion_id' => $ordenId,
+                'tipo' => Autorizacion::TIPO_CENTRO_COSTO,
+                'estado' => Autorizacion::ESTADO_PENDIENTE
+            ]));
+            if ($pendienteCentros > 0) {
+                return 'centro_costo';
+            }
+        } catch (\Exception $e) {
+            error_log("Error determinando siguiente paso: " . $e->getMessage());
+        }
+
+        return '';
     }
 
     /**
@@ -750,7 +866,7 @@ class NotificacionService
     public function notificarAutorizadorEspecialPago($ordenId)
     {
         try {
-            $orden = OrdenCompra::find($ordenId);
+            $orden = Requisicion::find($ordenId);
             if (!$orden) {
                 return ['success' => false, 'error' => 'Orden no encontrada'];
             }
@@ -792,7 +908,7 @@ class NotificacionService
     public function notificarAutorizadorEspecialCuentas($ordenId)
     {
         try {
-            $orden = OrdenCompra::find($ordenId);
+            $orden = Requisicion::find($ordenId);
             if (!$orden) {
                 return ['success' => false, 'error' => 'Orden no encontrada'];
             }
@@ -816,10 +932,28 @@ class NotificacionService
                 $autorizadoresNotificados[] = $email;
 
                 $cuenta = CuentaContable::find($dist['cuenta_contable_id']);
-                $nombreCuenta = $cuenta ? ($cuenta['descripcion'] ?? $cuenta['codigo']) : 'Cuenta Especial';
+                $nombreCuenta = 'Cuenta Especial';
+
+                if ($cuenta) {
+                    if (is_object($cuenta)) {
+                        $codigo = $cuenta->codigo ?? $cuenta->getAttribute('codigo');
+                        $descripcion = $cuenta->descripcion ?? $cuenta->getAttribute('descripcion');
+                    } else {
+                        $codigo = $cuenta['codigo'] ?? null;
+                        $descripcion = $cuenta['descripcion'] ?? null;
+                    }
+
+                    if ($codigo && $descripcion) {
+                        $nombreCuenta = "{$codigo} - {$descripcion}";
+                    } elseif ($descripcion) {
+                        $nombreCuenta = $descripcion;
+                    } elseif ($codigo) {
+                        $nombreCuenta = (string) $codigo;
+                    }
+                }
 
                 $data = $this->formatearDatosOrden($orden);
-                $data['destinatario_nombre'] = $autorizador['autorizador_nombre'];
+                $data['destinatario_nombre'] = $autorizador['autorizador_nombre'] ?? ($autorizador['autorizador_email'] ?? 'Autorizador');
                 $data['cuenta_contable'] = $nombreCuenta;
                 $data['motivo_especial'] = "Esta requisición requiere autorización especial por la cuenta contable: $nombreCuenta";
                 $data['url_revision'] = $this->obtenerUrlAccion($ordenId, 'autorizar-cuenta');
@@ -856,44 +990,69 @@ class NotificacionService
     public function notificarAutorizadoresCentros($ordenId)
     {
         try {
-            $orden = OrdenCompra::find($ordenId);
+            error_log("=== notificarAutorizadoresCentros INICIO para orden $ordenId ===");
+            
+            $orden = Requisicion::find($ordenId);
             if (!$orden) {
+                error_log("notificarAutorizadoresCentros: Orden $ordenId no encontrada");
                 return ['success' => false, 'error' => 'Orden no encontrada'];
             }
 
             // Obtener centros de costo de las distribuciones
             $distribuciones = DistribucionGasto::porOrdenCompra($ordenId);
+            error_log("notificarAutorizadoresCentros: Distribuciones encontradas: " . count($distribuciones));
+            
             $centrosIds = array_unique(array_column($distribuciones, 'centro_costo_id'));
+            error_log("notificarAutorizadoresCentros: Centros de costo: " . json_encode($centrosIds));
 
             $data = $this->formatearDatosOrden($orden);
             $resultados = [];
 
             foreach ($centrosIds as $centroId) {
+                error_log("notificarAutorizadoresCentros: Procesando centro ID: $centroId");
+                
                 $centro = CentroCosto::find($centroId);
                 if (!$centro) {
+                    error_log("notificarAutorizadoresCentros: Centro $centroId no encontrado, saltando");
                     continue;
                 }
 
+                // Obtener nombre del centro (compatible con objeto o array)
+                $centroNombre = is_object($centro) ? ($centro->nombre ?? '') : ($centro['nombre'] ?? '');
+                error_log("notificarAutorizadoresCentros: Centro: $centroNombre");
+
                 $autorizadores = $this->getAutorizadoresCentro($centroId);
+                error_log("notificarAutorizadoresCentros: Autorizadores encontrados: " . count($autorizadores));
+                
+                if (empty($autorizadores)) {
+                    error_log("notificarAutorizadoresCentros: No hay autorizadores para el centro $centroId ($centroNombre)");
+                    continue;
+                }
                 
                 foreach ($autorizadores as $autorizador) {
+                    error_log("notificarAutorizadoresCentros: Enviando correo a {$autorizador['email']}");
+                    
                     $data['destinatario_nombre'] = $autorizador['nombre'];
-                    $data['centro_costo'] = $centro['nombre'];
+                    $data['centro_costo'] = $centroNombre;
                     $data['url_revision'] = $this->obtenerUrlAccion($ordenId, 'autorizar');
-                    $data['accion_requerida'] = 'Autorización por Centro de Costo';
+                    $data['accion_requerida'] = "Autorización por Centro de Costo: {$centroNombre}";
+                    $data['mensaje_tipo'] = 'AUTORIZACIÓN DE CENTRO DE COSTO';
 
                     $result = $this->sendEmailSafe(
                         'sendWithTemplate',
                         $autorizador['email'],
-                        "Requisición #{$data['numero_orden']} Pendiente de Autorización",
-                        'nueva_requisicion',
+                        "🔔 AUTORIZAR: Requisición #{$data['numero_orden']} - Centro: {$centroNombre}",
+                        'pendiente_autorizacion_centro',
                         $data
                     );
-
+                    
+                    error_log("notificarAutorizadoresCentros: Resultado envío: " . json_encode($result));
                     $resultados[] = $result;
                 }
             }
 
+            error_log("=== notificarAutorizadoresCentros FIN - Total correos enviados: " . count($resultados) . " ===");
+            
             return [
                 'success' => true,
                 'message' => 'Notificaciones enviadas a autorizadores de centros',
@@ -917,7 +1076,7 @@ class NotificacionService
         $baseUrl = Config::get('app.url', 'http://localhost');
         
         $rutas = [
-            'revision' => "/revisiones/{$ordenId}",
+            'revision' => "/autorizaciones/{$ordenId}",
             'autorizar' => "/autorizaciones/{$ordenId}",
             'autorizar-pago' => "/autorizaciones/pago/{$ordenId}",
             'autorizar-cuenta' => "/autorizaciones/cuenta/{$ordenId}",

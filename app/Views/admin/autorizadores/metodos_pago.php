@@ -1,6 +1,7 @@
 <?php 
 use App\Helpers\View;
 use App\Helpers\Session;
+use App\Middlewares\CsrfMiddleware;
 
 $title = 'Autorizadores de Métodos de Pago';
 ?>
@@ -190,7 +191,7 @@ $metodosCubiertos = count($metodosUnicos);
                 <p class="mb-0 opacity-75">Gestiona autorizadores por método de pago específico</p>
             </div>
             <div class="col-md-6 text-end">
-                <a href="/admin/autorizadores/metodos-pago/create" class="btn btn-create">
+                <a href="<?= url('/admin/autorizadores/metodos-pago/create') ?>" class="btn btn-create">
                     <i class="fas fa-plus me-2"></i>
                     Nuevo Autorizador
                 </a>
@@ -229,13 +230,13 @@ $metodosCubiertos = count($metodosUnicos);
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="btn-group" role="group">
-                <a href="/admin/autorizadores/metodos-pago" class="btn filter-btn active">
+                <a href="<?= url('/admin/autorizadores/metodos-pago') ?>" class="btn filter-btn active">
                     Todos
                 </a>
-                <a href="/admin/autorizadores/metodos-pago?filtro=activos" class="btn filter-btn">
+                <a href="<?= url('/admin/autorizadores/metodos-pago?filtro=activos') ?>" class="btn filter-btn">
                     Activos
                 </a>
-                <a href="/admin/autorizadores/metodos-pago?filtro=inactivos" class="btn filter-btn">
+                <a href="<?= url('/admin/autorizadores/metodos-pago?filtro=inactivos') ?>" class="btn filter-btn">
                     Inactivos
                 </a>
             </div>
@@ -292,27 +293,26 @@ $metodosCubiertos = count($metodosUnicos);
                             </div>
                             <div class="col-md-4 text-end">
                                 <div class="btn-group btn-group-sm">
-                                    <?php 
-                                    // Usar email codificado para las rutas, ya que el controlador espera email
-                                    // Esto funciona independientemente del usuario actual
-                                    $paramUrl = urlencode($autorizador->email ?? $autorizador->id ?? '');
-                                    ?>
-                                    <a href="/admin/autorizadores/metodos-pago/<?= $paramUrl ?>"
+                                    <a href="<?= url('/admin/autorizadores/metodos-pago/' . ($autorizador->id ?? 'unknown')) ?>"
                                        class="btn btn-outline-primary"
                                        title="Ver detalles">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="/admin/autorizadores/metodos-pago/<?= $paramUrl ?>/edit"
+                                    <a href="<?= url('/admin/autorizadores/metodos-pago/' . ($autorizador->id ?? 'unknown') . '/edit') ?>"
                                        class="btn btn-outline-warning"
                                        title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <a href="/admin/autorizadores/metodos-pago/<?= $paramUrl ?>/delete"
-                                       class="btn btn-outline-danger"
-                                       title="Eliminar"
-                                       onclick="return confirm('¿Estás seguro de eliminar este autorizador?')">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
+                                    <form method="POST" action="<?= url('/admin/autorizadores/metodos-pago/' . ($autorizador->id ?? 'unknown')) ?>" style="display: inline;">
+                                        <?= CsrfMiddleware::field() ?>
+                                        <input type="hidden" name="_method" value="DELETE">
+                                        <button type="submit" 
+                                                class="btn btn-outline-danger"
+                                                title="Eliminar"
+                                                onclick="return confirm('¿Estás seguro de eliminar este autorizador por método de pago? Esta acción no se puede deshacer.');">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
@@ -391,7 +391,7 @@ $metodosCubiertos = count($metodosUnicos);
                     <i class="fas fa-credit-card"></i>
                     <h4>No hay autorizadores por método de pago</h4>
                     <p class="mb-3">No se encontraron autorizadores configurados para métodos de pago específicos.</p>
-                    <a href="/admin/autorizadores/metodos-pago/create" class="btn btn-create">
+                    <a href="<?= url('/admin/autorizadores/metodos-pago/create') ?>" class="btn btn-create">
                         <i class="fas fa-plus me-2"></i>Crear Primer Autorizador
                     </a>
                 </div>
@@ -406,10 +406,10 @@ $metodosCubiertos = count($metodosUnicos);
                 <div class="card-body">
                     <h6 class="text-muted mb-3">Otros Autorizadores Especiales:</h6>
                     <div class="btn-group" role="group">
-                        <a href="/admin/autorizadores/respaldos" class="btn btn-outline-danger">
+                        <a href="<?= url('/admin/autorizadores/respaldos') ?>" class="btn btn-outline-danger">
                             <i class="fas fa-hands-helping me-1"></i>Respaldos
                         </a>
-                        <a href="/admin/autorizadores/cuentas-contables" class="btn btn-outline-secondary">
+                        <a href="<?= url('/admin/autorizadores/cuentas-contables') ?>" class="btn btn-outline-secondary">
                             <i class="fas fa-calculator me-1"></i>Cuentas Contables
                         </a>
                     </div>
@@ -421,13 +421,13 @@ $metodosCubiertos = count($metodosUnicos);
     <!-- Acciones Rápidas -->
     <div class="row mt-4">
         <div class="col-12 text-center">
-            <a href="/admin/autorizadores" class="btn btn-outline-secondary me-2">
+            <a href="<?= url('/admin/autorizadores') ?>" class="btn btn-outline-secondary me-2">
                 <i class="fas fa-arrow-left me-2"></i>Volver a Autorizadores
             </a>
-            <a href="/admin" class="btn btn-outline-primary me-2">
+            <a href="<?= url('/admin') ?>" class="btn btn-outline-primary me-2">
                 <i class="fas fa-home me-2"></i>Panel Admin
             </a>
-            <a href="/admin/autorizadores/metodos-pago/create" class="btn btn-create">
+            <a href="<?= url('/admin/autorizadores/metodos-pago/create') ?>" class="btn btn-create">
                 <i class="fas fa-plus me-2"></i>Nuevo Autorizador
             </a>
         </div>
@@ -479,7 +479,7 @@ $metodosCubiertos = count($metodosUnicos);
             btn.classList.remove('active');
         });
         
-        const activeBtn = document.querySelector(`a[href="/admin/autorizadores/metodos-pago?filtro=${filtro}"]`);
+        const activeBtn = document.querySelector(`a[href*="metodos-pago?filtro=${filtro}"]`);
         if (activeBtn) {
             activeBtn.classList.add('active');
         }

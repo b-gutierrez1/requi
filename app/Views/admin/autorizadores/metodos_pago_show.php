@@ -31,7 +31,7 @@ $title = 'Detalles del Autorizador de Método de Pago';
                 <p class="mb-0 opacity-75">Información detallada del autorizador por método de pago</p>
             </div>
             <div class="col-md-4 text-end">
-                <a href="/admin/autorizadores/metodos-pago" class="btn btn-light">
+                <a href="<?= url('/admin/autorizadores/metodos-pago') ?>" class="btn btn-light">
                     <i class="fas fa-arrow-left me-2"></i>Volver a la Lista
                 </a>
             </div>
@@ -223,13 +223,13 @@ $title = 'Detalles del Autorizador de Método de Pago';
                 
                 <div class="row">
                     <div class="col-12 text-center">
-                        <a href="/admin/autorizadores/metodos-pago" class="btn btn-back me-3">
+                        <a href="<?= url('/admin/autorizadores/metodos-pago') ?>" class="btn btn-back me-3">
                             <i class="fas fa-arrow-left me-2"></i>Volver a la Lista
                         </a>
-                        <a href="/admin/autorizadores/metodos-pago/<?= View::e($autorizador->id) ?>/edit" class="btn btn-warning me-2">
+                        <a href="<?= url('/admin/autorizadores/metodos-pago/' . View::e($autorizador->id) . '/edit') ?>" class="btn btn-warning me-2">
                             <i class="fas fa-edit me-2"></i>Editar
                         </a>
-                        <a href="/admin/autorizadores/metodos-pago/create" class="btn btn-success">
+                        <a href="<?= url('/admin/autorizadores/metodos-pago/create') ?>" class="btn btn-success">
                             <i class="fas fa-plus me-2"></i>Nuevo Autorizador
                         </a>
                     </div>

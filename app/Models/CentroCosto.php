@@ -19,9 +19,7 @@ class CentroCosto extends Model
 
     protected static $fillable = [
         'nombre',
-        'codigo',
-        'descripcion',
-        'activo',
+        'factura',
         'unidad_negocio_id',
     ];
 
@@ -58,7 +56,8 @@ class CentroCosto extends Model
      */
     public function personasAutorizadas()
     {
-        $sql = "SELECT * FROM persona_autorizada WHERE centro_costo_id = ?";
+        $table = \App\Models\PersonaAutorizada::getTable();
+        $sql = "SELECT * FROM {$table} WHERE centro_costo_id = ?";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$this->attributes['id']]);
         
@@ -72,7 +71,8 @@ class CentroCosto extends Model
      */
     public function getAutorizadorPrincipal()
     {
-        $sql = "SELECT * FROM persona_autorizada 
+        $table = \App\Models\PersonaAutorizada::getTable();
+        $sql = "SELECT * FROM {$table} 
                 WHERE centro_costo_id = ? 
                 ORDER BY id ASC 
                 LIMIT 1";
@@ -147,7 +147,7 @@ class CentroCosto extends Model
     }
 
     /**
-     * Obtiene todos los centros de costo activos con su unidad de negocio
+     * Obtiene todos los centros de costo activos con su unidad de negocio y factura
      * 
      * @return array
      */
@@ -155,10 +155,13 @@ class CentroCosto extends Model
     {
         $table = static::$table;
         
-        $sql = "SELECT cc.*, un.nombre as unidad_negocio_nombre 
+        // Nota: cc.* ya incluye cc.factura, pero agregamos COALESCE para asegurar un valor por defecto
+        $sql = "SELECT cc.*, 
+                       un.id as rel_unidad_negocio_id,
+                       un.nombre as unidad_negocio_nombre,
+                       COALESCE(cc.factura, 1) as factura
                 FROM {$table} cc
                 LEFT JOIN unidad_de_negocio un ON cc.unidad_negocio_id = un.id
-                WHERE cc.activo = 1 
                 ORDER BY cc.nombre ASC";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute();
@@ -176,16 +179,13 @@ class CentroCosto extends Model
     {
         $table = static::$table;
         
-        $sql = "SELECT cc.*, un.nombre as unidad_negocio_nombre 
-                FROM {$table} cc
-                LEFT JOIN unidad_de_negocio un ON cc.unidad_negocio_id = un.id
-                WHERE (cc.nombre LIKE ? OR cc.codigo LIKE ?) 
-                AND cc.activo = 1 
-                ORDER BY cc.nombre ASC";
+        $sql = "SELECT * FROM {$table} 
+                WHERE nombre LIKE ? 
+                ORDER BY nombre ASC";
         
         $stmt = self::getConnection()->prepare($sql);
         $search = "%{$termino}%";
-        $stmt->execute([$search, $search]);
+        $stmt->execute([$search]);
         
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
@@ -201,7 +201,7 @@ class CentroCosto extends Model
     {
         $sql = "SELECT SUM(dg.cantidad) as total
                 FROM distribucion_gasto dg
-                INNER JOIN orden_compra oc ON dg.orden_compra_id = oc.id
+                INNER JOIN requisiciones oc ON dg.requisicion_id = oc.id
                 WHERE dg.centro_costo_id = ?";
         
         $params = [$this->attributes['id']];

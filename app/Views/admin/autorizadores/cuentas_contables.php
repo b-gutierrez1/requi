@@ -1,6 +1,7 @@
 <?php 
 use App\Helpers\View;
 use App\Helpers\Session;
+use App\Middlewares\CsrfMiddleware;
 
 $title = 'Autorizadores de Cuentas Contables';
 ?>
@@ -178,7 +179,7 @@ $title = 'Autorizadores de Cuentas Contables';
                 <p class="mb-0 opacity-75">Gestiona autorizadores por cuenta contable específica</p>
             </div>
             <div class="col-md-6 text-end">
-                <a href="/admin/autorizadores/cuentas-contables/create" class="btn btn-create">
+                <a href="<?= url('/admin/autorizadores/cuentas-contables/create') ?>" class="btn btn-create">
                     <i class="fas fa-plus me-2"></i>
                     Nuevo Autorizador
                 </a>
@@ -217,13 +218,13 @@ $title = 'Autorizadores de Cuentas Contables';
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="btn-group" role="group">
-                <a href="/admin/autorizadores/cuentas-contables" class="btn filter-btn active">
+                <a href="<?= url('/admin/autorizadores/cuentas-contables') ?>" class="btn filter-btn active">
                     Todos
                 </a>
-                <a href="/admin/autorizadores/cuentas-contables?filtro=activos" class="btn filter-btn">
+                <a href="<?= url('/admin/autorizadores/cuentas-contables?filtro=activos') ?>" class="btn filter-btn">
                     Activos
                 </a>
-                <a href="/admin/autorizadores/cuentas-contables?filtro=inactivos" class="btn filter-btn">
+                <a href="<?= url('/admin/autorizadores/cuentas-contables?filtro=inactivos') ?>" class="btn filter-btn">
                     Inactivos
                 </a>
             </div>
@@ -237,6 +238,9 @@ $title = 'Autorizadores de Cuentas Contables';
                 <?php
                 // Determinar el estado del autorizador
                 $activo = $autorizador->activo ?? true;
+                $identificadorPrimario = $autorizador->id ?? ($autorizador->registro_id ?? null);
+                $identificadorFallback = $autorizador->email ?? '';
+                $autorizadorSlug = rawurlencode((string)($identificadorPrimario ?? $identificadorFallback));
                 
                 $estado = 'activo';
                 $estadoTexto = 'Activo';
@@ -280,22 +284,26 @@ $title = 'Autorizadores de Cuentas Contables';
                             </div>
                             <div class="col-md-4 text-end">
                                 <div class="btn-group btn-group-sm">
-                                    <a href="/admin/autorizadores/cuentas-contables/<?= View::e($autorizador->id ?? '') ?>"
+                                    <a href="<?= url('/admin/autorizadores/cuentas-contables/' . $autorizadorSlug) ?>"
                                        class="btn btn-outline-primary"
                                        title="Ver detalles">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="/admin/autorizadores/cuentas-contables/<?= View::e($autorizador->id ?? '') ?>/edit"
+                                    <a href="<?= url('/admin/autorizadores/cuentas-contables/' . $autorizadorSlug . '/edit') ?>"
                                        class="btn btn-outline-warning"
                                        title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <a href="/admin/autorizadores/cuentas-contables/<?= View::e($autorizador->id ?? '') ?>/delete"
-                                       class="btn btn-outline-danger"
-                                       title="Eliminar"
-                                       onclick="return confirm('¿Estás seguro de eliminar este autorizador?')">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
+                                    <form action="<?= url('/admin/autorizadores/cuentas-contables/' . $autorizadorSlug) ?>"
+                                          method="POST"
+                                          style="display:inline;"
+                                          onsubmit="return confirm('¿Estás seguro de eliminar este autorizador por cuenta contable? Esta acción no se puede deshacer.');">
+                                        <input type="hidden" name="_method" value="DELETE">
+                                        <?= CsrfMiddleware::field() ?>
+                                        <button type="submit" class="btn btn-outline-danger" title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
@@ -394,7 +402,7 @@ $title = 'Autorizadores de Cuentas Contables';
                     <i class="fas fa-calculator"></i>
                     <h4>No hay autorizadores por cuenta contable</h4>
                     <p class="mb-3">No se encontraron autorizadores configurados para cuentas contables específicas.</p>
-                    <a href="/admin/autorizadores/cuentas-contables/create" class="btn btn-create">
+                    <a href="<?= url('/admin/autorizadores/cuentas-contables/create') ?>" class="btn btn-create">
                         <i class="fas fa-plus me-2"></i>Crear Primer Autorizador
                     </a>
                 </div>
@@ -409,10 +417,10 @@ $title = 'Autorizadores de Cuentas Contables';
                 <div class="card-body">
                     <h6 class="text-muted mb-3">Otros Autorizadores Especiales:</h6>
                     <div class="btn-group" role="group">
-                        <a href="/admin/autorizadores/respaldos" class="btn btn-outline-danger">
+                        <a href="<?= url('/admin/autorizadores/respaldos') ?>" class="btn btn-outline-danger">
                             <i class="fas fa-hands-helping me-1"></i>Respaldos
                         </a>
-                        <a href="/admin/autorizadores/metodos-pago" class="btn btn-outline-info">
+                        <a href="<?= url('/admin/autorizadores/metodos-pago') ?>" class="btn btn-outline-info">
                             <i class="fas fa-credit-card me-1"></i>Métodos de Pago
                         </a>
                     </div>
@@ -424,13 +432,13 @@ $title = 'Autorizadores de Cuentas Contables';
     <!-- Acciones Rápidas -->
     <div class="row mt-4">
         <div class="col-12 text-center">
-            <a href="/admin/autorizadores" class="btn btn-outline-secondary me-2">
+            <a href="<?= url('/admin/autorizadores') ?>" class="btn btn-outline-secondary me-2">
                 <i class="fas fa-arrow-left me-2"></i>Volver a Autorizadores
             </a>
-            <a href="/admin" class="btn btn-outline-primary me-2">
+            <a href="<?= url('/admin') ?>" class="btn btn-outline-primary me-2">
                 <i class="fas fa-home me-2"></i>Panel Admin
             </a>
-            <a href="/admin/autorizadores/cuentas-contables/create" class="btn btn-create">
+            <a href="<?= url('/admin/autorizadores/cuentas-contables/create') ?>" class="btn btn-create">
                 <i class="fas fa-plus me-2"></i>Nuevo Autorizador
             </a>
         </div>
@@ -485,7 +493,8 @@ $title = 'Autorizadores de Cuentas Contables';
             btn.classList.remove('active');
         });
         
-        const activeBtn = document.querySelector(`a[href="/admin/autorizadores/cuentas-contables?filtro=${filtro}"]`);
+        const baseUrl = "<?= url('/admin/autorizadores/cuentas-contables?filtro=') ?>";
+        const activeBtn = document.querySelector(`a[href="${baseUrl}${filtro}"]`);
         if (activeBtn) {
             activeBtn.classList.add('active');
         }

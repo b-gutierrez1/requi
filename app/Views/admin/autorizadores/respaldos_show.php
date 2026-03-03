@@ -205,7 +205,7 @@ $title = 'Detalle del Autorizador de Respaldo';
                 <p class="mb-0 opacity-75">Información completa del autorizador de respaldo</p>
             </div>
             <div class="col-md-4 text-end">
-                <a href="/admin/autorizadores/respaldos" class="btn btn-light">
+                <a href="<?= url('/admin/autorizadores/respaldos') ?>" class="btn btn-light">
                     <i class="fas fa-arrow-left me-2"></i>
                     Volver a la Lista
                 </a>
@@ -413,7 +413,7 @@ $title = 'Detalle del Autorizador de Respaldo';
     <!-- Botones de Acción -->
     <div class="row mt-4">
         <div class="col-12 text-center">
-            <a href="/admin/autorizadores/respaldos/<?= View::e($respaldo['id'] ?? '') ?>/edit" class="btn btn-edit me-3">
+            <a href="<?= url('/admin/autorizadores/respaldos/' . View::e($respaldo['id'] ?? '') . '/edit') ?>" class="btn btn-edit me-3">
                 <i class="fas fa-edit me-2"></i>
                 Editar Respaldo
             </a>
@@ -421,7 +421,7 @@ $title = 'Detalle del Autorizador de Respaldo';
                 <i class="fas fa-trash me-2"></i>
                 Eliminar Respaldo
             </button>
-            <a href="/admin/autorizadores/respaldos" class="btn btn-back">
+            <a href="<?= url('/admin/autorizadores/respaldos') ?>" class="btn btn-back">
                 <i class="fas fa-arrow-left me-2"></i>
                 Volver a la Lista
             </a>

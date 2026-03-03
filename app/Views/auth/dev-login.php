@@ -213,7 +213,7 @@
                 </h3>
                 
                 <!-- Formulario de Login -->
-                <form method="POST" action="/dev/login">
+                <form method="POST" action="<?= url('/dev-login') ?>"><?= csrf_field() ?>
                     <div class="mb-3">
                         <label for="user_id" class="form-label">
                             <i class="fas fa-user"></i> Usuario de Desarrollo

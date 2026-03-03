@@ -101,6 +101,16 @@ sudo a2ensite requi-mvc
 sudo systemctl reload apache2
 ```
 
+### Apache en XAMPP (Windows):
+1. Copia `servidor-config/apache-xampp.conf` a `C:\xampp\apache\conf\extra\requi-mvc.conf`
+2. Edita `C:\xampp\apache\conf\httpd.conf` y agrega al final:
+   ```
+   Include conf/extra/requi-mvc.conf
+   ```
+3. Reinicia Apache desde el panel de XAMPP
+
+Esta configuración apunta `localhost` directamente a `C:\xampp\htdocs\requi-mvc\public`, habilita `AllowOverride All` y registra logs dedicados.
+
 ### Para Nginx:
 ```bash
 # Copia la configuración:

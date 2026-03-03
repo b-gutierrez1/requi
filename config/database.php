@@ -145,7 +145,7 @@ return [
     */
     'migrations' => [
         'table' => 'migrations',
-        'path' => __DIR__ . '/../database/migrations',
+        'path' => __DIR__ . '/../storage/migrations',
     ],
 
     /*
@@ -154,7 +154,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'seeds' => [
-        'path' => __DIR__ . '/../database/seeds',
+        'path' => __DIR__ . '/../storage/seeds',
     ],
 
     /*
@@ -195,7 +195,7 @@ return [
         'centro_de_costo' => 'centro_de_costo',
         'cuenta_contable' => 'cuenta_contable',
         'autorizacion_flujo' => 'autorizacion_flujo',
-        'autorizacion_centro_costo' => 'autorizacion_centro_costo',
+        'autorizaciones' => 'autorizaciones',
         'persona_autorizada' => 'persona_autorizada',
         'autorizador_respaldo' => 'autorizador_respaldo',
         'autorizadores_metodos_pago' => 'autorizadores_metodos_pago',

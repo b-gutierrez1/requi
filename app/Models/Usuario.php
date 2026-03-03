@@ -30,18 +30,16 @@ class Usuario extends Model
         'azure_job_title',
         'azure_department',
         'azure_groups',
+        'job_title',
+        'department',
+        'azure_token_expires',
+        'azure_last_sync',
         'is_admin',
         'is_revisor',
         'is_autorizador',
         'activo',
         'last_login',
-        'username',
-        'password_hash',
-        'nombre_completo',
-        'fecha_creacion',
-        'fecha_ultimo_acceso',
-        'intentos_fallidos',
-        'bloqueado_hasta'
+        'fecha_creacion'
     ];
 
     protected static $guarded = [];
@@ -75,7 +73,7 @@ class Usuario extends Model
      */
     public function requisiciones()
     {
-        return OrdenCompra::where(['usuario_id' => $this->id]);
+        return Requisicion::where(['usuario_id' => $this->id]);
     }
 
     /**
@@ -90,18 +88,18 @@ class Usuario extends Model
         }
 
         $sql = "
-            SELECT oc.* 
-            FROM orden_compra oc
-            INNER JOIN autorizacion_flujo af ON oc.id = af.orden_compra_id
+            SELECT r.* 
+            FROM requisiciones r
+            INNER JOIN autorizacion_flujo af ON r.id = af.requisicion_id
             WHERE af.estado = 'pendiente_revision'
-            ORDER BY oc.fecha DESC
+            ORDER BY r.fecha_solicitud DESC
         ";
 
         $stmt = self::query($sql);
         $results = [];
         
         while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-            $results[] = new OrdenCompra($row);
+            $results[] = new Requisicion($row);
         }
         
         return $results;
@@ -115,21 +113,22 @@ class Usuario extends Model
     public function requisicionesPendientesAutorizacion()
     {
         $sql = "
-            SELECT DISTINCT oc.* 
-            FROM orden_compra oc
-            INNER JOIN autorizacion_flujo af ON oc.id = af.orden_compra_id
-            INNER JOIN autorizacion_centro_costo acc ON af.id = acc.autorizacion_flujo_id
+            SELECT DISTINCT r.* 
+            FROM requisiciones r
+            INNER JOIN autorizacion_flujo af ON r.id = af.requisicion_id
+            INNER JOIN autorizaciones a ON r.id = a.requisicion_id
             WHERE af.estado = 'pendiente_autorizacion'
-            AND acc.autorizador_email = :email
-            AND acc.fecha_autorizacion IS NULL
-            ORDER BY oc.fecha DESC
+              AND a.autorizador_email = :email
+              AND a.estado = 'pendiente'
+              AND a.tipo = 'centro_costo'
+            ORDER BY r.fecha_solicitud DESC
         ";
 
         $stmt = self::query($sql, ['email' => $this->azure_email]);
         $results = [];
         
         while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-            $results[] = new OrdenCompra($row);
+            $results[] = new Requisicion($row);
         }
         
         return $results;

@@ -18,17 +18,16 @@ class Factura extends Model
     protected static $primaryKey = 'id';
     protected static $timestamps = false;
 
+    // Columnas de la tabla facturas en bd_prueba:
+    // id, requisicion_id, numero_factura, fecha_factura, monto_factura, proveedor_nombre, archivo_factura, estado, created_at
     protected static $fillable = [
-        'orden_compra_id',
-        'forma_pago',
-        'factura_numero',
-        'porcentaje',
-        'monto',
-        'fecha_pago',
-        'numero_cheque',
-        'referencia',
+        'requisicion_id',
+        'numero_factura',
+        'fecha_factura',
+        'monto_factura',
+        'proveedor_nombre',
+        'archivo_factura',
         'estado',
-        'notas',
     ];
 
     protected static $guarded = ['id'];
@@ -40,11 +39,11 @@ class Factura extends Model
      */
     public function ordenCompra()
     {
-        if (!isset($this->attributes['orden_compra_id'])) {
+        if (!isset($this->attributes['requisicion_id'])) {
             return null;
         }
 
-        return OrdenCompra::find($this->attributes['orden_compra_id']);
+        return Requisicion::find($this->attributes['requisicion_id']);
     }
 
     /**
@@ -56,7 +55,7 @@ class Factura extends Model
     public static function porOrdenCompra($ordenCompraId)
     {
         $sql = "SELECT * FROM " . static::$table . " 
-                WHERE orden_compra_id = ? 
+                WHERE requisicion_id = ? 
                 ORDER BY id ASC";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -142,7 +141,7 @@ class Factura extends Model
 
             // Crear cada factura
             foreach ($facturasValidas as $factura) {
-                $factura['orden_compra_id'] = $ordenCompraId;
+                $factura['requisicion_id'] = $ordenCompraId;
                 
                 $errores = self::validar($factura);
                 if (!empty($errores)) {
@@ -178,7 +177,7 @@ class Factura extends Model
 
             // Eliminar facturas existentes
             $instance = new static();
-            $sql = "DELETE FROM {$instance->table} WHERE orden_compra_id = ?";
+            $sql = "DELETE FROM {$instance->table} WHERE requisicion_id = ?";
             $stmt = $conn->prepare($sql);
             $stmt->execute([$ordenCompraId]);
 
@@ -212,7 +211,7 @@ class Factura extends Model
         
         $sql = "SELECT SUM(monto) as total 
                 FROM {$instance->table} 
-                WHERE orden_compra_id = ?";
+                WHERE requisicion_id = ?";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$ordenCompraId]);
@@ -233,7 +232,7 @@ class Factura extends Model
         $instance = new static();
         
         $sql = "SELECT * FROM {$instance->table} 
-                WHERE orden_compra_id = ? AND forma_pago = ?
+                WHERE requisicion_id = ? AND forma_pago = ?
                 ORDER BY id ASC";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -284,7 +283,7 @@ class Factura extends Model
     public function getMontoFormateado($moneda = 'GTQ')
     {
         $simbolo = $moneda === 'USD' ? '$' : 'Q';
-        $monto = number_format($this->attributes['monto'] ?? 0, 2);
+        $monto = number_format($this->attributes['monto'] ?? 0, 5);
         
         return $simbolo . ' ' . $monto;
     }
@@ -364,7 +363,7 @@ class Factura extends Model
                     SUM(CASE WHEN estado = 'pendiente' THEN monto ELSE 0 END) as monto_pendiente,
                     SUM(porcentaje) as suma_porcentajes
                 FROM {$instance->table}
-                WHERE orden_compra_id = ?";
+                WHERE requisicion_id = ?";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$ordenCompraId]);

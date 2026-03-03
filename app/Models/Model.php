@@ -142,7 +142,19 @@ abstract class Model implements \JsonSerializable
         
         $data = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        return $data ? new static($data) : null;
+        if (!$data) {
+            return null;
+        }
+        
+        $model = new static();
+        
+        // Asignar todos los atributos directamente, incluyendo el ID
+        foreach ($data as $key => $value) {
+            $model->setAttribute($key, $value);
+        }
+        $model->original = $model->attributes;
+        
+        return $model;
     }
 
     /**
@@ -186,6 +198,21 @@ abstract class Model implements \JsonSerializable
         }
         
         return $results;
+    }
+
+    /**
+     * Cuenta todos los registros de la tabla
+     * 
+     * @return int
+     */
+    public static function count()
+    {
+        $table = static::getTable();
+        $sql = "SELECT COUNT(*) as total FROM {$table}";
+        $stmt = self::getConnection()->query($sql);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return (int) ($result['total'] ?? 0);
     }
 
     /**

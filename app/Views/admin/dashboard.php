@@ -201,6 +201,7 @@ View::startSection('content');
     .quick-action-icon.manage { background: linear-gradient(45deg, #27ae60, #229954); }
     .quick-action-icon.reports { background: linear-gradient(45deg, #3498db, #2980b9); }
     .quick-action-icon.settings { background: linear-gradient(45deg, #f39c12, #e67e22); }
+    .quick-action-icon.email { background: linear-gradient(45deg, #e74c3c, #c0392b); }
 </style>
 
 <div class="container py-4" style="max-width: 1200px;">
@@ -277,7 +278,7 @@ View::startSection('content');
             </div>
             <h5>Gestionar Usuarios</h5>
             <p class="text-muted">Crear, editar y asignar roles a usuarios del sistema</p>
-            <a href="/admin/usuarios" class="btn btn-primary action-btn">
+            <a href="<?= url('/admin/usuarios') ?>" class="btn btn-primary action-btn">
                 <i class="fas fa-users me-2"></i>Ver Usuarios
             </a>
         </div>
@@ -288,7 +289,7 @@ View::startSection('content');
             </div>
             <h5>Seguimiento de Requisiciones</h5>
             <p class="text-muted">Monitorear flujo completo paso a paso con historial detallado</p>
-            <a href="/admin/requisiciones" class="btn btn-info action-btn">
+            <a href="<?= url('/admin/requisiciones') ?>" class="btn btn-info action-btn">
                 <i class="fas fa-chart-line me-2"></i>Ver Timeline
             </a>
         </div>
@@ -298,9 +299,31 @@ View::startSection('content');
                 <i class="fas fa-building"></i>
             </div>
             <h5>Centros de Costo</h5>
-            <p class="text-muted">Administrar centros de costo y cuentas contables</p>
-            <a href="/admin/catalogos" class="btn btn-success action-btn">
-                <i class="fas fa-cogs me-2"></i>Gestionar
+            <p class="text-muted">Administrar centros de costo del sistema</p>
+            <a href="<?= url('/admin/catalogos?tipo=centros') ?>" class="btn btn-success action-btn">
+                <i class="fas fa-building me-2"></i>Gestionar
+            </a>
+        </div>
+        
+        <div class="quick-action-card">
+            <div class="quick-action-icon" style="background: linear-gradient(45deg, #6f42c1, #9b59b6);">
+                <i class="fas fa-calculator"></i>
+            </div>
+            <h5>Cuentas Contables</h5>
+            <p class="text-muted">Administrar catálogo de cuentas contables</p>
+            <a href="<?= url('/admin/catalogos?tipo=cuentas') ?>" class="btn action-btn" style="background: linear-gradient(45deg, #6f42c1, #9b59b6); color: white;">
+                <i class="fas fa-calculator me-2"></i>Gestionar
+            </a>
+        </div>
+        
+        <div class="quick-action-card">
+            <div class="quick-action-icon" style="background: linear-gradient(45deg, #17a2b8, #20c997);">
+                <i class="fas fa-project-diagram"></i>
+            </div>
+            <h5>Relaciones</h5>
+            <p class="text-muted">Ver mapeo Centro Costo → Unidad Negocio → Factura</p>
+            <a href="<?= url('/admin/relaciones') ?>" class="btn action-btn" style="background: linear-gradient(45deg, #17a2b8, #20c997); color: white;">
+                <i class="fas fa-project-diagram me-2"></i>Ver Mapeo
             </a>
         </div>
         
@@ -310,7 +333,7 @@ View::startSection('content');
             </div>
             <h5>Reportes</h5>
             <p class="text-muted">Generar reportes y estadísticas del sistema</p>
-            <a href="/admin/reportes" class="btn btn-warning action-btn">
+            <a href="<?= url('/admin/reportes') ?>" class="btn btn-warning action-btn">
                 <i class="fas fa-file-alt me-2"></i>Ver Reportes
             </a>
         </div>
@@ -322,21 +345,32 @@ View::startSection('content');
             <h5>Autorizadores</h5>
             <p class="text-muted">Gestionar autorizadores generales y especiales</p>
             <div class="btn-group-vertical w-100" role="group">
-                <a href="/admin/autorizadores" class="btn btn-danger action-btn mb-1">
+                <a href="<?= url('/admin/autorizadores') ?>" class="btn btn-danger action-btn mb-1">
                     <i class="fas fa-shield-alt me-2"></i>Generales
                 </a>
                 <div class="btn-group" role="group">
-                    <a href="/admin/autorizadores/respaldos" class="btn btn-outline-danger btn-sm">
+                    <a href="<?= url('/admin/autorizadores/respaldos') ?>" class="btn btn-outline-danger btn-sm">
                         <i class="fas fa-hands-helping me-1"></i>Respaldos
                     </a>
-                    <a href="/admin/autorizadores/metodos-pago" class="btn btn-outline-info btn-sm">
+                    <a href="<?= url('/admin/autorizadores/metodos-pago') ?>" class="btn btn-outline-info btn-sm">
                         <i class="fas fa-credit-card me-1"></i>M. Pago
                     </a>
-                    <a href="/admin/autorizadores/cuentas-contables" class="btn btn-outline-secondary btn-sm">
+                    <a href="<?= url('/admin/autorizadores/cuentas-contables') ?>" class="btn btn-outline-secondary btn-sm">
                         <i class="fas fa-calculator me-1"></i>Cuentas
                     </a>
                 </div>
             </div>
+        </div>
+        
+        <div class="quick-action-card">
+            <div class="quick-action-icon email">
+                <i class="fas fa-envelope"></i>
+            </div>
+            <h5>Configuración de Correo</h5>
+            <p class="text-muted">Gestionar servidor SMTP y plantillas de correo electrónico</p>
+            <a href="<?= url('/admin/email') ?>" class="btn btn-danger action-btn">
+                <i class="fas fa-envelope me-2"></i>Configurar Correo
+            </a>
         </div>
     </div>
 
@@ -405,7 +439,7 @@ View::startSection('content');
                     <?php endif; ?>
                     
                     <div class="text-center mt-3">
-                        <a href="/admin/usuarios" class="btn btn-outline-primary">
+                        <a href="<?= url('/admin/usuarios') ?>" class="btn btn-outline-primary">
                             <i class="fas fa-eye me-2"></i>Ver Todos los Usuarios
                         </a>
                     </div>
@@ -443,7 +477,7 @@ View::startSection('content');
                                     <td><?php echo View::e($auth['orden']->nombre_razon_social ?? 'N/A'); ?></td>
                                     <td>
                                         <strong class="text-primary">
-                                            <?php echo View::money($auth['orden']->monto_total); ?>
+                                            <?php echo View::money($auth['orden']->monto_total, $auth['orden']->moneda ?? 'GTQ'); ?>
                                         </strong>
                                     </td>
                                     <td>
@@ -465,7 +499,7 @@ View::startSection('content');
                     <?php endif; ?>
                     
                     <div class="text-center mt-3">
-                        <a href="/autorizaciones" class="btn btn-outline-warning">
+                        <a href="<?= url('/autorizaciones') ?>" class="btn btn-outline-warning">
                             <i class="fas fa-tasks me-2"></i>Ver Autorizaciones
                         </a>
                     </div>

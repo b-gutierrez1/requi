@@ -13,40 +13,34 @@ class AutorizacionFlujoAdaptador extends Model
     protected static $table = 'autorizacion_flujo'; // Tabla original (mantener para no romper)
 
     /**
+     * Busca flujo por requisición
+     */
+    public static function porRequisicion($requisicionId)
+    {
+        return self::porOrdenCompra($requisicionId);
+    }
+
+    /**
      * Busca flujo por orden de compra (adaptado al nuevo esquema)
+     * @deprecated Usar porRequisicion() en su lugar
      */
     public static function porOrdenCompra($ordenCompraId)
     {
         try {
-            // Primero intentar con la tabla nueva
             $pdo = static::getConnection();
             
-            // Buscar en requisiciones (nueva tabla)
-            $stmt = $pdo->prepare("SELECT * FROM requisiciones WHERE id = ? LIMIT 1");
+            // Buscar directamente en la tabla autorizacion_flujo (que es la correcta)
+            $stmt = $pdo->prepare("SELECT * FROM autorizacion_flujo WHERE requisicion_id = ? LIMIT 1");
             $stmt->execute([$ordenCompraId]);
-            $requisicion = $stmt->fetch(\PDO::FETCH_ASSOC);
+            $flujo = $stmt->fetch(\PDO::FETCH_ASSOC);
             
-            if ($requisicion) {
-                // Simular estructura de autorizacion_flujo para compatibilidad
-                return [
-                    'id' => $requisicion['id'], // Usar el mismo ID
-                    'orden_compra_id' => $requisicion['id'],
-                    'estado' => self::mapearEstadoNuevoAViejo($requisicion['estado']),
-                    'revisor_email' => 'admin@sistema.com', // Valor por defecto
-                    'revisor_comentario' => null,
-                    'revisor_fecha' => null,
-                    'fecha_creacion' => $requisicion['created_at'],
-                    'prioridad' => $requisicion['prioridad'] ?? 'normal',
-                    'monto_total' => $requisicion['monto_total'],
-                    'fecha_limite' => $requisicion['fecha_limite'],
-                    'fecha_completado' => $requisicion['fecha_completada']
-                ];
+            if ($flujo) {
+                // Devolver el flujo tal como está, con sus IDs correctos
+                return $flujo;
             }
             
-            // Si no existe en requisiciones, buscar en tabla vieja
-            $stmt = $pdo->prepare("SELECT * FROM autorizacion_flujo WHERE orden_compra_id = ? LIMIT 1");
-            $stmt->execute([$ordenCompraId]);
-            return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+            // Si no existe flujo, retornar null
+            return null;
             
         } catch (\Exception $e) {
             error_log("Error en AutorizacionFlujoAdaptador::porOrdenCompra: " . $e->getMessage());
@@ -68,7 +62,7 @@ class AutorizacionFlujoAdaptador extends Model
             $stmt = $pdo->prepare("
                 SELECT 
                     id,
-                    id as orden_compra_id,
+                    id as requisicion_id,
                     estado,
                     prioridad,
                     monto_total,
@@ -97,14 +91,8 @@ class AutorizacionFlujoAdaptador extends Model
         try {
             $pdo = static::getConnection();
             
-            // Actualizar estado en requisiciones
-            $stmt = $pdo->prepare("
-                UPDATE requisiciones 
-                SET estado = 'pendiente_autorizacion', 
-                    updated_at = NOW() 
-                WHERE id = ?
-            ");
-            $resultado = $stmt->execute([$flujoId]);
+            // Nota: Ya no actualizamos estado en requisiciones - se maneja solo desde flujo
+            $resultado = true;
             
             if ($resultado) {
                 // Crear autorización de revisión como aprobada
@@ -132,14 +120,8 @@ class AutorizacionFlujoAdaptador extends Model
         try {
             $pdo = static::getConnection();
             
-            // Actualizar estado en requisiciones
-            $stmt = $pdo->prepare("
-                UPDATE requisiciones 
-                SET estado = 'rechazada', 
-                    updated_at = NOW() 
-                WHERE id = ?
-            ");
-            $resultado = $stmt->execute([$flujoId]);
+            // Nota: Ya no actualizamos estado en requisiciones - se maneja solo desde flujo
+            $resultado = true;
             
             if ($resultado) {
                 // Crear autorización de revisión como rechazada
@@ -232,7 +214,7 @@ class AutorizacionFlujoAdaptador extends Model
             $stmt = $pdo->prepare("
                 SELECT 
                     accion as evento,
-                    comentarios as descripcion,
+                    descripcion,
                     fecha_cambio,
                     usuario_email,
                     estado_anterior,
@@ -255,8 +237,8 @@ class AutorizacionFlujoAdaptador extends Model
                         usuario_email,
                         '' as estado_anterior,
                         '' as estado_nuevo
-                    FROM historial_requisicion 
-                    WHERE orden_compra_id = ?
+                    FROM historial_requisiciones 
+                    WHERE requisicion_id = ?
                     ORDER BY fecha DESC
                     LIMIT 20
                 ");

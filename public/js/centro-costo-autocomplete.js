@@ -167,7 +167,7 @@ class CentroCostoAutocompletado {
         
         const totalGeneralElement = document.getElementById('totalGeneral');
         if (totalGeneralElement) {
-            totalGeneralElement.textContent = `Q ${this.totalGeneral.toFixed(2)}`;
+            totalGeneralElement.textContent = `Q ${this.totalGeneral.toFixed(5)}`;
         }
     }
 
@@ -238,13 +238,13 @@ class CentroCostoAutocompletado {
                 // Actualizar porcentaje
                 const porcentajeCell = fila.querySelector('.porcentaje-factura');
                 if (porcentajeCell) {
-                    porcentajeCell.textContent = `${datosFactura.porcentaje.toFixed(2)}%`;
+                    porcentajeCell.textContent = `${datosFactura.porcentaje.toFixed(5)}%`;
                 }
                 
                 // Actualizar monto
                 const montoCell = fila.querySelector('.monto-factura');
                 if (montoCell) {
-                    montoCell.textContent = `Q ${datosFactura.total.toFixed(2)}`;
+                    montoCell.textContent = `Q ${datosFactura.total.toFixed(5)}`;
                 }
             }
         });
@@ -257,11 +257,11 @@ class CentroCostoAutocompletado {
         const totalMontoElement = document.getElementById('totalMontoFacturas');
         
         if (totalPorcentajeElement) {
-            totalPorcentajeElement.textContent = `${totalPorcentaje.toFixed(2)}%`;
+            totalPorcentajeElement.textContent = `${totalPorcentaje.toFixed(5)}%`;
         }
         
         if (totalMontoElement) {
-            totalMontoElement.textContent = `Q ${totalMonto.toFixed(2)}`;
+            totalMontoElement.textContent = `Q ${totalMonto.toFixed(5)}`;
         }
     }
 
@@ -282,7 +282,7 @@ class CentroCostoAutocompletado {
         // Mostrar indicador visual
         const indicadorPorcentaje = document.getElementById('indicadorPorcentaje');
         if (indicadorPorcentaje) {
-            indicadorPorcentaje.textContent = `${totalPorcentaje.toFixed(2)}%`;
+            indicadorPorcentaje.textContent = `${totalPorcentaje.toFixed(5)}%`;
             indicadorPorcentaje.className = esValido ? 'text-success' : 'text-danger';
         }
         
@@ -293,7 +293,7 @@ class CentroCostoAutocompletado {
                 mensajeValidacion.textContent = '✓ Los porcentajes suman correctamente';
                 mensajeValidacion.className = 'text-success small';
             } else {
-                mensajeValidacion.textContent = `⚠ Los porcentajes deben sumar exactamente 100% (actual: ${totalPorcentaje.toFixed(2)}%)`;
+                mensajeValidacion.textContent = `⚠ Los porcentajes deben sumar exactamente 100% (actual: ${totalPorcentaje.toFixed(5)}%)`;
                 mensajeValidacion.className = 'text-danger small';
             }
         }
@@ -461,7 +461,7 @@ class CentroCostoAutocompletado {
         const porcentaje = parseFloat(porcentajeInput.value) || 0;
         const cantidad = (porcentaje / 100) * this.totalGeneral;
         
-        cantidadInput.value = cantidad.toFixed(2);
+        cantidadInput.value = cantidad.toFixed(5);
     }
 
     /**

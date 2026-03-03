@@ -445,7 +445,7 @@ document.getElementById('formCrearUsuario').addEventListener('submit', function(
 
 // Editar usuario
 function editarUsuario(id) {
-    window.location.href = `/admin/usuarios/${id}/edit`;
+    window.location.href = '<?= url('/admin/usuarios/') ?>' + id + '/edit';
 }
 
 // Toggle estado
@@ -455,7 +455,7 @@ function toggleUsuario(id, nuevoEstado) {
         return;
     }
     
-    fetch(`/admin/usuarios/${id}/toggle`, {
+    fetch('<?= url('/admin/usuarios/') ?>' + id + '/toggle', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

@@ -177,7 +177,7 @@ $title = 'Gestión de Centros de Costo';
                 <p class="mb-0 opacity-75">Administra los centros de costo del sistema</p>
             </div>
             <div class="col-md-6 text-end">
-                <a href="/admin/centros/create" class="btn btn-create">
+                <a href="<?= url('/admin/centros/create') ?>" class="btn btn-create">
                     <i class="fas fa-plus me-2"></i>
                     Nuevo Centro de Costo
                 </a>
@@ -252,11 +252,12 @@ $title = 'Gestión de Centros de Costo';
                 <thead>
                     <tr>
                         <th width="5%">ID</th>
-                        <th width="25%">Nombre</th>
-                        <th width="25%">Descripción</th>
-                        <th width="15%">Código</th>
-                        <th width="10%">Estado</th>
+                        <th width="20%">Nombre</th>
+                        <th width="20%">Descripción</th>
+                        <th width="10%">Código</th>
+                        <th width="8%">Estado</th>
                         <th width="10%">Unidad Negocio</th>
+                        <th width="8%">Factura</th>
                         <th width="10%" class="text-center">Acciones</th>
                     </tr>
                 </thead>
@@ -303,35 +304,45 @@ $title = 'Gestión de Centros de Costo';
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-center">
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-file-invoice me-1"></i><?= View::e($centro->factura ?? 1) ?>
+                                    </span>
+                                </td>
+                                <td class="text-center">
                                     <div class="btn-group btn-group-sm">
-                                        <a href="/admin/centros/<?= View::e($centro->id) ?>"
+                                        <a href="<?= url('/admin/centros/' . $centro->id) ?>"
                                            class="btn btn-outline-primary btn-action"
                                            title="Ver detalles">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <a href="/admin/centros/<?= View::e($centro->id) ?>/edit"
+                                        <a href="<?= url('/admin/centros/' . $centro->id . '/edit') ?>"
                                            class="btn btn-outline-warning btn-action"
-                                           title="Editar">
+                                           title="Editar centro">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="/admin/centros/<?= View::e($centro->id) ?>/delete"
-                                           class="btn btn-outline-danger btn-action"
-                                           title="Eliminar"
-                                           onclick="return confirm('¿Estás seguro de eliminar este centro de costo?')">
-                                            <i class="fas fa-trash"></i>
+                                        <a href="<?= url('/admin/autorizadores?centro=' . $centro->id) ?>"
+                                           class="btn btn-outline-info btn-action"
+                                           title="Gestionar autorizadores">
+                                            <i class="fas fa-users"></i>
                                         </a>
+                                        <button type="button"
+                                                class="btn btn-outline-danger btn-action"
+                                                onclick="eliminarCentro(<?= $centro->id ?>, '<?= addslashes($centro->nombre ?? 'Sin nombre') ?>')"
+                                                title="Eliminar centro">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7" class="text-center py-5">
+                            <td colspan="8" class="text-center py-5">
                                 <div class="empty-state">
                                     <i class="fas fa-building"></i>
                                     <h4>No hay centros de costo</h4>
                                     <p class="mb-3">No se encontraron centros de costo en el sistema.</p>
-                                    <a href="/admin/centros/create" class="btn btn-create">
+                                    <a href="<?= url('/admin/centros/create') ?>" class="btn btn-create">
                                         <i class="fas fa-plus me-2"></i>Crear Primer Centro
                                     </a>
                                 </div>
@@ -352,7 +363,7 @@ $title = 'Gestión de Centros de Costo';
             <a href="/dashboard" class="btn btn-outline-primary me-2">
                 <i class="fas fa-home me-2"></i>Dashboard
             </a>
-            <a href="/admin/centros/create" class="btn btn-create">
+            <a href="<?= url('/admin/centros/create') ?>" class="btn btn-create">
                 <i class="fas fa-plus me-2"></i>Nuevo Centro
             </a>
         </div>
@@ -400,5 +411,38 @@ $title = 'Gestión de Centros de Costo';
             activeBtn.classList.add('active');
         }
     }
+
+    // Función para eliminar centro de costo
+    function eliminarCentro(id, nombre) {
+        if (confirm(`¿Estás seguro de que deseas eliminar el centro de costo "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
+            // Crear formulario para envío por DELETE method
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `<?= url('/admin/centros/') ?>${id}`;
+            
+            // Agregar campo _method para DELETE
+            const methodField = document.createElement('input');
+            methodField.type = 'hidden';
+            methodField.name = '_method';
+            methodField.value = 'DELETE';
+            form.appendChild(methodField);
+            
+            // Agregar token CSRF si está disponible
+            const csrfToken = document.querySelector('meta[name="csrf-token"]');
+            if (csrfToken) {
+                const tokenField = document.createElement('input');
+                tokenField.type = 'hidden';
+                tokenField.name = '_token';
+                tokenField.value = csrfToken.getAttribute('content');
+                form.appendChild(tokenField);
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    // Hacer la función global para que sea accesible desde onclick
+    window.eliminarCentro = eliminarCentro;
 </script>
 <?php View::endSection(); ?>

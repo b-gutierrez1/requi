@@ -35,7 +35,7 @@ class UnidadRequirente extends Model
      */
     public function ordenesCompra()
     {
-        $sql = "SELECT * FROM orden_compra WHERE unidad_requirente = ? ORDER BY fecha DESC";
+        $sql = "SELECT * FROM requisiciones WHERE unidad_requirente = ? ORDER BY fecha DESC";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$this->attributes['id']]);
         
@@ -49,9 +49,7 @@ class UnidadRequirente extends Model
      */
     public static function activas()
     {
-        $instance = new static();
-        
-        $sql = "SELECT * FROM {$instance->table} WHERE activo = 1 ORDER BY nombre ASC";
+        $sql = "SELECT * FROM " . static::$table . " WHERE activo = 1 ORDER BY nombre ASC";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute();
         
@@ -66,9 +64,7 @@ class UnidadRequirente extends Model
      */
     public static function buscar($termino)
     {
-        $instance = new static();
-        
-        $sql = "SELECT * FROM {$instance->table} 
+        $sql = "SELECT * FROM " . static::$table . " 
                 WHERE (nombre LIKE ? OR codigo LIKE ?) 
                 AND activo = 1 
                 ORDER BY nombre ASC";
@@ -88,9 +84,7 @@ class UnidadRequirente extends Model
      */
     public static function porCodigo($codigo)
     {
-        $instance = new static();
-        
-        $sql = "SELECT * FROM {$instance->table} WHERE codigo = ? LIMIT 1";
+        $sql = "SELECT * FROM " . static::$table . " WHERE codigo = ? LIMIT 1";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$codigo]);
         
@@ -117,8 +111,8 @@ class UnidadRequirente extends Model
     public function contarRequisiciones($estado = null)
     {
         $sql = "SELECT COUNT(*) as total
-                FROM orden_compra oc
-                LEFT JOIN autorizacion_flujo af ON oc.id = af.orden_compra_id
+                FROM requisiciones oc
+                LEFT JOIN autorizacion_flujo af ON oc.id = af.requisicion_id
                 WHERE oc.unidad_requirente = ?";
         
         $params = [$this->attributes['id']];
@@ -145,7 +139,7 @@ class UnidadRequirente extends Model
     public function getTotalGastado($fechaInicio = null, $fechaFin = null)
     {
         $sql = "SELECT SUM(oc.monto_total) as total
-                FROM orden_compra oc
+                FROM requisiciones oc
                 WHERE oc.unidad_requirente = ?";
         
         $params = [$this->attributes['id']];
@@ -178,8 +172,8 @@ class UnidadRequirente extends Model
                     SUM(CASE WHEN af.estado = 'pendiente_autorizacion' THEN 1 ELSE 0 END) as pendientes_autorizacion,
                     SUM(CASE WHEN af.estado = 'autorizado' THEN 1 ELSE 0 END) as autorizadas,
                     SUM(CASE WHEN af.estado = 'rechazado' THEN 1 ELSE 0 END) as rechazadas
-                FROM orden_compra oc
-                LEFT JOIN autorizacion_flujo af ON oc.id = af.orden_compra_id
+                FROM requisiciones oc
+                LEFT JOIN autorizacion_flujo af ON oc.id = af.requisicion_id
                 WHERE oc.unidad_requirente = ?";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -205,8 +199,8 @@ class UnidadRequirente extends Model
     public function getUltimasRequisiciones($limit = 10)
     {
         $sql = "SELECT oc.*, af.estado
-                FROM orden_compra oc
-                LEFT JOIN autorizacion_flujo af ON oc.id = af.orden_compra_id
+                FROM requisiciones oc
+                LEFT JOIN autorizacion_flujo af ON oc.id = af.requisicion_id
                 WHERE oc.unidad_requirente = ?
                 ORDER BY oc.fecha DESC
                 LIMIT ?";
@@ -225,8 +219,8 @@ class UnidadRequirente extends Model
     public function tienePendientes()
     {
         $sql = "SELECT COUNT(*) as total
-                FROM orden_compra oc
-                INNER JOIN autorizacion_flujo af ON oc.id = af.orden_compra_id
+                FROM requisiciones oc
+                INNER JOIN autorizacion_flujo af ON oc.id = af.requisicion_id
                 WHERE oc.unidad_requirente = ?
                 AND af.estado IN ('pendiente_revision', 'pendiente_autorizacion')";
         

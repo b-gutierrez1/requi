@@ -132,22 +132,37 @@ class Session
         // Limpiar todas las variables de sesión
         $_SESSION = [];
 
-        // Destruir la cookie de sesión
+        // Destruir la cookie de sesión en múltiples rutas
         if (isset($_COOKIE[session_name()])) {
-            setcookie(
-                session_name(),
-                '',
-                time() - 42000,
-                '/',
-                '',
-                isset($_SERVER['HTTPS']),
-                true
-            );
+            $sessionName = session_name();
+            $paths = ['/', '/requi/', '/requi'];
+            
+            foreach ($paths as $path) {
+                setcookie(
+                    $sessionName,
+                    '',
+                    time() - 42000,
+                    $path,
+                    '',
+                    isset($_SERVER['HTTPS']),
+                    true
+                );
+            }
+        }
+
+        // Regenerar el ID de sesión antes de destruir (seguridad adicional)
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
         }
 
         // Destruir la sesión
         session_destroy();
         self::$started = false;
+
+        // Limpiar superglobales relacionadas
+        if (isset($_SESSION)) {
+            unset($_SESSION);
+        }
     }
 
     /**

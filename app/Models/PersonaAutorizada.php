@@ -92,7 +92,8 @@ class PersonaAutorizada extends Model
      */
     public static function principalPorCentro($centroCostoId)
     {
-        $sql = "SELECT * FROM persona_autorizada 
+        $table = static::getTable();
+        $sql = "SELECT * FROM {$table} 
                 WHERE centro_costo_id = ? 
                 ORDER BY id ASC 
                 LIMIT 1";
@@ -218,18 +219,18 @@ class PersonaAutorizada extends Model
     public static function autorizacionesPendientes($email)
     {
         $sql = "SELECT 
-                    acc.*,
+                    a.*,
                     oc.id as orden_id,
                     oc.nombre_razon_social,
                     oc.monto_total,
                     oc.fecha,
                     cc.nombre as centro_costo_nombre
-                FROM autorizacion_centro_costo acc
-                INNER JOIN autorizacion_flujo af ON acc.autorizacion_flujo_id = af.id
-                INNER JOIN orden_compra oc ON af.orden_compra_id = oc.id
-                INNER JOIN centro_de_costo cc ON acc.centro_costo_id = cc.id
-                WHERE acc.autorizador_email = ?
-                AND acc.estado = 'pendiente'
+                FROM autorizaciones a
+                INNER JOIN requisiciones oc ON a.requisicion_id = oc.id
+                LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+                WHERE a.autorizador_email = ?
+                  AND a.estado = 'pendiente'
+                  AND a.tipo = 'centro_costo'
                 ORDER BY oc.fecha DESC";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -247,11 +248,10 @@ class PersonaAutorizada extends Model
     public static function contarPendientes($email)
     {
         $sql = "SELECT COUNT(*) as total
-                FROM autorizacion_centro_costo acc
-                INNER JOIN autorizacion_flujo af ON acc.autorizacion_flujo_id = af.id
-                WHERE acc.autorizador_email = ?
-                AND acc.estado = 'pendiente'
-                AND af.estado = 'pendiente_autorizacion'";
+                FROM autorizaciones a
+                WHERE a.autorizador_email = ?
+                  AND a.estado = 'pendiente'
+                  AND a.tipo = 'centro_costo'";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$email]);
@@ -270,11 +270,12 @@ class PersonaAutorizada extends Model
     {
         $sql = "SELECT 
                     COUNT(*) as total_autorizaciones,
-                    SUM(CASE WHEN acc.estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
-                    SUM(CASE WHEN acc.estado = 'autorizado' THEN 1 ELSE 0 END) as autorizadas,
-                    SUM(CASE WHEN acc.estado = 'rechazado' THEN 1 ELSE 0 END) as rechazadas
-                FROM autorizacion_centro_costo acc
-                WHERE acc.autorizador_email = ?";
+                    SUM(CASE WHEN a.estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
+                    SUM(CASE WHEN a.estado = 'aprobada' THEN 1 ELSE 0 END) as autorizadas,
+                    SUM(CASE WHEN a.estado = 'rechazada' THEN 1 ELSE 0 END) as rechazadas
+                FROM autorizaciones a
+                WHERE a.autorizador_email = ?
+                  AND a.tipo = 'centro_costo'";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$email]);

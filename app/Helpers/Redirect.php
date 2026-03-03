@@ -1,70 +1,147 @@
 <?php
 /**
  * Redirect Helper
- * 
+ *
  * Sistema de redirecciones con soporte para:
  * - Redirecciones simples
  * - Redirecciones con mensajes flash
  * - Redirecciones con datos antiguos
  * - Redirecciones con errores
  * - Rutas nombradas
- * 
+ *
  * @package RequisicionesMVC\Helpers
- * @version 2.0
+ * @version 2.1 - Corregido para usar base_path
  */
 
 namespace App\Helpers;
+
+use App\Helpers\Config;
 
 class Redirect
 {
     /**
      * URL de redirección
-     * 
+     *
      * @var string
      */
     private $url;
 
     /**
      * Código de estado HTTP
-     * 
+     *
      * @var int
      */
     private $statusCode = 302;
 
     /**
      * Datos flash a guardar
-     * 
+     *
      * @var array
      */
     private $flashData = [];
 
     /**
      * Datos antiguos a guardar
-     * 
+     *
      * @var array
      */
     private $oldData = [];
 
     /**
      * Errores a guardar
-     * 
+     *
      * @var array
      */
     private $errors = [];
 
     /**
      * Constructor privado (usar métodos estáticos)
-     * 
+     *
      * @param string $url URL de redirección
      */
     private function __construct($url)
     {
-        $this->url = $url;
+        $this->url = self::url($url);
+    }
+
+
+    /**
+     * Obtiene la URL base de la aplicación desde la configuración
+     *
+     * @return string
+     */
+    private static function getBasePath()
+    {
+        // RESET: Removido cache estático para forzar recálculo
+        // Intentar obtener del .env primero
+        $appUrl = getenv('APP_URL');
+        
+        if ($appUrl) {
+            // Extraer el path de la URL completa
+            $parsed = parse_url($appUrl);
+            $basePath = $parsed['path'] ?? '';
+        } else {
+            // Detección automática desde SCRIPT_NAME
+            // SCRIPT_NAME contiene el path completo hasta index.php, ej: /requi/public/index.php
+            $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+            if ($scriptName) {
+                // Extraer el directorio base desde el script path
+                // Si está en /requi/public/index.php, el base path es /requi
+                $pathParts = explode('/', trim($scriptName, '/'));
+                // Remover 'public' e 'index.php' si existen
+                $pathParts = array_filter($pathParts, function($part) {
+                    return $part !== 'public' && $part !== 'index.php';
+                });
+                if (!empty($pathParts)) {
+                    $basePath = '/' . implode('/', $pathParts);
+                } else {
+                    // Fallback a la configuración
+                    $basePath = Config::get('app.base_path', '');
+                }
+            } else {
+                // Fallback a la configuración
+                $basePath = Config::get('app.base_path', '');
+            }
+        }
+        
+        // Asegurar que no termine con /
+        $basePath = rtrim($basePath, '/');
+        
+        return $basePath;
+    }
+
+    /**
+     * Construye una URL completa con el base path
+     *
+     * @param string $path Ruta relativa
+     * @return string URL completa
+     */
+    public static function url($path)
+    {
+        // Si es una URL externa o absoluta completa, retornar tal cual
+        if (self::isExternal($path) || str_starts_with($path, 'http')) {
+            return $path;
+        }
+
+        $basePath = self::getBasePath();
+        
+        // Asegurar que el path empiece con /
+        if (!str_starts_with($path, '/')) {
+            $path = '/' . $path;
+        }
+
+        // FIXED: Construir la URL completa SIEMPRE (sin verificar si ya incluye basePath)
+        $url = $basePath . $path;
+
+        // Limpiar múltiples /
+        $url = preg_replace('#/+#', '/', $url);
+
+        return $url;
     }
 
     /**
      * Crea una redirección a una URL
-     * 
+     *
      * @param string $url URL de destino
      * @return self
      */
@@ -75,7 +152,7 @@ class Redirect
 
     /**
      * Redirige a una ruta con nombre
-     * 
+     *
      * @param string $name Nombre de la ruta
      * @param array $params Parámetros para la ruta
      * @return self
@@ -85,18 +162,18 @@ class Redirect
         // TODO: Implementar sistema de rutas nombradas
         // Por ahora, simplemente usamos la URL directamente
         $url = $name;
-        
+
         // Reemplazar parámetros en la URL
         foreach ($params as $key => $value) {
             $url = str_replace('{' . $key . '}', $value, $url);
         }
-        
+
         return new self($url);
     }
 
     /**
      * Redirige al home
-     * 
+     *
      * @return self
      */
     public static function home()
@@ -106,7 +183,7 @@ class Redirect
 
     /**
      * Redirige al dashboard
-     * 
+     *
      * @return self
      */
     public static function dashboard()
@@ -116,7 +193,7 @@ class Redirect
 
     /**
      * Redirige a la página anterior
-     * 
+     *
      * @return self
      */
     public static function back()
@@ -127,7 +204,7 @@ class Redirect
 
     /**
      * Redirige a la URL de redirección guardada
-     * 
+     *
      * @param string $default URL por defecto si no hay guardada
      * @return self
      */
@@ -139,7 +216,7 @@ class Redirect
 
     /**
      * Agrega un mensaje flash de éxito
-     * 
+     *
      * @param string $message Mensaje
      * @return self
      */
@@ -149,13 +226,13 @@ class Redirect
             'type' => 'success',
             'message' => $message
         ];
-        
+
         return $this;
     }
 
     /**
      * Agrega un mensaje flash de error
-     * 
+     *
      * @param string $message Mensaje
      * @return self
      */
@@ -165,13 +242,13 @@ class Redirect
             'type' => 'error',
             'message' => $message
         ];
-        
+
         return $this;
     }
 
     /**
      * Agrega un mensaje flash de advertencia
-     * 
+     *
      * @param string $message Mensaje
      * @return self
      */
@@ -181,13 +258,13 @@ class Redirect
             'type' => 'warning',
             'message' => $message
         ];
-        
+
         return $this;
     }
 
     /**
      * Agrega un mensaje flash de información
-     * 
+     *
      * @param string $message Mensaje
      * @return self
      */
@@ -197,13 +274,13 @@ class Redirect
             'type' => 'info',
             'message' => $message
         ];
-        
+
         return $this;
     }
 
     /**
      * Agrega un mensaje flash personalizado
-     * 
+     *
      * @param string $type Tipo de mensaje
      * @param string $message Mensaje
      * @return self
@@ -214,13 +291,13 @@ class Redirect
             'type' => $type,
             'message' => $message
         ];
-        
+
         return $this;
     }
 
     /**
      * Guarda errores de validación
-     * 
+     *
      * @param array $errors Errores ['campo' => 'mensaje']
      * @return self
      */
@@ -232,7 +309,7 @@ class Redirect
 
     /**
      * Guarda los datos del input anterior
-     * 
+     *
      * @param array $data Datos del formulario
      * @return self
      */
@@ -242,14 +319,14 @@ class Redirect
             // Usar datos del POST
             $data = $_POST;
         }
-        
+
         $this->oldData = $data;
         return $this;
     }
 
     /**
      * Guarda datos en la sesión
-     * 
+     *
      * @param string|array $key Clave o array de datos
      * @param mixed $value Valor (si $key es string)
      * @return self
@@ -257,7 +334,7 @@ class Redirect
     public function with($key, $value = null)
     {
         Session::start();
-        
+
         if (is_array($key)) {
             foreach ($key as $k => $v) {
                 Session::set($k, $v);
@@ -265,13 +342,13 @@ class Redirect
         } else {
             Session::set($key, $value);
         }
-        
+
         return $this;
     }
 
     /**
      * Establece el código de estado HTTP
-     * 
+     *
      * @param int $code Código de estado
      * @return self
      */
@@ -283,7 +360,7 @@ class Redirect
 
     /**
      * Establece redirección permanente (301)
-     * 
+     *
      * @return self
      */
     public function permanent()
@@ -294,7 +371,7 @@ class Redirect
 
     /**
      * Ejecuta la redirección
-     * 
+     *
      * @return void
      */
     public function send()
@@ -324,7 +401,7 @@ class Redirect
 
     /**
      * Alias de send() - Ejecuta la redirección
-     * 
+     *
      * @return void
      */
     public function go()
@@ -334,21 +411,22 @@ class Redirect
 
     /**
      * Redirección rápida sin configuración adicional
-     * 
+     *
      * @param string $url URL de destino
      * @param int $statusCode Código de estado
      * @return void
      */
     public static function now($url, $statusCode = 302)
     {
+        $fullUrl = self::url($url);
         http_response_code($statusCode);
-        header('Location: ' . $url);
+        header('Location: ' . $fullUrl);
         exit;
     }
 
     /**
      * Redirección con mensaje de éxito (atajo)
-     * 
+     *
      * @param string $url URL de destino
      * @param string $message Mensaje de éxito
      * @return void
@@ -360,7 +438,7 @@ class Redirect
 
     /**
      * Redirección con mensaje de error (atajo)
-     * 
+     *
      * @param string $url URL de destino
      * @param string $message Mensaje de error
      * @return void
@@ -372,7 +450,7 @@ class Redirect
 
     /**
      * Redirección atrás con errores e input (atajo)
-     * 
+     *
      * @param array $errors Errores de validación
      * @param array|null $input Datos del formulario
      * @return void
@@ -380,36 +458,36 @@ class Redirect
     public static function backWithErrors($errors, $input = null)
     {
         $redirect = self::back()->withErrors($errors);
-        
+
         if ($input !== null) {
             $redirect->withInput($input);
         } else {
             $redirect->withInput();
         }
-        
+
         $redirect->send();
     }
 
     /**
      * Redirección al login
-     * 
+     *
      * @param string|null $message Mensaje opcional
      * @return void
      */
     public static function toLogin($message = null)
     {
         $redirect = self::to('/login');
-        
+
         if ($message) {
             $redirect->withWarning($message);
         }
-        
+
         $redirect->send();
     }
 
     /**
      * Redirección después del login
-     * 
+     *
      * @param string $default URL por defecto
      * @return void
      */
@@ -420,7 +498,7 @@ class Redirect
 
     /**
      * Recarga la página actual
-     * 
+     *
      * @return void
      */
     public static function refresh()
@@ -431,7 +509,7 @@ class Redirect
 
     /**
      * Construye una URL con query string
-     * 
+     *
      * @param string $url URL base
      * @param array $params Parámetros
      * @return string URL completa
@@ -448,7 +526,7 @@ class Redirect
 
     /**
      * Verifica si una URL es externa
-     * 
+     *
      * @param string $url URL a verificar
      * @return bool
      */
@@ -469,7 +547,7 @@ class Redirect
 
     /**
      * Normaliza una URL
-     * 
+     *
      * @param string $url URL a normalizar
      * @return string URL normalizada
      */
@@ -493,24 +571,24 @@ class Redirect
 
     /**
      * Obtiene la URL actual
-     * 
+     *
      * @param bool $withQuery Incluir query string
      * @return string
      */
     public static function current($withQuery = true)
     {
         $url = $_SERVER['REQUEST_URI'] ?? '/';
-        
+
         if (!$withQuery) {
             $url = strtok($url, '?');
         }
-        
+
         return $url;
     }
 
     /**
      * Obtiene la URL anterior (referer)
-     * 
+     *
      * @return string|null
      */
     public static function previous()

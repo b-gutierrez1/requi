@@ -2,8 +2,8 @@
 /**
  * AutorizacionController
  * 
- * Controlador para gestión de autorizaciones de requisiciones.
- * Maneja revisión, aprobación y rechazo en todos los niveles.
+ * Controlador para gestiÃ³n de autorizaciones de requisiciones.
+ * Maneja revisiÃ³n, aprobaciÃ³n y rechazo en todos los niveles.
  * 
  * @package RequisicionesMVC\Controllers
  * @version 2.0
@@ -17,16 +17,15 @@ use App\Helpers\Redirect;
 use App\Helpers\EstadoHelper;
 use App\Services\AutorizacionService;
 use App\Services\RequisicionService;
-use App\Models\OrdenCompra;
+use App\Models\Requisicion;
 use App\Models\AutorizacionFlujo;
 use App\Models\AutorizacionFlujoAdaptador;
-use App\Models\AutorizacionCentroCosto;
-use App\Models\AutorizacionCentroCostoAdaptador;
+use App\Repositories\AutorizacionCentroRepository;
 
 class AutorizacionController extends Controller
 {
     /**
-     * Servicio de autorización
+     * Servicio de autorizaciÃ³n
      * 
      * @var AutorizacionService
      */
@@ -40,6 +39,13 @@ class AutorizacionController extends Controller
     private $requisicionService;
 
     /**
+     * Repositorio de autorizaciones de centro
+     * 
+     * @var AutorizacionCentroRepository
+     */
+    private $autorizacionCentroRepo;
+
+    /**
      * Constructor
      */
     public function __construct()
@@ -48,10 +54,11 @@ class AutorizacionController extends Controller
         
         $this->autorizacionService = new AutorizacionService();
         $this->requisicionService = new RequisicionService();
+        $this->autorizacionCentroRepo = new AutorizacionCentroRepository();
     }
 
     // ========================================================================
-    // LISTADO Y VISUALIZACIÓN
+    // LISTADO Y VISUALIZACIÃ“N
     // ========================================================================
 
     /**
@@ -61,16 +68,19 @@ class AutorizacionController extends Controller
      */
     public function index()
     {
-        $usuarioEmail = $this->getUsuarioEmail();
-        
+        $usuarioEmail = $this->requireUsuarioEmail();
         error_log("AutorizacionController::index() - Usuario email: $usuarioEmail");
-        error_log("AutorizacionController::index() - Es revisor: " . (Session::isRevisor() ? 'SÍ' : 'NO'));
+        error_log("AutorizacionController::index() - Es revisor: " . (Session::isRevisor() ? 'SÃ' : 'NO'));
         
-        // Obtener requisiciones pendientes de revisión (para revisores)
+        // Obtener requisiciones pendientes de revisiÃ³n (para revisores)
         $requisicionesPendientesRevision = [];
         $esRevisor = Session::isRevisor() || $this->isRevisorPorEmail($usuarioEmail);
+        error_log("=== DEBUG REVISIÓN ===");
+        error_log("Es revisor: " . ($esRevisor ? 'SÍ' : 'NO'));
         if ($esRevisor) {
             $requisicionesPendientesRevision = $this->autorizacionService->getRequisicionesPendientesRevision();
+            error_log("Requisiciones pendientes de revisión encontradas: " . count($requisicionesPendientesRevision));
+            error_log("Requisiciones: " . json_encode($requisicionesPendientesRevision));
         }
         
         // Obtener autorizaciones pendientes (para autorizadores por centro de costo)
@@ -79,11 +89,17 @@ class AutorizacionController extends Controller
         // Obtener TODAS las autorizaciones unificadas (centro + especiales + respaldos)
         $todasAutorizaciones = $this->autorizacionService->getTodasAutorizacionesPendientes($usuarioEmail);
         
+        error_log("=== TODAS LAS AUTORIZACIONES OBTENIDAS ===");
+        error_log("Total autorizaciones: " . count($todasAutorizaciones));
+        foreach ($todasAutorizaciones as $i => $auth) {
+            error_log("[$i] Tipo: " . ($auth['tipo'] ?? $auth['tipo_flujo']) . ", ID: " . $auth['id'] . ", Estado: " . ($auth['estado'] ?? 'N/A') . ", Email: " . ($auth['autorizador_email'] ?? 'N/A'));
+        }
+        
         // Separar por tipo para compatibilidad con vistas existentes
         $autorizacionesPendientesPago = array_filter($todasAutorizaciones, fn($a) => $a['tipo_flujo'] === 'forma_pago');
         $autorizacionesPendientesCuenta = array_filter($todasAutorizaciones, fn($a) => $a['tipo_flujo'] === 'cuenta_contable');
         
-        // Obtener información del tipo de autorizador
+        // Obtener informaciÃ³n del tipo de autorizador
         $tipoAutorizador = $this->autorizacionService->getTipoAutorizador($usuarioEmail);
         
         // Verificar si es autorizador de respaldo
@@ -94,10 +110,13 @@ class AutorizacionController extends Controller
         error_log("Forma de pago: " . count($autorizacionesPendientesPago));
         error_log("Cuenta contable: " . count($autorizacionesPendientesCuenta));
         foreach ($autorizacionesPendientes as $i => $auth) {
-            error_log("[$i] Orden {$auth['orden_id']}: {$auth['centro_nombre']} - {$auth['nombre_razon_social']}");
+            $ordenLogId = $auth['orden_id'] ?? $auth['requisicion_id'] ?? $auth['requisicion_id'] ?? 'N/A';
+            $centroLog = $auth['centro_nombre'] ?? 'Centro no definido';
+            $proveedorLog = $auth['nombre_razon_social'] ?? 'Proveedor no definido';
+            error_log("[$i] Orden {$ordenLogId}: {$centroLog} - {$proveedorLog}");
         }
 
-        // Obtener información adicional mejorada (con manejo de errores)
+        // Obtener informaciÃ³n adicional mejorada (con manejo de errores)
         $flujosPorVencer = [];
         $flujosVencidos = [];
         $flujosUrgentes = [];
@@ -109,9 +128,40 @@ class AutorizacionController extends Controller
         //     $flujosUrgentes = \App\Models\AutorizacionFlujo::porPrioridad('urgente');
         //     $estadisticasGenerales = \App\Models\AutorizacionFlujo::getEstadisticas();
         // } catch (\Exception $e) {
-        //     error_log("Error obteniendo información adicional: " . $e->getMessage());
+        //     error_log("Error obteniendo informaciÃ³n adicional: " . $e->getMessage());
         //     // Continuar sin las funcionalidades avanzadas
         // }
+
+        // Ordenar todos los arrays de mayor a menor (por ID de requisición)
+        usort($requisicionesPendientesRevision, function($a, $b) {
+            $idA = is_object($a) ? $a->id : ($a['id'] ?? 0);
+            $idB = is_object($b) ? $b->id : ($b['id'] ?? 0);
+            return $idB - $idA; // Descendente
+        });
+        
+        usort($autorizacionesPendientes, function($a, $b) {
+            $idA = $a['requisicion_id'] ?? $a['orden_id'] ?? $a['id'] ?? 0;
+            $idB = $b['requisicion_id'] ?? $b['orden_id'] ?? $b['id'] ?? 0;
+            return $idB - $idA; // Descendente
+        });
+        
+        usort($autorizacionesPendientesPago, function($a, $b) {
+            $idA = $a['requisicion_id'] ?? $a['orden_id'] ?? $a['id'] ?? 0;
+            $idB = $b['requisicion_id'] ?? $b['orden_id'] ?? $b['id'] ?? 0;
+            return $idB - $idA; // Descendente
+        });
+        
+        usort($autorizacionesPendientesCuenta, function($a, $b) {
+            $idA = $a['requisicion_id'] ?? $a['orden_id'] ?? $a['id'] ?? 0;
+            $idB = $b['requisicion_id'] ?? $b['orden_id'] ?? $b['id'] ?? 0;
+            return $idB - $idA; // Descendente
+        });
+        
+        usort($todasAutorizaciones, function($a, $b) {
+            $idA = $a['requisicion_id'] ?? $a['orden_id'] ?? $a['id'] ?? 0;
+            $idB = $b['requisicion_id'] ?? $b['orden_id'] ?? $b['id'] ?? 0;
+            return $idB - $idA; // Descendente
+        });
 
         // Combinar todas las listas
         $totalPendientes = count($requisicionesPendientesRevision) + count($autorizacionesPendientes) + 
@@ -122,7 +172,7 @@ class AutorizacionController extends Controller
             'autorizaciones_pendientes' => $autorizacionesPendientes,
             'autorizaciones_pendientes_pago' => $autorizacionesPendientesPago,
             'autorizaciones_pendientes_cuenta' => $autorizacionesPendientesCuenta,
-            'todas_autorizaciones' => $todasAutorizaciones, // NUEVO: Lista unificada
+            'todas_autorizaciones' => $todasAutorizaciones,
             'flujos_por_vencer' => $flujosPorVencer,
             'flujos_vencidos' => $flujosVencidos,
             'flujos_urgentes' => $flujosUrgentes,
@@ -130,60 +180,80 @@ class AutorizacionController extends Controller
             'total_pendientes' => $totalPendientes,
             'es_autorizador_pago' => $this->autorizacionService->esAutorizadorPago($usuarioEmail),
             'es_autorizador_cuenta' => $this->autorizacionService->esAutorizadorCuenta($usuarioEmail),
-            'es_autorizador_respaldo' => $esRespaldo, // NUEVO: Indica si es respaldo
-            'tipo_autorizador' => $tipoAutorizador, // NUEVO: Tipos de autorizador
+            'es_autorizador_respaldo' => $esRespaldo,
+            'tipo_autorizador' => $tipoAutorizador,
+            'es_revisor' => $esRevisor, // Para mostrar/ocultar sección de revisiones
             'title' => 'Mis Autorizaciones Pendientes'
         ]);
     }
 
     /**
-     * Muestra el detalle de una autorización
+     * Muestra el detalle de una autorizaciÃ³n
      * 
-     * @param int $id ID de la requisición
+     * @param int $id ID de la requisiciÃ³n
      * @return void
      */
     public function show($id)
     {
-        // Obtener requisición completa
-        $requisicion = $this->requisicionService->getRequisicionCompleta($id);
+        error_log("AutorizacionController::show() - ID recibido: $id");
+        
+        try {
+            // Primero verificar si es una autorización especial
+            $autorizacionEspecial = $this->esAutorizacionEspecial($id);
+            
+            if ($autorizacionEspecial) {
+                error_log("AutorizacionController::show() - Es autorización especial tipo: " . $autorizacionEspecial['tipo']);
+                $this->mostrarAutorizacionEspecial($autorizacionEspecial);
+                return;
+            }
+            
+            // Si no es especial, manejar como requisición normal
+            // Obtener requisiciÃ³n completa
+            $requisicion = $this->requisicionService->getRequisicionCompleta($id);
 
-        if (!$requisicion) {
+            if (!$requisicion) {
+                error_log("AutorizacionController::show() - Requisición NO encontrada con ID: $id");
+                Redirect::to('/autorizaciones')
+                    ->withError('RequisiciÃ³n no encontrada')
+                    ->send();
+                return;
+            }
+            
+            error_log("AutorizacionController::show() - Requisición encontrada correctamente");
+        } catch (\Exception $e) {
+            error_log("AutorizacionController::show() - Error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
             Redirect::to('/autorizaciones')
-                ->withError('Requisición no encontrada')
+                ->withError('Error al cargar la requisiciÃ³n: ' . $e->getMessage())
                 ->send();
+            return;
         }
 
-        // ✅ USAR SISTEMA CENTRALIZADO - Verificar permisos según el estado real
+        // âœ… USAR SISTEMA CENTRALIZADO - Verificar permisos segÃºn el estado real
         
-        // Obtener estado real de la requisición
+        // Obtener estado real de la requisiciÃ³n
         $orden = $requisicion['orden'];
         $estadoReal = is_object($orden) ? $orden->getEstadoReal() : EstadoHelper::getEstado($id);
         
-        $flujoTemp = $requisicion['flujo'] ?? AutorizacionFlujoAdaptador::porOrdenCompra($id);
+        $flujoTemp = $requisicion['flujo'] ?? AutorizacionFlujoAdaptador::porRequisicion($id);
         $estadoFlujo = $estadoReal; // Usar estado centralizado
         
-        $tienePermisos = false;
-        $mensajeError = 'No tienes permisos para ver esta requisición';
+        // Verificar permisos: permitir acceso más amplio a revisores y autorizadores
+        $orden = $requisicion['orden'];
+        $esDueÃ±o = (is_object($orden) ? $orden->usuario_id : $orden['usuario_id']) == $this->getUsuarioId();
+        $esRevisor = $this->isRevisor() || $this->isRevisorPorEmail($this->requireUsuarioEmail());
+        $esAutorizadorGeneral = $this->autorizacionService->esAutorizadorGeneral($this->requireUsuarioEmail());
+        $puedeAutorizar = $this->autorizacionService->puedeAutorizar($this->requireUsuarioEmail(), $id);
+        $esAdmin = $this->isAdmin();
         
-        if ($estadoFlujo === 'pendiente_revision') {
-            // Para revisión: verificar si es revisor o admin
-            $tienePermisos = $this->isRevisor() || $this->isAdmin();
-            $mensajeError = 'No tienes permisos de revisor para esta requisición';
-        } elseif ($estadoFlujo === 'pendiente_autorizacion') {
-            // Para autorización: verificar si puede autorizar específicamente
-            $tienePermisos = $this->autorizacionService->puedeAutorizar($this->getUsuarioEmail(), $id) || $this->isAdmin();
-            $mensajeError = 'No tienes permisos para autorizar esta requisición';
-        } else {
-            // Para otros estados: verificar si es el dueño, revisor, autorizador o admin
-            $orden = $requisicion['orden'];
-            $esDueño = (is_object($orden) ? $orden->usuario_id : $orden['usuario_id']) == $this->getUsuarioId();
-            $esRevisor = $this->isRevisor();
-            $puedeAutorizar = $this->autorizacionService->puedeAutorizar($this->getUsuarioEmail(), $id);
-            $esAdmin = $this->isAdmin();
-            
-            $tienePermisos = $esDueño || $esRevisor || $puedeAutorizar || $esAdmin;
-            $mensajeError = 'No tienes permisos para ver esta requisición';
-        }
+        // Permitir acceso si:
+        // 1. Es el dueño de la requisición
+        // 2. Es revisor (puede ver cualquier requisición para referencia)
+        // 3. Es autorizador general (puede ver cualquier requisición para contexto)
+        // 4. Puede autorizar específicamente esta requisición
+        // 5. Es administrador
+        $tienePermisos = $esDueÃ±o || $esRevisor || $esAutorizadorGeneral || $puedeAutorizar || $esAdmin;
+        $mensajeError = 'No tienes permisos para ver esta requisiciÃ³n';
         
         if (!$tienePermisos) {
             Redirect::to('/autorizaciones')
@@ -193,98 +263,108 @@ class AutorizacionController extends Controller
 
         // Obtener flujo y resumen completo
         $flujo = $requisicion['flujo'] ?? null;
+        $flujoId = null;
         $resumenCompleto = null;
         $historialCambios = [];
         
         // Si no tenemos flujo, buscarlo directamente
         if (!$flujo) {
-            $flujo = AutorizacionFlujoAdaptador::porOrdenCompra($id);
+            $flujo = AutorizacionFlujoAdaptador::porRequisicion($id);
         }
         
         if ($flujo) {
-            $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
+            if (is_object($flujo)) {
+                $flujoId = $flujo->id ?? ($flujo->requisicion_id ?? null);
+            } elseif (is_array($flujo)) {
+                $flujoId = $flujo['id'] ?? ($flujo['requisicion_id'] ?? null);
+            }
             
             try {
-                // Obtener resumen completo con nueva información
-                $resumenCompleto = AutorizacionFlujoAdaptador::getResumenCompleto($flujoId);
+                // Obtener resumen completo con nueva informaciÃ³n
+                if ($flujoId !== null) {
+                    $resumenCompleto = AutorizacionFlujoAdaptador::getResumenCompleto($flujoId);
+                }
                 
                 // Obtener historial de cambios
-                $historialCambios = AutorizacionFlujoAdaptador::getHistorialCambios($flujoId);
+                if ($flujoId !== null) {
+                    $historialCambios = AutorizacionFlujoAdaptador::getHistorialCambios($flujoId);
+                }
                 
-                // Establecer prioridad automática si no existe
-                if ($resumenCompleto && !$resumenCompleto['prioridad'] && $resumenCompleto['monto_total']) {
+                // Establecer prioridad automÃ¡tica si no existe
+                if ($flujoId !== null && $resumenCompleto && !$resumenCompleto['prioridad'] && $resumenCompleto['monto_total']) {
                     AutorizacionFlujoAdaptador::establecerPrioridad($flujoId, null, $resumenCompleto['monto_total']);
                     AutorizacionFlujoAdaptador::establecerFechaLimite($flujoId, $resumenCompleto['prioridad'] ?? 'normal');
                 }
             } catch (\Exception $e) {
                 error_log("Error obteniendo resumen completo: " . $e->getMessage());
-                // Usar información básica del flujo
+                // Usar informaciÃ³n bÃ¡sica del flujo
                 $resumenCompleto = $flujo;
             }
         }
 
-        // Obtener progreso de autorización
+        // Obtener progreso de autorizaciÃ³n
         $progreso = null;
-        if ($flujo) {
-            $progreso = $this->autorizacionService->getProgresoAutorizacion($flujo->id);
+        if ($flujoId !== null) {
+            $progreso = $this->autorizacionService->getProgresoAutorizacion($flujoId);
         }
 
         // Obtener autorizaciones por centro de costo
         $autorizacionesCentro = [];
-        if ($flujo) {
-            $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
-            $autorizacionesCentro = AutorizacionCentroCostoAdaptador::porFlujo($flujoId);
-        }
+        // Usar el ID de la requisiciÃ³n directamente, no el flujoId
+        $autorizacionesCentro = $this->autorizacionCentroRepo->getByRequisicion($id);
 
-        // Preparar datos para la vista con información mejorada
+        // Preparar datos para la vista con informaciÃ³n mejorada
         $dataVista = [
             'requisicion' => $requisicion,
             'orden' => $requisicion['orden'],
-            'items' => $requisicion['items'],
-            'distribucion' => $requisicion['distribucion'],
+            'items' => $requisicion['items'] ?? [], // v3.0: Ya no se usan items separados
+            'distribucion' => $requisicion['distribuciones'] ?? [], // v3.0: distribuciones (plural)
+            'distribuciones' => $requisicion['distribuciones'] ?? [], // Compatibilidad v3.0
             'flujo' => $flujo,
             'resumen_completo' => $resumenCompleto,
             'historial_cambios' => $historialCambios,
             'progreso' => $progreso,
             'historial' => $requisicion['historial'],
             'autorizaciones_centro' => $autorizacionesCentro,
-            'title' => 'Autorizar Requisición #' . $id
+            'title' => 'Autorizar RequisiciÃ³n #' . $id,
+            'puede_revisar' => $this->isRevisor() || $this->isAdmin() || $this->isRevisorPorEmail($this->getUsuarioEmail()),
+            'orden_id' => $id
         ];
         
         View::render('autorizaciones/show', $dataVista);
     }
 
     // ========================================================================
-    // REVISIÓN (Nivel 1)
+    // REVISIÃ“N (Nivel 1)
     // ========================================================================
 
     /**
-     * Lista requisiciones pendientes de revisión
+     * Lista requisiciones pendientes de revisiÃ³n
      * 
      * @return void
      */
     public function pendientesRevision()
     {
-        // Verificar que es revisor
-        if (!$this->isRevisor()) {
+        // Verificar que es revisor (sesión, admin o email)
+        if (!$this->isRevisor() && !$this->isAdmin() && !$this->isRevisorPorEmail($this->getUsuarioEmail())) {
             Redirect::to('/dashboard')
                 ->withError('No tienes permisos de revisor')
                 ->send();
         }
 
-        // Obtener requisiciones pendientes de revisión
+        // Obtener requisiciones pendientes de revisiÃ³n
         $requisiciones = $this->autorizacionService->getRequisicionesPendientesRevision();
 
         View::render('autorizaciones/revision', [
             'requisiciones' => $requisiciones,
-            'title' => 'Requisiciones Pendientes de Revisión'
+            'title' => 'Requisiciones Pendientes de RevisiÃ³n'
         ]);
     }
 
     /**
-     * Aprueba una requisición en revisión
+     * Aprueba una requisiciÃ³n en revisiÃ³n
      * 
-     * @param int $id ID de la requisición
+     * @param int $id ID de la requisiciÃ³n
      * @return void
      */
     public function aprobarRevision($id)
@@ -311,28 +391,26 @@ class AutorizacionController extends Controller
             
             try {
                 // Log inicial para debugging
-                error_log("=== INICIO APROBACIÓN REVISIÓN ===");
-                error_log("ID requisición: $id");
-                error_log("Usuario actual: " . $this->getUsuarioEmail());
-                error_log("Es AJAX: " . ($this->isAjaxRequest() ? 'SÍ' : 'NO'));
+                error_log("=== INICIO APROBACIÃ“N REVISIÃ“N ===");
+                error_log("ID requisiciÃ³n: $id");
+                error_log("Usuario actual: " . $this->requireUsuarioEmail());
+                error_log("Es AJAX: " . ($this->isAjaxRequest() ? 'SÃ' : 'NO'));
                 
-                // Validaciones básicas
+                // Validaciones bÃ¡sicas
                 if (!$this->validateCSRF()) {
                     $response = [
                         'success' => false,
-                        'error' => 'Token de seguridad inválido'
+                        'error' => 'Token de seguridad invÃ¡lido'
                     ];
-                } elseif (!$this->isRevisor() && !$this->isAdmin()) {
-                    // Log detallado para debugging
-                    $user = Session::getUser();
-                    $userEmail = $this->getUsuarioEmail();
-                    error_log("=== VALIDACIÓN PERMISOS REVISOR ===");
+                } elseif (!$this->isRevisor() && !$this->isAdmin() && !$this->isRevisorPorEmail($this->getUsuarioEmail())) {
+                    // Usuario no tiene permisos de revisor
+                    error_log("=== VALIDACIÃ“N PERMISOS REVISOR ===");
                     error_log("Usuario email: $userEmail");
-                    error_log("Session::isRevisor(): " . (Session::isRevisor() ? 'SÍ' : 'NO'));
-                    error_log("Session::isAdmin(): " . (Session::isAdmin() ? 'SÍ' : 'NO'));
-                    error_log("Session::isAuthenticated(): " . (Session::isAuthenticated() ? 'SÍ' : 'NO'));
+                    error_log("Session::isRevisor(): " . (Session::isRevisor() ? 'SÃ' : 'NO'));
+                    error_log("Session::isAdmin(): " . (Session::isAdmin() ? 'SÃ' : 'NO'));
+                    error_log("Session::isAuthenticated(): " . (Session::isAuthenticated() ? 'SÃ' : 'NO'));
                     error_log("Datos de usuario: " . print_r($user, true));
-                    error_log("Variables de sesión directas:");
+                    error_log("Variables de sesiÃ³n directas:");
                     error_log("is_revisor directo: " . ($_SESSION['is_revisor'] ?? 'NO SET'));
                     if (isset($_SESSION['user']['is_revisor'])) {
                         error_log("user.is_revisor: " . $_SESSION['user']['is_revisor']);
@@ -344,11 +422,11 @@ class AutorizacionController extends Controller
                         'code' => 'NOT_REVIEWER'
                     ];
                 } else {
-                    // Ejecutar aprobación
+                    // Ejecutar aprobaciÃ³n
                     $comentario = $_POST['comentario'] ?? '';
                     $usuarioId = $this->getUsuarioId();
                     
-                    // Ejecutar aprobación real
+                    // Ejecutar aprobaciÃ³n real
                     $resultado = $this->autorizacionService->aprobarRevision($id, $usuarioId, $comentario);
                     
                     if (is_array($resultado) && isset($resultado['success'])) {
@@ -356,14 +434,14 @@ class AutorizacionController extends Controller
                     } else {
                         $response = [
                             'success' => false,
-                            'error' => 'Respuesta inválida del servicio'
+                            'error' => 'Respuesta invÃ¡lida del servicio'
                         ];
                     }
                 }
                 
             } catch (\Exception $e) {
                 error_log("Error en aprobarRevision AJAX: " . $e->getMessage());
-                error_log("Archivo: " . $e->getFile() . " Línea: " . $e->getLine());
+                error_log("Archivo: " . $e->getFile() . " LÃ­nea: " . $e->getLine());
                 error_log("Trace: " . $e->getTraceAsString());
                 $response = [
                     'success' => false,
@@ -383,8 +461,8 @@ class AutorizacionController extends Controller
                 ->send();
         }
 
-        // Verificar que es revisor
-        if (!$this->isRevisor()) {
+        // Verificar que es revisor (sesión, admin o email)
+        if (!$this->isRevisor() && !$this->isAdmin() && !$this->isRevisorPorEmail($this->getUsuarioEmail())) {
             Redirect::back()
                 ->withError('No tienes permisos de revisor')
                 ->send();
@@ -398,7 +476,7 @@ class AutorizacionController extends Controller
             
             if ($resultado['success']) {
                 Redirect::to('/autorizaciones/revision')
-                    ->withSuccess('Requisición aprobada exitosamente')
+                    ->withSuccess('RequisiciÃ³n aprobada exitosamente')
                     ->send();
             } else {
                 Redirect::back()
@@ -413,9 +491,9 @@ class AutorizacionController extends Controller
     }
 
     /**
-     * Rechaza una requisición en revisión
+     * Rechaza una requisiciÃ³n en revisiÃ³n
      * 
-     * @param int $id ID de la requisición
+     * @param int $id ID de la requisiciÃ³n
      * @return void
      */
     public function rechazarRevision($id)
@@ -425,17 +503,17 @@ class AutorizacionController extends Controller
             if ($this->isAjaxRequest()) {
                 $this->jsonResponse([
                     'success' => false,
-                    'error' => 'Token de seguridad inválido'
+                    'error' => 'Token de seguridad invÃ¡lido'
                 ], 403);
                 return;
             }
             Redirect::back()
-                ->withError('Token de seguridad inválido')
+                ->withError('Token de seguridad invÃ¡lido')
                 ->send();
         }
 
-        // Verificar que es revisor
-        if (!$this->isRevisor()) {
+        // Verificar que es revisor (sesión, admin o email)
+        if (!$this->isRevisor() && !$this->isAdmin() && !$this->isRevisorPorEmail($this->getUsuarioEmail())) {
             if ($this->isAjaxRequest()) {
                 $this->jsonResponse([
                     'success' => false,
@@ -468,13 +546,13 @@ class AutorizacionController extends Controller
 
         $resultado = $this->autorizacionService->rechazarRevision($id, $usuarioId, $motivo);
 
-        // Responder según el tipo de petición
+        // Responder segÃºn el tipo de peticiÃ³n
         if ($this->isAjaxRequest()) {
             $this->jsonResponse($resultado);
         } else {
             if ($resultado['success']) {
                 Redirect::to('/autorizaciones/revision')
-                    ->withSuccess('Requisición rechazada')
+                    ->withSuccess('RequisiciÃ³n rechazada')
                     ->send();
             } else {
                 Redirect::back()
@@ -485,14 +563,14 @@ class AutorizacionController extends Controller
     }
 
     // ========================================================================
-    // AUTORIZACIÓN POR CENTRO DE COSTO (Nivel 4)
+    // AUTORIZACIÃ“N POR CENTRO DE COSTO (Nivel 4)
     // ========================================================================
 
 
     /**
      * Autoriza un centro de costo
      * 
-     * @param int $id ID de la autorización de centro de costo
+     * @param int $id ID de la autorizaciÃ³n de centro de costo
      * @return void
      */
     public function autorizarCentro($id)
@@ -501,7 +579,7 @@ class AutorizacionController extends Controller
         if ($this->isAjaxRequest()) {
             error_log("=== INICIO autorizarCentro AJAX ===");
             error_log("Authorization ID: $id");
-            error_log("User email: " . $this->getUsuarioEmail());
+            error_log("User email: " . $this->requireUsuarioEmail());
             error_log("User ID: " . $this->getUsuarioId());
             error_log("POST data: " . json_encode($_POST));
             error_log("Headers sent before: " . (headers_sent() ? 'YES' : 'NO'));
@@ -530,37 +608,41 @@ class AutorizacionController extends Controller
                 if (!$this->validateCSRF()) {
                     $response = [
                         'success' => false,
-                        'error' => 'Token de seguridad inválido'
+                        'error' => 'Token de seguridad invÃ¡lido'
                     ];
                 } else {
                     $comentario = $_POST['comentario'] ?? '';
                     $usuarioId = $this->getUsuarioId();
 
-                    // Obtener la autorización actual
-                    $autorizacion = AutorizacionCentroCostoAdaptador::find($id);
+                    // Obtener la autorizaciÃ³n actual
+                    $autorizacion = $this->autorizacionCentroRepo->findById($id);
                     if (!$autorizacion) {
                         $response = [
                             'success' => false,
-                            'error' => 'Autorización no encontrada'
+                            'error' => 'AutorizaciÃ³n no encontrada'
                         ];
                     } else {
-                        $flujoId = is_object($autorizacion) ? $autorizacion->autorizacion_flujo_id : $autorizacion['autorizacion_flujo_id'];
-                        $ordenId = is_object($autorizacion)
-                            ? ($autorizacion->requisicion_id ?? $flujoId)
-                            : ($autorizacion['requisicion_id'] ?? $flujoId);
+                        // En v3.0, usamos directamente requisicion_id (no necesitamos autorizacion_flujo_id)
+                        $ordenId = is_object($autorizacion) ? $autorizacion->requisicion_id : $autorizacion['requisicion_id'];
+                        
+                        // Si necesitamos el flujo ID, lo buscamos por separado
+                        $stmt = \App\Models\Model::getConnection()->prepare("SELECT id FROM autorizacion_flujo WHERE requisicion_id = ?");
+                        $stmt->execute([$ordenId]);
+                        $flujoData = $stmt->fetch(\PDO::FETCH_ASSOC);
+                        $flujoId = $flujoData ? $flujoData['id'] : $ordenId;
                         $autorizadorEmail = is_object($autorizacion) ? $autorizacion->autorizador_email : $autorizacion['autorizador_email'];
 
                         if ($this->autorizacionService->existenAutorizacionesEspecialesPendientes((int)$ordenId)) {
                             $response = [
                                 'success' => false,
-                                'error' => 'Aún existen autorizaciones especiales pendientes. Deben completarse antes de autorizar los centros de costo.'
+                                'error' => 'AÃºn existen autorizaciones especiales pendientes. Deben completarse antes de autorizar los centros de costo.'
                             ];
                             $this->sendAjaxResponse($response);
                             return;
                         }
 
                         // Obtener todas las autorizaciones pendientes del mismo autorizador en este flujo
-                        $autorizacionesPendientes = AutorizacionCentroCostoAdaptador::porFlujo($flujoId);
+                        $autorizacionesPendientes = $this->autorizacionCentroRepo->getByRequisicion($ordenId);
                         
                         $autorizacionesAAutorizar = [];
                         foreach ($autorizacionesPendientes as $auth) {
@@ -576,14 +658,14 @@ class AutorizacionController extends Controller
                             'centros_autorizados' => []
                         ];
 
-                        error_log("=== INICIANDO AUTORIZACIÓN DE CENTROS ===");
+                        error_log("=== INICIANDO AUTORIZACIÃ“N DE CENTROS ===");
                         error_log("Total centros a autorizar: " . count($autorizacionesAAutorizar));
                         
                         foreach ($autorizacionesAAutorizar as $i => $authPendiente) {
                             error_log("=== AUTORIZANDO CENTRO [$i] ===");
                             error_log("ID: {$authPendiente['id']}, Centro: {$authPendiente['centro_costo_id']}");
                             
-                            $usuarioEmail = $this->getUsuarioEmail();
+                            $usuarioEmail = $this->requireUsuarioEmail();
                             error_log("Usuario email obtenido: $usuarioEmail");
                             
                             error_log("=== LLAMANDO autorizarCentroCosto ===");
@@ -592,8 +674,8 @@ class AutorizacionController extends Controller
                                 error_log("=== RESULTADO autorizarCentroCosto ===");
                                 error_log("Resultado: " . json_encode($resultado));
                             } catch (\Exception $e) {
-                                error_log("EXCEPCIÓN en autorizarCentroCosto: " . $e->getMessage());
-                                error_log("Archivo: " . $e->getFile() . " Línea: " . $e->getLine());
+                                error_log("EXCEPCIÃ“N en autorizarCentroCosto: " . $e->getMessage());
+                                error_log("Archivo: " . $e->getFile() . " LÃ­nea: " . $e->getLine());
                                 $resultado = [
                                     'success' => false,
                                     'error' => 'Error interno: ' . $e->getMessage()
@@ -608,25 +690,25 @@ class AutorizacionController extends Controller
                             }
                         }
                         
-                        error_log("=== FIN AUTORIZACIÓN DE CENTROS ===");
+                        error_log("=== FIN AUTORIZACIÃ“N DE CENTROS ===");
 
-                        // FORZAR verificación y completado del flujo
+                        // FORZAR verificaciÃ³n y completado del flujo
                         try {
-                            error_log("=== FORZANDO VERIFICACIÓN DEL FLUJO $flujoId ===");
+                            error_log("=== FORZANDO VERIFICACIÃ“N DEL FLUJO $flujoId ===");
                             $verificacionResultado = $this->autorizacionService->verificarYCompletarFlujo($flujoId);
-                            error_log("Resultado de verificación forzada: " . ($verificacionResultado ? 'ÉXITO' : 'FALLÓ'));
+                            error_log("Resultado de verificaciÃ³n forzada: " . ($verificacionResultado ? 'Ã‰XITO' : 'FALLÃ“'));
                         } catch (\Exception $e) {
-                            error_log("Error en verificación forzada: " . $e->getMessage());
+                            error_log("Error en verificaciÃ³n forzada: " . $e->getMessage());
                         }
                         
-                        // ✅ USAR SISTEMA CENTRALIZADO - Obtener estado real actualizado
-                        $flujoActualizado = AutorizacionFlujoAdaptador::porOrdenCompra($flujoId);
+                        // âœ… USAR SISTEMA CENTRALIZADO - Obtener estado real actualizado
+                        $flujoActualizado = AutorizacionFlujoAdaptador::porRequisicion($flujoId);
                         if ($flujoActualizado) {
-                            $ordenId = is_object($flujoActualizado) ? $flujoActualizado->orden_compra_id : $flujoActualizado['orden_compra_id'];
+                            $ordenId = is_object($flujoActualizado) ? $flujoActualizado->requisicion_id : $flujoActualizado['requisicion_id'];
                             $response['flujo_estado'] = EstadoHelper::getEstado($ordenId); // Estado real centralizado
                             $response['orden_id'] = $ordenId;
                             
-                            error_log("Estado final del flujo después de autorización: {$response['flujo_estado']}");
+                            error_log("Estado final del flujo despuÃ©s de autorizaciÃ³n: {$response['flujo_estado']}");
                         }
                     }
                 }
@@ -657,7 +739,7 @@ class AutorizacionController extends Controller
         // Validar CSRF
         if (!$this->validateCSRF()) {
             Redirect::back()
-                ->withError('Token de seguridad inválido')
+                ->withError('Token de seguridad invÃ¡lido')
                 ->send();
         }
 
@@ -665,29 +747,33 @@ class AutorizacionController extends Controller
         $usuarioId = $this->getUsuarioId();
 
         try {
-            // Obtener la autorización actual
-            $autorizacion = AutorizacionCentroCostoAdaptador::find($id);
+            // Obtener la autorizaciÃ³n actual
+            $autorizacion = $this->autorizacionCentroRepo->findById($id);
             if (!$autorizacion) {
                 Redirect::back()
-                    ->withError('Autorización no encontrada')
+                    ->withError('AutorizaciÃ³n no encontrada')
                     ->send();
             }
 
-            $flujoId = is_object($autorizacion) ? $autorizacion->autorizacion_flujo_id : $autorizacion['autorizacion_flujo_id'];
-            $ordenId = is_object($autorizacion)
-                ? ($autorizacion->requisicion_id ?? $flujoId)
-                : ($autorizacion['requisicion_id'] ?? $flujoId);
+            // En v3.0, usamos directamente requisicion_id (no necesitamos autorizacion_flujo_id)
+            $ordenId = is_object($autorizacion) ? $autorizacion->requisicion_id : $autorizacion['requisicion_id'];
+            
+            // Si necesitamos el flujo ID, lo buscamos por separado
+            $stmt = \App\Models\Model::getConnection()->prepare("SELECT id FROM autorizacion_flujo WHERE requisicion_id = ?");
+            $stmt->execute([$ordenId]);
+            $flujoData = $stmt->fetch(\PDO::FETCH_ASSOC);
+            $flujoId = $flujoData ? $flujoData['id'] : $ordenId;
 
             if ($this->autorizacionService->existenAutorizacionesEspecialesPendientes((int)$ordenId)) {
                 Redirect::back()
-                    ->withError('Aún existen autorizaciones especiales pendientes. Deben completarse antes de autorizar los centros de costo.')
+                    ->withError('AÃºn existen autorizaciones especiales pendientes. Deben completarse antes de autorizar los centros de costo.')
                     ->send();
                 return;
             }
             $autorizadorEmail = is_object($autorizacion) ? $autorizacion->autorizador_email : $autorizacion['autorizador_email'];
 
             // Obtener todas las autorizaciones pendientes del mismo autorizador en este flujo
-            $autorizacionesPendientes = AutorizacionCentroCostoAdaptador::porFlujo($flujoId);
+            $autorizacionesPendientes = $this->autorizacionCentroRepo->getByRequisicion($ordenId);
             
             $autorizacionesAAutorizar = [];
             foreach ($autorizacionesPendientes as $auth) {
@@ -698,7 +784,7 @@ class AutorizacionController extends Controller
 
             // Autorizar todas las que corresponden a este autorizador
             $exitosas = 0;
-            $usuarioEmail = $this->getUsuarioEmail();
+            $usuarioEmail = $this->requireUsuarioEmail();
             foreach ($autorizacionesAAutorizar as $authPendiente) {
                 $resultado = $this->autorizacionService->autorizarCentroCosto($authPendiente['id'], $usuarioEmail, $comentario);
                 if ($resultado['success']) {
@@ -706,13 +792,13 @@ class AutorizacionController extends Controller
                 }
             }
 
-            // FORZAR verificación y completado del flujo
+            // FORZAR verificaciÃ³n y completado del flujo
             try {
-                error_log("=== FORZANDO VERIFICACIÓN DEL FLUJO $flujoId ===");
+                error_log("=== FORZANDO VERIFICACIÃ“N DEL FLUJO $flujoId ===");
                 $verificacionResultado = $this->autorizacionService->verificarYCompletarFlujo($flujoId);
-                error_log("Resultado de verificación forzada: " . ($verificacionResultado ? 'ÉXITO' : 'FALLÓ'));
+                error_log("Resultado de verificaciÃ³n forzada: " . ($verificacionResultado ? 'Ã‰XITO' : 'FALLÃ“'));
             } catch (\Exception $e) {
-                error_log("Error en verificación forzada: " . $e->getMessage());
+                error_log("Error en verificaciÃ³n forzada: " . $e->getMessage());
             }
 
             if ($exitosas > 0) {
@@ -735,7 +821,7 @@ class AutorizacionController extends Controller
     /**
      * Rechaza un centro de costo
      * 
-     * @param int $id ID de la autorización de centro de costo
+     * @param int $id ID de la autorizaciÃ³n de centro de costo
      * @return void
      */
     public function rechazarCentro($id)
@@ -744,7 +830,7 @@ class AutorizacionController extends Controller
         if (!$this->validateCSRF()) {
             $this->jsonResponse([
                 'success' => false,
-                'error' => 'Token de seguridad inválido'
+                'error' => 'Token de seguridad invÃ¡lido'
             ], 403);
             return;
         }
@@ -761,24 +847,24 @@ class AutorizacionController extends Controller
 
         $usuarioId = $this->getUsuarioId();
 
-        $autorizacion = AutorizacionCentroCostoAdaptador::find($id);
+        $autorizacion = $this->autorizacionCentroRepo->findById($id);
         if (!$autorizacion) {
             if ($this->isAjaxRequest()) {
                 $this->jsonResponse([
                     'success' => false,
-                    'error' => 'Autorización no encontrada'
+                    'error' => 'AutorizaciÃ³n no encontrada'
                 ], 404);
             } else {
                 Redirect::back()
-                    ->withError('Autorización no encontrada')
+                    ->withError('AutorizaciÃ³n no encontrada')
                     ->send();
             }
             return;
         }
 
-        $ordenId = $autorizacion['requisicion_id'] ?? $autorizacion['autorizacion_flujo_id'] ?? null;
+        $ordenId = $autorizacion['requisicion_id'] ?? null;
         if ($ordenId && $this->autorizacionService->existenAutorizacionesEspecialesPendientes((int)$ordenId)) {
-            $mensajePendientes = 'Aún existen autorizaciones especiales pendientes. Deben completarse antes de autorizar o rechazar los centros de costo.';
+            $mensajePendientes = 'AÃºn existen autorizaciones especiales pendientes. Deben completarse antes de autorizar o rechazar los centros de costo.';
             if ($this->isAjaxRequest()) {
                 $this->jsonResponse([
                     'success' => false,
@@ -799,7 +885,7 @@ class AutorizacionController extends Controller
         } else {
             if ($resultado['success']) {
                 Redirect::to('/autorizaciones')
-                    ->withSuccess('Centro de costo rechazado. La requisición ha sido rechazada.')
+                    ->withSuccess('Centro de costo rechazado. La requisiciÃ³n ha sido rechazada.')
                     ->send();
             } else {
                 Redirect::back()
@@ -845,14 +931,15 @@ class AutorizacionController extends Controller
     // ========================================================================
 
     /**
-     * API: Obtiene el progreso de una autorización
+     * API: Obtiene el progreso de una autorizaciÃ³n
      * 
-     * @param int $id ID de la requisición
+     * @param int $id ID de la requisiciÃ³n
      * @return void
      */
     public function apiProgreso($id)
     {
-        $flujo = AutorizacionFlujoAdaptador::porOrdenCompra($id);
+        $flujo = AutorizacionFlujoAdaptador::porRequisicion($id);
+        $flujoId = null;
 
         if (!$flujo) {
             $this->jsonResponse([
@@ -862,7 +949,13 @@ class AutorizacionController extends Controller
             return;
         }
 
-        $progreso = $this->autorizacionService->getProgresoAutorizacion($flujo['id']);
+        if (is_object($flujo)) {
+            $flujoId = $flujo->id ?? ($flujo->requisicion_id ?? null);
+        } elseif (is_array($flujo)) {
+            $flujoId = $flujo['id'] ?? ($flujo['requisicion_id'] ?? null);
+        }
+
+        $progreso = $this->autorizacionService->getProgresoAutorizacion($flujoId);
 
         $this->jsonResponse([
             'success' => true,
@@ -877,7 +970,7 @@ class AutorizacionController extends Controller
      */
     public function apiPendientes()
     {
-        $usuarioEmail = $this->getUsuarioEmail();
+        $usuarioEmail = $this->requireUsuarioEmail();
         $count = $this->autorizacionService->contarPendientes($usuarioEmail);
 
         $this->jsonResponse([
@@ -887,7 +980,7 @@ class AutorizacionController extends Controller
     }
 
     /**
-     * API: Autoriza múltiples centros de costo a la vez
+     * API: Autoriza mÃºltiples centros de costo a la vez
      * 
      * @return void
      */
@@ -905,7 +998,7 @@ class AutorizacionController extends Controller
             return;
         }
 
-        $usuarioEmail = $this->getUsuarioEmail();
+        $usuarioEmail = $this->requireUsuarioEmail();
         $resultados = [];
 
         foreach ($ids as $id) {
@@ -927,11 +1020,11 @@ class AutorizacionController extends Controller
     }
 
     // ========================================================================
-    // MÉTODOS PRIVADOS
+    // MÃ‰TODOS PRIVADOS
     // ========================================================================
 
     /**
-     * Agrupa autorizaciones por requisición
+     * Agrupa autorizaciones por requisiciÃ³n
      * 
      * @param array $autorizaciones Autorizaciones
      * @return array
@@ -941,11 +1034,11 @@ class AutorizacionController extends Controller
         $agrupadas = [];
 
         foreach ($autorizaciones as $auth) {
-            $ordenId = $auth['orden_compra_id'];
+            $ordenId = $auth['requisicion_id'];
             
             if (!isset($agrupadas[$ordenId])) {
                 $agrupadas[$ordenId] = [
-                    'orden' => OrdenCompra::find($ordenId),
+                    'orden' => Requisicion::find($ordenId),
                     'autorizaciones' => []
                 ];
             }
@@ -967,7 +1060,7 @@ class AutorizacionController extends Controller
      */
     public function pendientesAutorizacionPago()
     {
-        $usuarioEmail = $this->getUsuarioEmail();
+        $usuarioEmail = $this->requireUsuarioEmail();
         
         // Verificar que es autorizador de forma de pago
         if (!$this->autorizacionService->esAutorizadorPago($usuarioEmail)) {
@@ -992,7 +1085,7 @@ class AutorizacionController extends Controller
      */
     public function pendientesAutorizacionCuenta()
     {
-        $usuarioEmail = $this->getUsuarioEmail();
+        $usuarioEmail = $this->requireUsuarioEmail();
         
         // Verificar que es autorizador de cuenta contable
         if (!$this->autorizacionService->esAutorizadorCuenta($usuarioEmail)) {
@@ -1011,9 +1104,9 @@ class AutorizacionController extends Controller
     }
 
     /**
-     * Aprueba una autorización especial de forma de pago
+     * Aprueba una autorizaciÃ³n especial de forma de pago
      * 
-     * @param int $id ID del flujo de autorización
+     * @param int $id ID del flujo de autorizaciÃ³n
      * @return void
      */
     public function aprobarAutorizacionPago($id)
@@ -1041,11 +1134,11 @@ class AutorizacionController extends Controller
                 if (!$this->validateCSRF()) {
                     $response = [
                         'success' => false,
-                        'error' => 'Token de seguridad inválido'
+                        'error' => 'Token de seguridad invÃ¡lido'
                     ];
                 } else {
                     $comentario = $_POST['comentario'] ?? '';
-                    $usuarioEmail = $this->getUsuarioEmail();
+                    $usuarioEmail = $this->requireUsuarioEmail();
 
                     // Verificar permisos
                     if (!$this->autorizacionService->esAutorizadorPago($usuarioEmail)) {
@@ -1073,11 +1166,11 @@ class AutorizacionController extends Controller
         // Para peticiones no AJAX
         if (!$this->validateCSRF()) {
             Redirect::back()
-                ->withError('Token de seguridad inválido')
+                ->withError('Token de seguridad invÃ¡lido')
                 ->send();
         }
 
-        $usuarioEmail = $this->getUsuarioEmail();
+        $usuarioEmail = $this->requireUsuarioEmail();
         if (!$this->autorizacionService->esAutorizadorPago($usuarioEmail)) {
             Redirect::back()
                 ->withError('No tienes permisos de autorizador de forma de pago')
@@ -1089,7 +1182,7 @@ class AutorizacionController extends Controller
 
         if ($resultado['success']) {
             Redirect::to('/autorizaciones/pago')
-                ->withSuccess('Autorización de forma de pago aprobada exitosamente')
+                ->withSuccess('AutorizaciÃ³n de forma de pago aprobada exitosamente')
                 ->send();
         } else {
             Redirect::back()
@@ -1099,9 +1192,9 @@ class AutorizacionController extends Controller
     }
 
     /**
-     * Rechaza una autorización especial de forma de pago
+     * Rechaza una autorizaciÃ³n especial de forma de pago
      * 
-     * @param int $id ID del flujo de autorización
+     * @param int $id ID del flujo de autorizaciÃ³n
      * @return void
      */
     public function rechazarAutorizacionPago($id)
@@ -1110,16 +1203,16 @@ class AutorizacionController extends Controller
             if ($this->isAjaxRequest()) {
                 $this->jsonResponse([
                     'success' => false,
-                    'error' => 'Token de seguridad inválido'
+                    'error' => 'Token de seguridad invÃ¡lido'
                 ], 403);
                 return;
             }
             Redirect::back()
-                ->withError('Token de seguridad inválido')
+                ->withError('Token de seguridad invÃ¡lido')
                 ->send();
         }
 
-        $usuarioEmail = $this->getUsuarioEmail();
+        $usuarioEmail = $this->requireUsuarioEmail();
         if (!$this->autorizacionService->esAutorizadorPago($usuarioEmail)) {
             if ($this->isAjaxRequest()) {
                 $this->jsonResponse([
@@ -1155,7 +1248,7 @@ class AutorizacionController extends Controller
         } else {
             if ($resultado['success']) {
                 Redirect::to('/autorizaciones/pago')
-                    ->withSuccess('Autorización de forma de pago rechazada')
+                    ->withSuccess('AutorizaciÃ³n de forma de pago rechazada')
                     ->send();
             } else {
                 Redirect::back()
@@ -1166,9 +1259,9 @@ class AutorizacionController extends Controller
     }
 
     /**
-     * Aprueba una autorización especial de cuenta contable
+     * Aprueba una autorizaciÃ³n especial de cuenta contable
      * 
-     * @param int $id ID del flujo de autorización
+     * @param int $id ID del flujo de autorizaciÃ³n
      * @return void
      */
     public function aprobarAutorizacionCuenta($id)
@@ -1196,11 +1289,11 @@ class AutorizacionController extends Controller
                 if (!$this->validateCSRF()) {
                     $response = [
                         'success' => false,
-                        'error' => 'Token de seguridad inválido'
+                        'error' => 'Token de seguridad invÃ¡lido'
                     ];
                 } else {
                     $comentario = $_POST['comentario'] ?? '';
-                    $usuarioEmail = $this->getUsuarioEmail();
+                    $usuarioEmail = $this->requireUsuarioEmail();
 
                     // Verificar permisos
                     if (!$this->autorizacionService->esAutorizadorCuenta($usuarioEmail)) {
@@ -1228,11 +1321,11 @@ class AutorizacionController extends Controller
         // Para peticiones no AJAX
         if (!$this->validateCSRF()) {
             Redirect::back()
-                ->withError('Token de seguridad inválido')
+                ->withError('Token de seguridad invÃ¡lido')
                 ->send();
         }
 
-        $usuarioEmail = $this->getUsuarioEmail();
+        $usuarioEmail = $this->requireUsuarioEmail();
         if (!$this->autorizacionService->esAutorizadorCuenta($usuarioEmail)) {
             Redirect::back()
                 ->withError('No tienes permisos de autorizador de cuenta contable')
@@ -1244,7 +1337,7 @@ class AutorizacionController extends Controller
 
         if ($resultado['success']) {
             Redirect::to('/autorizaciones/cuenta')
-                ->withSuccess('Autorización de cuenta contable aprobada exitosamente')
+                ->withSuccess('AutorizaciÃ³n de cuenta contable aprobada exitosamente')
                 ->send();
         } else {
             Redirect::back()
@@ -1254,9 +1347,9 @@ class AutorizacionController extends Controller
     }
 
     /**
-     * Rechaza una autorización especial de cuenta contable
+     * Rechaza una autorizaciÃ³n especial de cuenta contable
      * 
-     * @param int $id ID del flujo de autorización
+     * @param int $id ID del flujo de autorizaciÃ³n
      * @return void
      */
     public function rechazarAutorizacionCuenta($id)
@@ -1265,16 +1358,16 @@ class AutorizacionController extends Controller
             if ($this->isAjaxRequest()) {
                 $this->jsonResponse([
                     'success' => false,
-                    'error' => 'Token de seguridad inválido'
+                    'error' => 'Token de seguridad invÃ¡lido'
                 ], 403);
                 return;
             }
             Redirect::back()
-                ->withError('Token de seguridad inválido')
+                ->withError('Token de seguridad invÃ¡lido')
                 ->send();
         }
 
-        $usuarioEmail = $this->getUsuarioEmail();
+        $usuarioEmail = $this->requireUsuarioEmail();
         if (!$this->autorizacionService->esAutorizadorCuenta($usuarioEmail)) {
             if ($this->isAjaxRequest()) {
                 $this->jsonResponse([
@@ -1310,7 +1403,7 @@ class AutorizacionController extends Controller
         } else {
             if ($resultado['success']) {
                 Redirect::to('/autorizaciones/cuenta')
-                    ->withSuccess('Autorización de cuenta contable rechazada')
+                    ->withSuccess('AutorizaciÃ³n de cuenta contable rechazada')
                     ->send();
             } else {
                 Redirect::back()
@@ -1320,37 +1413,84 @@ class AutorizacionController extends Controller
         }
     }
 
+
     /**
-     * Verifica si un usuario es revisor basándose en su email
+     * Verifica si el ID corresponde a una autorización especial
      * 
-     * @param string $usuarioEmail Email del usuario
-     * @return bool
+     * @param int $id ID a verificar
+     * @return array|false Datos de la autorización especial o false
      */
-    private function isRevisorPorEmail($usuarioEmail)
+    private function esAutorizacionEspecial($id)
     {
-        // Lista de emails que siempre son revisores
-        $revisoresPorDefecto = [
-            'bgutierrez@sp.iga.edu',
-            'bgutierrez@iga.edu',
-            'admin@iga.edu',
-            // Agregar más emails según sea necesario
+        try {
+            $pdo = \App\Models\Model::getConnection();
+            $stmt = $pdo->prepare("
+                SELECT a.*, r.numero_requisicion, r.proveedor_nombre, r.monto_total, 
+                       r.fecha_solicitud, u.azure_display_name as usuario_nombre
+                FROM autorizaciones a
+                INNER JOIN requisiciones r ON a.requisicion_id = r.id
+                LEFT JOIN usuarios u ON r.usuario_id = u.id
+                WHERE a.id = ? AND a.tipo IN ('forma_pago', 'cuenta_contable')
+            ");
+            $stmt->execute([$id]);
+            $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+            
+            return $result ?: false;
+        } catch (\Exception $e) {
+            error_log("Error verificando autorización especial: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Muestra la página de autorización especial
+     * 
+     * @param array $autorizacion Datos de la autorización
+     */
+    private function mostrarAutorizacionEspecial($autorizacion)
+    {
+        // Verificar permisos
+        $usuarioEmail = $this->requireUsuarioEmail();
+        
+        // DEBUG: Agregar logging para verificar emails
+        error_log("=== DEBUG PERMISOS AUTORIZACIÓN ESPECIAL ===");
+        error_log("Usuario en sesión: " . ($usuarioEmail ?: 'NULL'));
+        error_log("Autorizador esperado: " . ($autorizacion['autorizador_email'] ?: 'NULL'));
+        error_log("Son iguales: " . ($autorizacion['autorizador_email'] === $usuarioEmail ? 'SÍ' : 'NO'));
+        error_log("Estado autorización: " . ($autorizacion['estado'] ?: 'NULL'));
+        
+        if ($autorizacion['autorizador_email'] !== $usuarioEmail) {
+            error_log("ERROR: Permisos denegados - emails no coinciden");
+            Redirect::to('/autorizaciones')
+                ->withError('No tienes permisos para autorizar esta solicitud')
+                ->send();
+            return;
+        }
+        
+        error_log("✅ Permisos OK - permitir acceso");
+
+        // Obtener requisición completa para mostrar detalles
+        $requisicion = $this->requisicionService->getRequisicionCompleta($autorizacion['requisicion_id']);
+        
+        if (!$requisicion) {
+            Redirect::to('/autorizaciones')
+                ->withError('Error al cargar los datos de la requisición')
+                ->send();
+            return;
+        }
+
+        // Preparar datos para la vista
+        $data = [
+            'title' => 'Autorizar ' . ucfirst(str_replace('_', ' ', $autorizacion['tipo'])) . ' - Requisición #' . $autorizacion['numero_requisicion'],
+            'autorizacion_especial' => $autorizacion,
+            'tipo_autorizacion' => $autorizacion['tipo'],
+            'requisicion' => $requisicion,
+            'orden' => $requisicion['orden'],
+            'distribucion' => $requisicion['distribuciones'] ?? [],
+            'flujo' => $requisicion['flujo'],
+            'historial' => $requisicion['historial'] ?? []
         ];
-        
-        // Verificar si está en la lista de revisores por defecto
-        if (in_array($usuarioEmail, $revisoresPorDefecto)) {
-            return true;
-        }
-        
-        // Verificar si es administrador (los admins suelen ser revisores)
-        if ($this->isAdmin()) {
-            return true;
-        }
-        
-        // Verificar por dominio (ejemplo: todos los @sp.iga.edu)
-        if (strpos($usuarioEmail, '@sp.iga.edu') !== false) {
-            return true;
-        }
-        
-        return false;
+
+        View::render('autorizaciones/especial', $data);
     }
 }

@@ -1,5 +1,8 @@
 <?php
 use App\Helpers\View;
+
+// Obtener la moneda de la orden
+$moneda = $orden->moneda ?? 'GTQ';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -261,13 +264,13 @@ use App\Helpers\View;
                     <td class="text-center"><?php echo $index + 1; ?></td>
                     <td><?php echo View::e($item['descripcion']); ?></td>
                     <td class="text-center"><?php echo number_format($item['cantidad'], 0); ?></td>
-                    <td class="text-right"><?php echo View::money($item['precio_unitario']); ?></td>
-                    <td class="text-right"><?php echo View::money($subtotal); ?></td>
+                    <td class="text-right"><?php echo View::money($item['precio_unitario'], $moneda); ?></td>
+                    <td class="text-right"><?php echo View::money($subtotal, $moneda); ?></td>
                 </tr>
                 <?php endforeach; ?>
                 <tr class="total-row">
                     <td colspan="4" class="text-right"><strong>TOTAL:</strong></td>
-                    <td class="text-right"><strong><?php echo View::money($total); ?></strong></td>
+                    <td class="text-right"><strong><?php echo View::money($total, $moneda); ?></strong></td>
                 </tr>
             </tbody>
         </table>
@@ -298,7 +301,7 @@ use App\Helpers\View;
                     <td><?php echo View::e($dist['cuenta_contable_descripcion'] ?? 'N/A'); ?></td>
                     <td class="text-center"><?php echo $dist['porcentaje']; ?>%</td>
                     <td class="text-right">
-                        <strong><?php echo View::money($dist['monto'] ?? 0); ?></strong>
+                        <strong><?php echo View::money($dist['monto'] ?? 0, $moneda); ?></strong>
                     </td>
                 </tr>
                 <?php endforeach; ?>

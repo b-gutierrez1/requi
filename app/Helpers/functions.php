@@ -117,9 +117,7 @@ if (!function_exists('url')) {
      */
     function url($path = '')
     {
-        $baseUrl = rtrim(config('app.url', 'http://localhost'), '/');
-        $path = ltrim($path, '/');
-        return $baseUrl . '/' . $path;
+        return \App\Helpers\Redirect::url($path);
     }
 }
 

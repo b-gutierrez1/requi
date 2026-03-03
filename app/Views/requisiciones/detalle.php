@@ -175,14 +175,14 @@ View::startSection('content');
     
     <!-- Acciones principales -->
     <div class="actions-header">
-        <a href="/requisiciones" class="btn-action btn-secondary-custom">
+        <a href="<?= url('/requisiciones') ?>" class="btn-action btn-secondary-custom">
             <i class="fas fa-arrow-left me-2"></i>Volver al Listado
         </a>
-        <a href="/requisiciones/<?php echo $orden['id']; ?>/imprimir" class="btn-action" target="_blank">
+        <a href="<?= url('/requisiciones/' . $orden['id'] . '/imprimir') ?>" class="btn-action" target="_blank">
             <i class="fas fa-print me-2"></i>Imprimir
         </a>
         <?php if (isset($orden['id'])): ?>
-            <a href="/requisiciones/<?php echo $orden['id']; ?>/editar" class="btn-action">
+            <a href="<?= url('/requisiciones/' . $orden['id'] . '/editar') ?>" class="btn-action">
                 <i class="fas fa-edit me-2"></i>Editar
             </a>
         <?php endif; ?>
@@ -208,7 +208,7 @@ View::startSection('content');
                 <div class="col-md-3">
                     <label class="form-label">Requisición N°</label>
                     <div class="field-display">
-                        <strong>#<?php echo $orden['requisicion_numero'] ?? $orden['id'] ?? 'N/A'; ?></strong>
+                        <strong>#<?php echo $orden['id'] ?? 'N/A'; ?></strong>
                     </div>
                 </div>
                 
@@ -325,8 +325,8 @@ View::startSection('content');
                         <tr>
                             <td class="text-center"><?php echo number_format($item['cantidad'], 2); ?></td>
                             <td><?php echo View::e($item['descripcion']); ?></td>
-                            <td class="text-end"><?php echo View::money($item['precio_unitario']); ?></td>
-                            <td class="text-end"><strong><?php echo View::money($totalItem); ?></strong></td>
+                            <td class="text-end"><?php echo View::money($item['precio_unitario'], $moneda); ?></td>
+                            <td class="text-end"><strong><?php echo View::money($totalItem, $moneda); ?></strong></td>
                         </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
@@ -339,7 +339,7 @@ View::startSection('content');
         </div>
         
         <div class="total-display">
-            Total General: <strong><?php echo View::money($totalGeneral); ?></strong>
+            Total General: <strong><?php echo View::money($totalGeneral, $moneda); ?></strong>
         </div>
     </div>
     
@@ -372,7 +372,7 @@ View::startSection('content');
                         <td><?php echo View::e($dist['ubicacion'] ?? 'N/A'); ?></td>
                         <td><?php echo View::e($dist['unidad_negocio'] ?? 'N/A'); ?></td>
                         <td class="text-center"><?php echo number_format($dist['porcentaje'] ?? 0, 2); ?>%</td>
-                        <td class="text-end"><?php echo View::money($dist['cantidad'] ?? 0); ?></td>
+                        <td class="text-end"><?php echo View::money($dist['cantidad'] ?? 0, $moneda); ?></td>
                         <td class="text-center"><?php echo View::e($dist['factura'] ?? 'N/A'); ?></td>
                     </tr>
                     <?php endforeach; ?>
@@ -389,7 +389,7 @@ View::startSection('content');
         <ul class="list-group">
             <?php foreach($orden['archivos'] as $archivo): ?>
                 <li class="list-group-item">
-                    <a href="/uploads/<?php echo View::e($archivo['ruta']); ?>" target="_blank">
+                    <a href="<?= url('/uploads/' . View::e($archivo['ruta'])) ?>" target="_blank">
                         <i class="fas fa-file-alt me-2"></i><?php echo View::e($archivo['nombre']); ?>
                     </a>
                 </li>
@@ -401,16 +401,16 @@ View::startSection('content');
     <!-- ESPECIFICACIONES Y JUSTIFICACIÓN -->
     <div class="card-form">
         <div class="section-header">
-            <i class="fas fa-cogs me-2"></i>ESPECIFICACIONES TÉCNICAS Y JUSTIFICACIÓN
+            <i class="fas fa-cogs me-2"></i>ESPECIFICACIONES Y DATOS DEL PROVEEDOR
         </div>
         <div class="mb-4">
-            <label class="form-label">Especificaciones Técnicas y Detalles</label>
+            <label class="form-label">Especificaciones y Datos del Proveedor</label>
             <div class="field-display textarea-display">
                 <?php echo !empty($orden['datos_proveedor']) ? nl2br(View::e($orden['datos_proveedor'])) : '<em>No especificado</em>'; ?>
             </div>
         </div>
         <div>
-            <label class="form-label">Justificación y Razón de la Requisición</label>
+            <label class="form-label">Razón de Selección de Cotización</label>
             <div class="field-display textarea-display">
                 <?php echo !empty($orden['razon_seleccion']) ? nl2br(View::e($orden['razon_seleccion'])) : '<em>No especificado</em>'; ?>
             </div>

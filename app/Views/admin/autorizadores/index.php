@@ -221,7 +221,7 @@ $title = 'Gestión de Autorizadores';
                 <p class="mb-0 opacity-75">Administra los autorizadores del sistema</p>
             </div>
             <div class="col-md-6 text-end">
-                <a href="/admin/autorizadores/create" class="btn btn-create">
+                <a href="<?= url('/admin/autorizadores/create') ?>" class="btn btn-create">
                     <i class="fas fa-plus me-2"></i>
                     Nuevo Autorizador
                 </a>
@@ -267,13 +267,13 @@ $title = 'Gestión de Autorizadores';
     <div class="row mb-4">
         <div class="col-md-8">
             <div class="btn-group" role="group">
-                <a href="/admin/autorizadores" class="btn filter-btn active">
+                <a href="<?= url('/admin/autorizadores') ?>" class="btn filter-btn active">
                     Todos
                 </a>
-                <a href="/admin/autorizadores?filtro=activos" class="btn filter-btn">
+                <a href="<?= url('/admin/autorizadores?filtro=activos') ?>" class="btn filter-btn">
                     Activos
                 </a>
-                <a href="/admin/autorizadores?filtro=inactivos" class="btn filter-btn">
+                <a href="<?= url('/admin/autorizadores?filtro=inactivos') ?>" class="btn filter-btn">
                     Inactivos
                 </a>
             </div>
@@ -300,7 +300,6 @@ $title = 'Gestión de Autorizadores';
                         <th width="20%">Centro de Costo</th>
                         <th width="20%">Tipos</th>
                         <th width="10%">Estado</th>
-                        <th width="15%">Límites</th>
                         <th width="10%" class="text-center">Acciones</th>
                     </tr>
                 </thead>
@@ -368,36 +367,30 @@ $title = 'Gestión de Autorizadores';
                                 </td>
                                 <td>
                                     <?php if ($autorizador->activo ?? true): ?>
-                                        <span class="badge badge-status badge-active">
-                                            <i class="fas fa-check me-1"></i>Activo
+                                        <span class="clean-badge active">
+                                            <span class="badge-dot active"></span>
+                                            Activo
                                         </span>
                                     <?php else: ?>
-                                        <span class="badge badge-status badge-inactive">
-                                            <i class="fas fa-times me-1"></i>Inactivo
+                                        <span class="clean-badge inactive">
+                                            <span class="badge-dot inactive"></span>
+                                            Inactivo
                                         </span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <?php if (!empty($autorizador->monto_limite)): ?>
-                                        <div class="fw-bold text-success">Q <?= number_format($autorizador->monto_limite, 2) ?></div>
-                                        <small class="text-muted">Límite</small>
-                                    <?php else: ?>
-                                        <span class="text-muted">Sin límite</span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
-                                        <a href="/admin/autorizadores/<?= View::e($autorizador->id) ?>"
+                                        <a href="<?= url('/admin/autorizadores/' . View::e($autorizador->id)) ?>"
                                            class="btn btn-outline-primary btn-action"
                                            title="Ver detalles">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <a href="/admin/autorizadores/<?= View::e($autorizador->id) ?>/edit"
+                                        <a href="<?= url('/admin/autorizadores/' . View::e($autorizador->id) . '/edit') ?>"
                                            class="btn btn-outline-warning btn-action"
                                            title="Editar">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="/admin/autorizadores/<?= View::e($autorizador->id) ?>/delete"
+                                        <a href="<?= url('/admin/autorizadores/' . View::e($autorizador->id) . '/delete') ?>"
                                            class="btn btn-outline-danger btn-action"
                                            title="Eliminar"
                                            onclick="return confirm('¿Estás seguro de eliminar este autorizador?')">
@@ -409,12 +402,12 @@ $title = 'Gestión de Autorizadores';
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7" class="text-center py-5">
+                            <td colspan="6" class="text-center py-5">
                                 <div class="empty-state">
                                     <i class="fas fa-user-shield"></i>
                                     <h4>No hay autorizadores</h4>
                                     <p class="mb-3">No se encontraron autorizadores en el sistema.</p>
-                                    <a href="/admin/autorizadores/create" class="btn btn-create">
+                                    <a href="<?= url('/admin/autorizadores/create') ?>" class="btn btn-create">
                                         <i class="fas fa-plus me-2"></i>Crear Primer Autorizador
                                     </a>
                                 </div>
@@ -429,13 +422,13 @@ $title = 'Gestión de Autorizadores';
     <!-- Acciones Rápidas -->
     <div class="row mt-4">
         <div class="col-12 text-center">
-            <a href="/admin" class="btn btn-outline-secondary me-2">
+            <a href="<?= url('/admin') ?>" class="btn btn-outline-secondary me-2">
                 <i class="fas fa-arrow-left me-2"></i>Volver al Admin
             </a>
-            <a href="/dashboard" class="btn btn-outline-primary me-2">
+            <a href="<?= url('/dashboard') ?>" class="btn btn-outline-primary me-2">
                 <i class="fas fa-home me-2"></i>Dashboard
             </a>
-            <a href="/admin/autorizadores/create" class="btn btn-create">
+            <a href="<?= url('/admin/autorizadores/create') ?>" class="btn btn-create">
                 <i class="fas fa-plus me-2"></i>Nuevo Autorizador
             </a>
         </div>
@@ -478,7 +471,7 @@ $title = 'Gestión de Autorizadores';
             btn.classList.remove('active');
         });
         
-        const activeBtn = document.querySelector(`a[href="/admin/autorizadores?filtro=${filtro}"]`);
+        const activeBtn = document.querySelector(`a[href*="filtro=${filtro}"]`);
         if (activeBtn) {
             activeBtn.classList.add('active');
         }

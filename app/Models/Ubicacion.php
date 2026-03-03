@@ -47,9 +47,7 @@ class Ubicacion extends Model
      */
     public static function activas()
     {
-        $instance = new static();
-        
-        $sql = "SELECT * FROM {$instance->table} WHERE activo = 1 ORDER BY nombre ASC";
+        $sql = "SELECT * FROM " . static::$table . " WHERE activo = 1 ORDER BY nombre ASC";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute();
         
@@ -64,9 +62,7 @@ class Ubicacion extends Model
      */
     public static function buscar($termino)
     {
-        $instance = new static();
-        
-        $sql = "SELECT * FROM {$instance->table} 
+        $sql = "SELECT * FROM " . static::$table . " 
                 WHERE nombre LIKE ? 
                 AND activo = 1 
                 ORDER BY nombre ASC";
@@ -100,7 +96,7 @@ class Ubicacion extends Model
     {
         $sql = "SELECT SUM(dg.cantidad) as total
                 FROM distribucion_gasto dg
-                INNER JOIN orden_compra oc ON dg.orden_compra_id = oc.id
+                INNER JOIN requisiciones oc ON dg.requisicion_id = oc.id
                 WHERE dg.ubicacion_id = ?";
         
         $params = [$this->attributes['id']];
@@ -125,7 +121,7 @@ class Ubicacion extends Model
      */
     public function contarRequisiciones()
     {
-        $sql = "SELECT COUNT(DISTINCT dg.orden_compra_id) as total
+        $sql = "SELECT COUNT(DISTINCT dg.requisicion_id) as total
                 FROM distribucion_gasto dg
                 WHERE dg.ubicacion_id = ?";
         

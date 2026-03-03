@@ -173,7 +173,7 @@ $title = 'Editar Autorizador';
                 <p class="mb-0 opacity-75">Modifica los datos del autorizador</p>
             </div>
             <div class="col-md-4 text-end">
-                <a href="/admin/autorizadores" class="btn btn-light">
+                <a href="<?= url('/admin/autorizadores') ?>" class="btn btn-light">
                     <i class="fas fa-arrow-left me-2"></i>
                     Volver a la Lista
                 </a>
@@ -279,19 +279,6 @@ $title = 'Editar Autorizador';
                             </div>
                         </div>
                         
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="monto_limite" class="form-label">Límite de Autorización (Q)</label>
-                                <input type="number" 
-                                       class="form-control" 
-                                       id="monto_limite" 
-                                       name="monto_limite" 
-                                       value="<?= View::e($autorizador->monto_limite ?? '') ?>"
-                                       step="0.01"
-                                       min="0"
-                                       placeholder="0.00">
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Permisos de Autorización -->
@@ -374,34 +361,27 @@ $title = 'Editar Autorizador';
 
                     <!-- Estado -->
                     <div class="row mt-3">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Estado</label>
-                                <div class="form-check">
-                                    <input class="form-check-input" 
-                                           type="radio" 
-                                           name="activo" 
-                                           id="activo_si" 
-                                           value="1"
-                                           <?= ($autorizador->activo ?? true) ? 'checked' : '' ?>>
-                                    <label class="form-check-label" for="activo_si">
-                                        Activo
-                                    </label>
+                        <div class="col-md-10">
+                            <div class="clean-field" id="estadoField">
+                                <div class="field-content">
+                                    <div class="field-label">
+                                        <i class="fas fa-power-off me-2 text-primary"></i>
+                                        Estado del Autorizador
+                                    </div>
+                                    <div class="field-description">
+                                        Controla si este autorizador está activo y puede procesar requisiciones
+                                    </div>
                                 </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" 
-                                           type="radio" 
-                                           name="activo" 
-                                           id="activo_no" 
-                                           value="0"
-                                           <?= !($autorizador->activo ?? true) ? 'checked' : '' ?>>
-                                    <label class="form-check-label" for="activo_no">
-                                        Inactivo
-                                    </label>
+                                <div class="modern-switch">
+                                    <input type="checkbox" id="activo" name="activo" value="1" 
+                                           <?= ($autorizador->activo ?? true) ? 'checked' : '' ?>>
+                                    <span class="modern-switch-track" onclick="toggleModernStatus(this)"></span>
                                 </div>
                             </div>
                         </div>
-                        
+                    </div>
+                    
+                    <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="fecha_inicio" class="form-label">Fecha de Inicio</label>
@@ -421,7 +401,7 @@ $title = 'Editar Autorizador';
                                 <i class="fas fa-save me-2"></i>
                                 Guardar Cambios
                             </button>
-                            <a href="/admin/autorizadores" class="btn btn-cancel">
+                            <a href="<?= url('/admin/autorizadores') ?>" class="btn btn-cancel">
                                 <i class="fas fa-times me-2"></i>
                                 Cancelar
                             </a>
@@ -454,19 +434,34 @@ $title = 'Editar Autorizador';
         }
     });
 
-    // Efecto en los switches
-    document.querySelectorAll('.switch input').forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const slider = this.nextElementSibling;
-            if (this.checked) {
-                slider.style.backgroundColor = '#e74c3c';
-            } else {
-                slider.style.backgroundColor = '#ccc';
-            }
-        });
+    // Inicializar estado del switch moderno
+    document.addEventListener('DOMContentLoaded', function() {
+        updateModernStatusField();
     });
+
+    // Toggle para el switch moderno
+    function toggleModernStatus(track) {
+        const checkbox = track.parentElement.querySelector('input[type="checkbox"]');
+        checkbox.checked = !checkbox.checked;
+        updateModernStatusField();
+    }
+
+    // Actualizar apariencia del campo moderno según el estado
+    function updateModernStatusField() {
+        const checkbox = document.getElementById('activo');
+        const field = document.getElementById('estadoField');
+        
+        field.classList.remove('active', 'inactive');
+        if (checkbox.checked) {
+            field.classList.add('active');
+        } else {
+            field.classList.add('inactive');
+        }
+    }
 </script>
 <?php View::endSection(); ?>
+
+
 
 
 

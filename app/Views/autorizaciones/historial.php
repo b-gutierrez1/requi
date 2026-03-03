@@ -17,7 +17,7 @@ View::startSection('content');
             </p>
         </div>
         <div class="col-md-4 text-end">
-            <a href="/autorizaciones" class="btn btn-secondary">
+            <a href="<?= url('/autorizaciones') ?>" class="btn btn-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Volver
             </a>
         </div>
@@ -26,7 +26,7 @@ View::startSection('content');
     <!-- Filtros -->
     <div class="card mb-4">
         <div class="card-body">
-            <form method="GET" action="/autorizaciones/historial" class="row g-3">
+            <form method="GET" action="<?= url('/autorizaciones/historial') ?>" class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Tipo de Acción</label>
                     <select name="accion" class="form-select">
@@ -74,7 +74,7 @@ View::startSection('content');
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-filter me-2"></i>Filtrar
                     </button>
-                    <a href="/autorizaciones/historial" class="btn btn-outline-secondary">
+                    <a href="<?= url('/autorizaciones/historial') ?>" class="btn btn-outline-secondary">
                         <i class="fas fa-times me-2"></i>Limpiar
                     </a>
                 </div>
@@ -147,7 +147,7 @@ View::startSection('content');
                                     </div>
                                 </td>
                                 <td>
-                                    <strong><?php echo View::money($auth['monto_total']); ?></strong>
+                                    <strong><?php echo View::money($auth['monto_total'], $auth['moneda'] ?? 'GTQ'); ?></strong>
                                 </td>
                                 <td class="text-center">
                                     <?php
@@ -176,7 +176,7 @@ View::startSection('content');
                                     </span>
                                 </td>
                                 <td class="text-center">
-                                    <a href="/requisiciones/<?php echo $auth['orden_id']; ?>" 
+                                    <a href="<?= url('/requisiciones/' . $auth['orden_id']) ?>" 
                                        class="btn btn-sm btn-outline-primary" 
                                        title="Ver requisición">
                                         <i class="fas fa-eye"></i>
@@ -238,7 +238,7 @@ View::startSection('content');
                 <p class="text-muted">
                     <?php if (!empty($_GET['accion']) || !empty($_GET['busqueda'])): ?>
                         No se encontraron registros con los filtros aplicados.<br>
-                        <a href="/autorizaciones/historial" class="btn btn-outline-primary mt-2">
+                        <a href="<?= url('/autorizaciones/historial') ?>" class="btn btn-outline-primary mt-2">
                             <i class="fas fa-times me-2"></i>Limpiar Filtros
                         </a>
                     <?php else: ?>

@@ -12,10 +12,23 @@ namespace App\Controllers;
 
 use App\Models\CentroCosto;
 use App\Models\UnidadNegocio;
-use App\Models\AutorizacionCentroCosto;
+use App\Repositories\AutorizacionCentroRepository;
 
 class ApiController extends Controller
 {
+    /**
+     * Repositorio de autorizaciones por centro de costo.
+     *
+     * @var AutorizacionCentroRepository
+     */
+    private AutorizacionCentroRepository $centroRepository;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->centroRepository = new AutorizacionCentroRepository();
+    }
+
     /**
      * Obtiene la unidad de negocio de un centro de costo
      * 
@@ -163,20 +176,23 @@ class ApiController extends Controller
 
             $usuarioId = $_SESSION['usuario_id'];
 
-            $sql = "SELECT COUNT(*) as total
-                    FROM autorizacion_centro_costo acc
-                    INNER JOIN persona_autorizada pa ON pa.centro_costo_id = acc.centro_costo_id
-                    WHERE pa.usuario_id = ? 
-                    AND acc.estado = 'pendiente'
-                    AND pa.activo = 1";
-            
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute([$usuarioId]);
-            $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+            $stmtUsuario = $this->db->prepare("SELECT email FROM usuarios WHERE id = ?");
+            $stmtUsuario->execute([$usuarioId]);
+            $usuario = $stmtUsuario->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$usuario || empty($usuario['email'])) {
+                echo json_encode([
+                    'success' => true,
+                    'count' => 0
+                ]);
+                return;
+            }
+
+            $totalPendientes = $this->centroRepository->countPendingByEmail($usuario['email']);
 
             echo json_encode([
                 'success' => true,
-                'count' => (int)$result['total']
+                'count' => (int)$totalPendientes
             ]);
 
         } catch (\Exception $e) {
@@ -211,7 +227,7 @@ class ApiController extends Controller
             }
 
             $sql = "SELECT DISTINCT nombre_razon_social, nit
-                    FROM orden_compra
+                    FROM requisiciones
                     WHERE nombre_razon_social LIKE ? OR nit LIKE ?
                     ORDER BY nombre_razon_social ASC
                     LIMIT 20";

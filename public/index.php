@@ -80,7 +80,14 @@ $composerAutoloader = BASE_PATH . '/vendor/autoload.php';
 if (file_exists($composerAutoloader)) {
     require $composerAutoloader;
 }
+// ============================================================================
+// 4.5. CARGAR HELPERS GLOBALES
+// ============================================================================
 
+$helpersFile = APP_PATH . '/Helpers/helpers.php';
+if (file_exists($helpersFile)) {
+    require $helpersFile;
+}
 // ============================================================================
 // 5. CARGAR VARIABLES DE ENTORNO
 // ============================================================================
@@ -197,6 +204,11 @@ try {
     }
     
     // Despachar la ruta
+// DEBUG - Eliminar después
+error_log("DEBUG: URI original: " . $_SERVER['REQUEST_URI']);
+error_log("DEBUG: Script name: " . $_SERVER['SCRIPT_NAME']);
+error_log("DEBUG: URI procesada: " . $uri);
+error_log("DEBUG: Method: " . $method);
     $router->dispatch($uri, $method);
 
 } catch (Exception $e) {

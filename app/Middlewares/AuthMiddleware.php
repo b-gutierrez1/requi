@@ -58,8 +58,8 @@ class AuthMiddleware
             return false;
         }
 
-        // Actualizar actividad del usuario
-        Session::updateActivity();
+        // Agregar headers para prevenir cache en páginas autenticadas
+        $this->setNoCacheHeaders();
 
         // Verificar que la sesión no haya expirado
         if ($this->isSessionExpired()) {
@@ -68,8 +68,8 @@ class AuthMiddleware
             return false;
         }
 
-        // Actualizar última actividad
-        $this->updateLastActivity();
+        // Actualizar actividad del usuario (después de validar expiración)
+        Session::updateActivity();
 
         return true;
     }
@@ -94,8 +94,12 @@ class AuthMiddleware
      */
     private function isSessionExpired()
     {
-        // Tiempo máximo de inactividad en segundos (30 minutos por defecto)
-        $maxInactivity = Config::get('app.session_lifetime', 1800);
+        // Tiempo máximo de inactividad en segundos (minutos en config)
+        $lifetimeMinutes = Config::get('app.session.lifetime', null);
+        if ($lifetimeMinutes === null) {
+            $lifetimeMinutes = Config::get('app.security.session_timeout', 30);
+        }
+        $maxInactivity = (int) $lifetimeMinutes * 60;
 
         if (!isset($_SESSION['last_activity'])) {
             return false;
@@ -106,15 +110,7 @@ class AuthMiddleware
         return $inactiveTime > $maxInactivity;
     }
 
-    /**
-     * Actualiza el timestamp de última actividad
-     * 
-     * @return void
-     */
-    private function updateLastActivity()
-    {
-        $_SESSION['last_activity'] = time();
-    }
+
 
     /**
      * Obtiene la ruta actual
@@ -219,13 +215,13 @@ class AuthMiddleware
             echo json_encode([
                 'success' => false,
                 'error' => 'No autenticado',
-                'redirect' => '/login'
+                'redirect' => \App\Helpers\Redirect::url('/login')
             ]);
             exit;
         }
 
-        // Redirección normal
-        header('Location: /login');
+        // Redirección normal usando helper url() que considera el subdirectorio
+        header('Location: ' . \App\Helpers\Redirect::url('/login'));
         exit;
     }
 
@@ -308,4 +304,22 @@ class AuthMiddleware
                 return false;
         }
     }
+
+    /**
+     * Establece headers para prevenir cache en páginas autenticadas
+     * 
+     * @return void
+     */
+    private function setNoCacheHeaders()
+    {
+        // Headers para prevenir cache
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Cache-Control: post-check=0, pre-check=0', false);
+        header('Pragma: no-cache');
+        header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
+        
+        // Header adicional para IE
+        header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
+    }
 }
+

@@ -124,40 +124,15 @@ class RoleMiddleware
 
     /**
      * Verifica si un usuario es revisor basándose en su email
+     * Solo usa el flag is_revisor de la sesión (de la base de datos)
      * 
-     * @param string $usuarioEmail Email del usuario
+     * @param string $usuarioEmail Email del usuario (no usado, mantenido por compatibilidad)
      * @return bool
      */
     private function isRevisorPorEmail($usuarioEmail)
     {
-        if (empty($usuarioEmail)) {
-            return false;
-        }
-        
-        // Lista de emails que siempre son revisores
-        $revisoresPorDefecto = [
-            'bgutierrez@sp.iga.edu',
-            'bgutierrez@iga.edu',
-            'admin@iga.edu',
-            // Agregar más emails según sea necesario
-        ];
-        
-        // Verificar si está en la lista de revisores por defecto
-        if (in_array($usuarioEmail, $revisoresPorDefecto)) {
-            return true;
-        }
-        
-        // Verificar si es administrador (los admins suelen ser revisores)
-        if ($this->isAdmin()) {
-            return true;
-        }
-        
-        // Verificar por dominio (ejemplo: todos los @sp.iga.edu)
-        if (strpos($usuarioEmail, '@sp.iga.edu') !== false) {
-            return true;
-        }
-        
-        return false;
+        // Solo verificar el flag is_revisor de la sesión
+        return $this->isRevisor();
     }
 
     /**
@@ -192,7 +167,7 @@ class RoleMiddleware
         } else {
             echo '<h1>401 - No Autorizado</h1>';
             echo '<p>' . htmlspecialchars($message) . '</p>';
-            echo '<a href="/login">Iniciar sesión</a>';
+            echo '<a href="' . \App\Helpers\Redirect::url('/login') . '">Iniciar sesión</a>';
         }
 
         exit;

@@ -14,7 +14,7 @@ View::startSection('content');
             <p class="text-muted mb-0">Gestiona tus órdenes de compra y requisiciones</p>
         </div>
         <div class="col-md-4 text-end">
-            <a href="/requisiciones/crear" class="btn btn-primary">
+            <a href="<?= url('/requisiciones/crear') ?>" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>
                 Nueva Requisición
             </a>
@@ -24,7 +24,7 @@ View::startSection('content');
     <!-- Filtros -->
     <div class="card mb-4">
         <div class="card-body">
-            <form method="GET" action="/requisiciones" class="row g-3">
+            <form method="GET" action="<?= url('/requisiciones') ?>" class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Estado</label>
                     <select name="estado" class="form-select">
@@ -52,7 +52,7 @@ View::startSection('content');
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-search me-2"></i>Filtrar
                     </button>
-                    <a href="/requisiciones" class="btn btn-secondary">
+                    <a href="<?= url('/requisiciones') ?>" class="btn btn-secondary">
                         <i class="fas fa-times me-2"></i>Limpiar
                     </a>
                 </div>
@@ -97,10 +97,10 @@ View::startSection('content');
                                 <td><?php echo View::e($req['nombre_razon_social']); ?></td>
                                 <td><?php echo View::formatDate($req['fecha']); ?></td>
                                 <td>Centro</td>
-                                <td class="text-end"><?php echo View::money($req['monto_total']); ?></td>
+                                <td class="text-end"><?php echo View::money($req['monto_total'], $req['moneda'] ?? 'GTQ'); ?></td>
                                 <td><span class="badge bg-warning">Pendiente</span></td>
                                 <td class="text-center">
-                                    <a href="/requisiciones/<?php echo $req['id']; ?>" class="btn btn-sm btn-primary">
+                                    <a href="<?= url('/requisiciones/' . $req['id']) ?>" class="btn btn-sm btn-primary">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                 </td>

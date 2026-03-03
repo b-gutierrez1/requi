@@ -20,7 +20,7 @@ View::startSection('content');
             </p>
         </div>
         <div class="col-md-4 text-end">
-            <a href="/admin/dashboard" class="btn btn-outline-secondary">
+            <a href="<?= url('/admin/dashboard') ?>" class="btn btn-outline-secondary">
                 <i class="fas fa-tachometer-alt me-2"></i>Dashboard
             </a>
         </div>
@@ -136,15 +136,12 @@ View::startSection('content');
                             </td>
                             <td>
                                 <?php
-                                    $estadoOrdenClass = match($req['estado_orden']) {
-                                        'borrador' => 'bg-secondary',
-                                        'enviado' => 'bg-primary', 
-                                        'procesado' => 'bg-success',
-                                        default => 'bg-secondary'
-                                    };
+                                    // Usar EstadoHelper para obtener el estado mapeado
+                                    $estadoReal = \App\Helpers\EstadoHelper::mapearEstadoFlujo($req['estado_flujo'] ?? 'borrador');
+                                    $badge = \App\Helpers\EstadoHelper::getBadge($estadoReal);
                                 ?>
-                                <span class="badge <?php echo $estadoOrdenClass; ?>">
-                                    <?php echo ucfirst($req['estado_orden']); ?>
+                                <span class="badge <?php echo $badge['class']; ?>">
+                                    <?php echo $badge['text']; ?>
                                 </span>
                             </td>
                             <td>
@@ -210,7 +207,7 @@ View::startSection('content');
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <a href="/admin/requisiciones/<?php echo $req['id']; ?>" 
+                                <a href="<?= url('/admin/requisiciones/' . $req['id']) ?>" 
                                    class="btn btn-sm btn-outline-primary" 
                                    title="Ver Detalle Completo">
                                     <i class="fas fa-chart-line"></i>

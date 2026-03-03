@@ -157,7 +157,7 @@
                 </h3>
                 
                 <!-- Botón de Login con Microsoft -->
-                <a href="/auth/azure" class="btn btn-microsoft">
+                <a href="<?= url('/auth/azure') ?>" class="btn btn-microsoft">
                     <i class="fab fa-microsoft"></i>
                     Continuar con Microsoft
                 </a>
@@ -193,5 +193,59 @@
 
     <!-- Bootstrap Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Limpiar almacenamiento del navegador al cargar la página de login
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                // Limpiar localStorage
+                if (typeof(Storage) !== "undefined" && localStorage) {
+                    // Eliminar todas las entradas relacionadas con autenticación
+                    const authKeys = ['user_data', 'access_token', 'refresh_token', 'user_session', 'auth_token'];
+                    authKeys.forEach(key => {
+                        localStorage.removeItem(key);
+                    });
+                    
+                    // También limpiar cualquier clave que contenga 'auth' o 'user'
+                    for (let i = localStorage.length - 1; i >= 0; i--) {
+                        const key = localStorage.key(i);
+                        if (key && (key.includes('auth') || key.includes('user') || key.includes('session'))) {
+                            localStorage.removeItem(key);
+                        }
+                    }
+                }
+                
+                // Limpiar sessionStorage
+                if (typeof(Storage) !== "undefined" && sessionStorage) {
+                    // Eliminar todas las entradas relacionadas con autenticación
+                    const authKeys = ['user_data', 'access_token', 'refresh_token', 'user_session', 'auth_token'];
+                    authKeys.forEach(key => {
+                        sessionStorage.removeItem(key);
+                    });
+                    
+                    // También limpiar cualquier clave que contenga 'auth' o 'user'
+                    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+                        const key = sessionStorage.key(i);
+                        if (key && (key.includes('auth') || key.includes('user') || key.includes('session'))) {
+                            sessionStorage.removeItem(key);
+                        }
+                    }
+                }
+                
+                // Limpiar cualquier cache del navegador
+                if ('caches' in window) {
+                    caches.keys().then(function(names) {
+                        for (let name of names) {
+                            caches.delete(name);
+                        }
+                    });
+                }
+                
+            } catch (e) {
+                // Fallar silenciosamente si hay problemas con el storage
+                console.log('Storage cleanup failed:', e);
+            }
+        });
+    </script>
 </body>
 </html>

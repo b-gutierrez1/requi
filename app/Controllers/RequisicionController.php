@@ -18,7 +18,7 @@ use App\Helpers\EstadoHelper;
 use App\Helpers\ErrorLogger;
 use App\Services\RequisicionService;
 use App\Services\AutorizacionService;
-use App\Models\OrdenCompra;
+use App\Models\Requisicion;
 use App\Models\AutorizacionFlujo;
 use App\Models\CentroCosto;
 use App\Models\CuentaContable;
@@ -74,13 +74,39 @@ class RequisicionController extends Controller
             'fecha_hasta' => $_GET['fecha_hasta'] ?? '',
             'busqueda' => $_GET['busqueda'] ?? ''
         ];
+        
+        // Parámetros de paginación
+        $pagina = max(1, intval($_GET['pagina'] ?? 1));
+        $porPagina = max(5, min(100, intval($_GET['por_pagina'] ?? 5))); // Requisiciones por página (5-100)
 
-        // Obtener requisiciones
-        $requisiciones = $this->aplicarFiltros($usuarioId, $filtros);
+        // Obtener requisiciones filtradas
+        $todasRequisiciones = $this->aplicarFiltros($usuarioId, $filtros);
+        
+        // Ordenar de mayor a menor (por ID descendente)
+        usort($todasRequisiciones, function($a, $b) {
+            $idA = is_object($a) ? $a->id : ($a['id'] ?? 0);
+            $idB = is_object($b) ? $b->id : ($b['id'] ?? 0);
+            return $idB - $idA; // Descendente
+        });
+        
+        // Calcular paginación
+        $totalRequisiciones = count($todasRequisiciones);
+        $totalPaginas = max(1, ceil($totalRequisiciones / $porPagina));
+        $pagina = min($pagina, $totalPaginas); // No exceder el total de páginas
+        $offset = ($pagina - 1) * $porPagina;
+        
+        // Obtener solo las requisiciones de la página actual
+        $requisiciones = array_slice($todasRequisiciones, $offset, $porPagina);
 
         View::render('requisiciones/index', [
             'requisiciones' => $requisiciones,
             'filtros' => $filtros,
+            'paginacion' => [
+                'pagina_actual' => $pagina,
+                'total_paginas' => $totalPaginas,
+                'total_requisiciones' => $totalRequisiciones,
+                'por_pagina' => $porPagina
+            ],
             'title' => 'Mis Requisiciones'
         ]);
     }
@@ -122,15 +148,26 @@ class RequisicionController extends Controller
             }
         }
 
-        // Verificar permisos
+        // Verificar permisos: permitir acceso amplio a revisores y autorizadores
         $orden = $requisicion['orden'];
-        if ($orden->usuario_id != $this->getUsuarioId() && !$this->isAdmin()) {
-            // Verificar si es autorizador
-            if (!$this->autorizacionService->esAutorizadorDe($this->getUsuarioEmail(), $id)) {
-                Redirect::to('/requisiciones')
-                    ->withError('No tienes permisos para ver esta requisición')
-                    ->send();
-            }
+        $esDueño = (is_object($orden) ? $orden->usuario_id : $orden['usuario_id']) == $this->getUsuarioId();
+        $esRevisor = $this->isRevisor() || $this->isRevisorPorEmail($this->getUsuarioEmail());
+        $esAutorizadorGeneral = $this->autorizacionService->esAutorizadorGeneral($this->getUsuarioEmail());
+        $puedeAutorizar = $this->autorizacionService->puedeAutorizar($this->getUsuarioEmail(), $id);
+        $esAdmin = $this->isAdmin();
+        
+        // Permitir acceso si:
+        // 1. Es el dueño de la requisición
+        // 2. Es revisor (puede ver cualquier requisición para referencia)
+        // 3. Es autorizador general (puede ver cualquier requisición para contexto)
+        // 4. Puede autorizar específicamente esta requisición
+        // 5. Es administrador
+        $tienePermisos = $esDueño || $esRevisor || $esAutorizadorGeneral || $puedeAutorizar || $esAdmin;
+        
+        if (!$tienePermisos) {
+            Redirect::to('/requisiciones')
+                ->withError('No tienes permisos para ver esta requisición')
+                ->send();
         }
 
         // Obtener información de autorizaciones pendientes para administradores y revisores
@@ -144,17 +181,30 @@ class RequisicionController extends Controller
         header('Pragma: no-cache');
         header('Expires: 0');
 
+        // Cargar items y distribución
+        $items = \App\Models\DetalleItem::porRequisicion($id);
+        $distribucion = \App\Models\DistribucionGasto::porRequisicion($id);
+        
+        // Obtener catálogos para mostrar nombres completos
+        $catalogos = $this->getCatalogos();
+
         View::render('requisiciones/show', [
             'requisicion' => $requisicion,
             'orden' => $orden,
-            'items' => $requisicion['items'],
-            'distribucion' => $requisicion['distribucion'],
-            'facturas' => $requisicion['facturas'],
-            'archivos' => $requisicion['archivos'],
+            'items' => $items,
+            'distribucion' => $distribucion,
+            'distribuciones' => $distribucion, // Compatibilidad
+            'facturas' => $requisicion['facturas'] ?? [], // v3.0: Tabla eliminada
+            'archivos' => $requisicion['archivos'] ?? [], // v3.0: Tabla eliminada
             'flujo' => $requisicion['flujo'],
             'historial' => $requisicion['historial'],
             'autorizaciones_pendientes' => $autorizacionesPendientes,
             'autorizaciones' => $autorizacionesPendientes,
+            'centros_costo' => $catalogos['centros_costo'] ?? [],
+            'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
+            'ubicaciones' => $catalogos['ubicaciones'] ?? [],
+            'unidades_negocio' => $catalogos['unidades_negocio'] ?? [],
+            'unidades_requirentes' => \App\Models\UnidadRequirente::activas(),
             'title' => 'Requisición #' . $id,
             'timestamp' => time() // Para anti-caché
         ]);
@@ -179,7 +229,7 @@ class RequisicionController extends Controller
             'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
             'ubicaciones' => $catalogos['ubicaciones'] ?? [],
             'unidades_negocio' => $catalogos['unidades_negocio'] ?? [],
-            'unidades_requirentes' => \App\Models\UnidadRequirente::all(),
+            'unidades_requirentes' => \App\Models\UnidadRequirente::activas(),
             'title' => 'Nueva Requisición'
         ]);
     }
@@ -225,9 +275,17 @@ class RequisicionController extends Controller
                     
                     // Verificar que el usuario esté autenticado
                     if (!$usuarioId) {
+                        // Log para diagnóstico
+                        error_log("=== ERROR AUTENTICACIÓN ===");
+                        error_log("Session ID: " . session_id());
+                        error_log("Session data: " . json_encode($_SESSION ?? []));
+                        error_log("User agent: " . ($_SERVER['HTTP_USER_AGENT'] ?? 'N/A'));
+
+                        http_response_code(401); // Código de no autorizado
                         $response = [
                             'success' => false,
-                            'error' => 'Usuario no autenticado. Por favor, inicie sesión nuevamente.'
+                            'error' => 'Usuario no autenticado. Por favor, inicie sesión nuevamente.',
+                            'redirect' => \App\Helpers\Redirect::url('/login')
                         ];
                     } else {
                         // Debug: Log de datos recibidos
@@ -256,15 +314,30 @@ class RequisicionController extends Controller
 
                         // Determinar el estado según el tipo de acción
                         $actionType = $_POST['action_type'] ?? 'enviar';
-                        $estado = ($actionType === 'borrador') ? 'borrador' : 'enviado';
+                        $estado = ($actionType === 'borrador') ? Requisicion::ESTADO_BORRADOR : Requisicion::ESTADO_PENDIENTE_REVISION;
                         
                         // Crear la requisición
                         $resultado = $this->requisicionService->crearRequisicion($data, $usuarioId, $estado);
 
                         if ($resultado['success']) {
-                            // Manejar archivos adjuntos
+                            // Manejar archivos adjuntos - DEBUG
+                            error_log("=== DEBUG ARCHIVOS ADJUNTOS (AJAX) ===");
+                            error_log("FILES array: " . json_encode($_FILES));
+                            
+                            if (isset($_FILES['archivos'])) {
+                                error_log("FILES[archivos]: " . json_encode($_FILES['archivos']));
+                                error_log("Name[0]: " . ($_FILES['archivos']['name'][0] ?? 'NO EXISTE'));
+                                error_log("Empty check: " . (empty($_FILES['archivos']['name'][0]) ? 'TRUE' : 'FALSE'));
+                            } else {
+                                error_log("FILES[archivos] NO EXISTE");
+                            }
+                            
                             if (!empty($_FILES['archivos']['name'][0])) {
-                                $this->requisicionService->guardarArchivos($resultado['orden_id'], $_FILES['archivos']);
+                                error_log("Llamando guardarArchivos...");
+                                $archivoResultado = $this->requisicionService->guardarArchivos($resultado['orden_id'], $_FILES['archivos']);
+                                error_log("Resultado guardarArchivos: " . json_encode($archivoResultado));
+                            } else {
+                                error_log("NO hay archivos para procesar");
                             }
 
                             // NOTA: El flujo de autorización ya se inicia automáticamente en RequisicionService::crearRequisicion()
@@ -274,7 +347,7 @@ class RequisicionController extends Controller
                                 'success' => true,
                                 'message' => 'Requisición creada exitosamente',
                                 'orden_id' => $resultado['orden_id'],
-                                'redirect_url' => '/requisiciones/' . $resultado['orden_id']
+                                'redirect_url' => Redirect::url('/requisiciones/' . $resultado['orden_id'])
                             ];
                         } else {
                             $response = [
@@ -349,15 +422,30 @@ class RequisicionController extends Controller
 
         // Determinar el estado según el tipo de acción  
         $actionType = $_POST['action_type'] ?? 'enviar';
-        $estado = ($actionType === 'borrador') ? 'borrador' : 'enviado';
+        $estado = ($actionType === 'borrador') ? Requisicion::ESTADO_BORRADOR : Requisicion::ESTADO_PENDIENTE_REVISION;
         
         // Crear la requisición
         $resultado = $this->requisicionService->crearRequisicion($data, $usuarioId, $estado);
 
         if ($resultado['success']) {
-            // Manejar archivos adjuntos
+            // Manejar archivos adjuntos - DEBUG
+            error_log("=== DEBUG ARCHIVOS ADJUNTOS (NO-AJAX) ===");
+            error_log("FILES array: " . json_encode($_FILES));
+            
+            if (isset($_FILES['archivos'])) {
+                error_log("FILES[archivos]: " . json_encode($_FILES['archivos']));
+                error_log("Name[0]: " . ($_FILES['archivos']['name'][0] ?? 'NO EXISTE'));
+                error_log("Empty check: " . (empty($_FILES['archivos']['name'][0]) ? 'TRUE' : 'FALSE'));
+            } else {
+                error_log("FILES[archivos] NO EXISTE");
+            }
+            
             if (!empty($_FILES['archivos']['name'][0])) {
-                $this->requisicionService->guardarArchivos($resultado['orden_id'], $_FILES['archivos']);
+                error_log("Llamando guardarArchivos...");
+                $archivoResultado = $this->requisicionService->guardarArchivos($resultado['orden_id'], $_FILES['archivos']);
+                error_log("Resultado guardarArchivos: " . json_encode($archivoResultado));
+            } else {
+                error_log("NO hay archivos para procesar");
             }
 
             // NOTA: El flujo de autorización ya se inicia automáticamente en RequisicionService::crearRequisicion()
@@ -403,10 +491,18 @@ class RequisicionController extends Controller
         }
 
         $catalogos = $this->getCatalogos();
+        
+        // Cargar items y distribución
+        $requisicion['items'] = \App\Models\DetalleItem::porRequisicion($id);
+        $requisicion['distribucion'] = \App\Models\DistribucionGasto::porRequisicion($id);
 
         View::render('requisiciones/edit', [
             'requisicion' => $requisicion,
-            'catalogos' => $catalogos,
+            'centros_costo' => $catalogos['centros_costo'] ?? [],
+            'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
+            'ubicaciones' => $catalogos['ubicaciones'] ?? [],
+            'unidades_negocio' => $catalogos['unidades_negocio'] ?? [],
+            'unidades_requirentes' => \App\Models\UnidadRequirente::activas(),
             'title' => 'Editar Requisición #' . $id
         ]);
     }
@@ -421,6 +517,13 @@ class RequisicionController extends Controller
     {
         // Validar CSRF
         if (!$this->validateCSRF()) {
+            if ($this->isAjaxRequest()) {
+                $this->jsonResponse([
+                    'success' => false,
+                    'error' => 'Token de seguridad inválido'
+                ], 403);
+                return;
+            }
             Redirect::back()
                 ->withError('Token de seguridad inválido')
                 ->send();
@@ -437,14 +540,29 @@ class RequisicionController extends Controller
                 $this->requisicionService->guardarArchivos($id, $_FILES['archivos']);
             }
 
-            Redirect::to('/requisiciones/' . $id)
-                ->withSuccess('Requisición actualizada exitosamente')
-                ->send();
+            if ($this->isAjaxRequest()) {
+                $this->jsonResponse([
+                    'success' => true,
+                    'message' => 'Requisición actualizada exitosamente',
+                    'redirect_url' => Redirect::url('/requisiciones/' . $id)
+                ]);
+            } else {
+                Redirect::to('/requisiciones/' . $id)
+                    ->withSuccess('Requisición actualizada exitosamente')
+                    ->send();
+            }
         } else {
-            Redirect::back()
-                ->withError($resultado['error'])
-                ->withInput($data)
-                ->send();
+            if ($this->isAjaxRequest()) {
+                $this->jsonResponse([
+                    'success' => false,
+                    'error' => $resultado['error']
+                ]);
+            } else {
+                Redirect::back()
+                    ->withError($resultado['error'])
+                    ->withInput($data)
+                    ->send();
+            }
         }
     }
 
@@ -511,10 +629,93 @@ class RequisicionController extends Controller
      * @param int $id ID del archivo
      * @return void
      */
-    public function downloadArchivo($id)
+    public function descargarArchivo($id)
     {
-        // TODO: Implementar descarga de archivos
-        // Verificar permisos y enviar archivo
+        try {
+            $archivo = \App\Models\ArchivoAdjunto::find($id);
+            
+            if (!$archivo) {
+                http_response_code(404);
+                echo "Archivo no encontrado";
+                return;
+            }
+            
+            // Verificar que el archivo físico existe
+            $rutaArchivo = $archivo->ruta_archivo;
+            if (!file_exists($rutaArchivo)) {
+                http_response_code(404);
+                echo "El archivo físico no existe en el servidor";
+                return;
+            }
+            
+            // Verificar permisos (el usuario debe tener acceso a la requisición)
+            $requisicion = \App\Models\Requisicion::find($archivo->requisicion_id);
+            if (!$requisicion) {
+                http_response_code(403);
+                echo "No tienes permiso para acceder a este archivo";
+                return;
+            }
+            
+            // Enviar archivo para descarga
+            $nombreOriginal = $archivo->nombre_original;
+            $tipoMime = $archivo->tipo_mime ?: 'application/octet-stream';
+            
+            header('Content-Type: ' . $tipoMime);
+            header('Content-Disposition: attachment; filename="' . $nombreOriginal . '"');
+            header('Content-Length: ' . filesize($rutaArchivo));
+            header('Cache-Control: no-cache, must-revalidate');
+            header('Pragma: no-cache');
+            
+            readfile($rutaArchivo);
+            exit;
+            
+        } catch (\Exception $e) {
+            error_log("Error descargando archivo: " . $e->getMessage());
+            http_response_code(500);
+            echo "Error al descargar el archivo";
+        }
+    }
+    
+    /**
+     * Muestra un archivo adjunto en el navegador
+     * 
+     * @param int $id ID del archivo
+     * @return void
+     */
+    public function verArchivo($id)
+    {
+        try {
+            $archivo = \App\Models\ArchivoAdjunto::find($id);
+            
+            if (!$archivo) {
+                http_response_code(404);
+                echo "Archivo no encontrado";
+                return;
+            }
+            
+            // Verificar que el archivo físico existe
+            $rutaArchivo = $archivo->ruta_archivo;
+            if (!file_exists($rutaArchivo)) {
+                http_response_code(404);
+                echo "El archivo físico no existe en el servidor";
+                return;
+            }
+            
+            // Enviar archivo para visualización
+            $tipoMime = $archivo->tipo_mime ?: 'application/octet-stream';
+            
+            header('Content-Type: ' . $tipoMime);
+            header('Content-Disposition: inline; filename="' . $archivo->nombre_original . '"');
+            header('Content-Length: ' . filesize($rutaArchivo));
+            
+            readfile($rutaArchivo);
+            exit;
+            
+        } catch (\Exception $e) {
+            error_log("Error mostrando archivo: " . $e->getMessage());
+            http_response_code(500);
+            echo "Error al mostrar el archivo";
+        }
     }
 
     // ========================================================================
@@ -537,14 +738,20 @@ class RequisicionController extends Controller
                 ->send();
         }
 
-        // Verificar permisos
+        // Verificar permisos: permitir acceso amplio a revisores y autorizadores
         $orden = $requisicion['orden'];
-        if ($orden->usuario_id != $this->getUsuarioId() && !$this->isAdmin()) {
-            if (!$this->autorizacionService->esAutorizadorDe($this->getUsuarioEmail(), $id)) {
-                Redirect::to('/requisiciones')
-                    ->withError('No tienes permisos')
-                    ->send();
-            }
+        $esDueño = $orden->usuario_id == $this->getUsuarioId();
+        $esRevisor = $this->isRevisor() || $this->isRevisorPorEmail($this->getUsuarioEmail());
+        $esAutorizadorGeneral = $this->autorizacionService->esAutorizadorGeneral($this->getUsuarioEmail());
+        $puedeAutorizar = $this->autorizacionService->puedeAutorizar($this->getUsuarioEmail(), $id);
+        $esAdmin = $this->isAdmin();
+        
+        $tienePermisos = $esDueño || $esRevisor || $esAutorizadorGeneral || $puedeAutorizar || $esAdmin;
+        
+        if (!$tienePermisos) {
+            Redirect::to('/requisiciones')
+                ->withError('No tienes permisos para ver esta requisición')
+                ->send();
         }
 
         View::render('requisiciones/print', [
@@ -652,6 +859,76 @@ class RequisicionController extends Controller
         $this->jsonResponse($resultados);
     }
 
+    /**
+     * API: Obtiene el detalle completo de una requisición para modal
+     * 
+     * @param int $id ID de la requisición
+     * @return void
+     */
+    public function apiDetalleRequisicion($id)
+    {
+        try {
+            $requisicion = $this->requisicionService->getRequisicionCompleta($id);
+
+            if (!$requisicion) {
+                http_response_code(404);
+                echo '<div class="alert alert-danger">Requisición no encontrada</div>';
+                return;
+            }
+
+            // Verificar permisos: permitir acceso amplio a revisores y autorizadores
+            $orden = $requisicion['orden'];
+            $esDueño = $orden->usuario_id == $this->getUsuarioId();
+            $esRevisor = $this->isRevisor() || $this->isRevisorPorEmail($this->getUsuarioEmail());
+            $esAutorizadorGeneral = $this->autorizacionService->esAutorizadorGeneral($this->getUsuarioEmail());
+            $puedeAutorizar = $this->autorizacionService->puedeAutorizar($this->getUsuarioEmail(), $id);
+            $esAdmin = $this->isAdmin();
+            
+            $tienePermisos = $esDueño || $esRevisor || $esAutorizadorGeneral || $puedeAutorizar || $esAdmin;
+            
+            if (!$tienePermisos) {
+                http_response_code(403);
+                echo '<div class="alert alert-danger">No tienes permisos para ver esta requisición</div>';
+                return;
+            }
+
+            // Cargar datos adicionales
+            $items = \App\Models\DetalleItem::porRequisicion($id);
+            $distribucion = \App\Models\DistribucionGasto::porRequisicion($id);
+            $catalogos = $this->getCatalogos();
+
+            // Renderizar vista parcial del detalle
+            $this->renderDetalleRequisicion($requisicion, $items, $distribucion, $catalogos);
+
+        } catch (\Exception $e) {
+            error_log("Error en apiDetalleRequisicion: " . $e->getMessage());
+            http_response_code(500);
+            echo '<div class="alert alert-danger">Error al cargar el detalle de la requisición</div>';
+        }
+    }
+
+    /**
+     * Renderiza el contenido del detalle de requisición para el modal
+     */
+    private function renderDetalleRequisicion($requisicion, $items, $distribucion, $catalogos)
+    {
+        $orden = $requisicion['orden'];
+        $flujo = $requisicion['flujo'];
+        
+        // Helper para obtener datos
+        function getData($data, $key, $default = '') {
+            if (is_object($data)) {
+                return $data->$key ?? $default;
+            } elseif (is_array($data)) {
+                return $data[$key] ?? $default;
+            }
+            return $default;
+        }
+        
+        // Incluir la vista parcial del detalle
+        include APP_PATH . '/Views/partials/detalle_requisicion.php';
+    }
+
     // ========================================================================
     // MÉTODOS PRIVADOS
     // ========================================================================
@@ -664,10 +941,10 @@ class RequisicionController extends Controller
     private function getCatalogos()
     {
         return [
-            'centros_costo' => CentroCosto::all(),
-            'cuentas_contables' => CuentaContable::all(),
-            'ubicaciones' => Ubicacion::all(),
-            'unidades_negocio' => UnidadNegocio::all(),
+            'centros_costo' => CentroCosto::activos(),
+            'cuentas_contables' => CuentaContable::activas(),
+            'ubicaciones' => Ubicacion::activas(),
+            'unidades_negocio' => UnidadNegocio::activas(),
             'formas_pago' => [
                 'efectivo' => 'Efectivo',
                 'transferencia' => 'Transferencia',
@@ -689,9 +966,14 @@ class RequisicionController extends Controller
         // Si es admin o revisor, obtener todas las requisiciones
         // Si no, solo obtener las del usuario logueado
         if ($this->isAdmin() || $this->isRevisor()) {
-            $requisiciones = OrdenCompra::all();
+            $requisiciones = Requisicion::all();
         } else {
-            $requisiciones = OrdenCompra::porUsuario($usuarioId);
+            // Si no hay usuario logueado, devolver array vacío
+            if ($usuarioId === null) {
+                $requisiciones = [];
+            } else {
+                $requisiciones = Requisicion::porUsuario($usuarioId);
+            }
         }
 
         // Agregar información del usuario creador a cada requisición
@@ -786,9 +1068,9 @@ class RequisicionController extends Controller
     public function apiCentrosCosto()
     {
         try {
-            // Obtener todos los centros de costo
-            $centrosCosto = CentroCosto::all();
-            $unidadesNegocio = UnidadNegocio::all();
+            // Obtener todos los centros de costo activos
+            $centrosCosto = CentroCosto::activos();
+            $unidadesNegocio = UnidadNegocio::activas();
             
             // Crear mapeo de centros de costo a unidades de negocio y facturas
             $mapeo = [];

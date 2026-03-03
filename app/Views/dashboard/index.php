@@ -64,7 +64,6 @@ View::startSection('content');
     .stats-icon.requisitions { background: var(--gradient-primary); }
     .stats-icon.pendientes { background: linear-gradient(135deg, var(--warning-color), #d97706); }
     .stats-icon.autorizadas { background: linear-gradient(135deg, var(--success-color), #16a34a); }
-    .stats-icon.monto { background: linear-gradient(135deg, var(--info-color), #0284c7); }
     
     
     .quick-actions {
@@ -252,7 +251,7 @@ View::startSection('content');
 
     <!-- Estadísticas Generales -->
     <div class="row mb-4">
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="stats-card">
                 <div class="card-body text-center">
                     <div class="stats-icon requisitions">
@@ -263,7 +262,7 @@ View::startSection('content');
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="stats-card">
                 <div class="card-body text-center">
                     <div class="stats-icon pendientes">
@@ -274,7 +273,7 @@ View::startSection('content');
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="stats-card">
                 <div class="card-body text-center">
                     <div class="stats-icon autorizadas">
@@ -285,22 +284,11 @@ View::startSection('content');
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="stats-card">
-                <div class="card-body text-center">
-                    <div class="stats-icon monto">
-                        <i class="fas fa-dollar-sign"></i>
-                    </div>
-                    <h3 class="text-info"><?php echo View::money($estadisticas['monto_total'] ?? 0); ?></h3>
-                    <p class="text-muted mb-0">Presupuesto Asignado</p>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Acciones Rápidas -->
     <div class="quick-actions">
-        <a href="/requisiciones/crear" class="quick-action">
+        <a href="<?= url('/requisiciones/crear') ?>" class="quick-action">
             <div class="quick-action-icon create">
                 <i class="fas fa-plus"></i>
             </div>
@@ -308,7 +296,7 @@ View::startSection('content');
             <p class="small text-muted mb-0">Registrar nueva solicitud de compra</p>
         </a>
         
-        <a href="/requisiciones" class="quick-action">
+        <a href="<?= url('/requisiciones') ?>" class="quick-action">
             <div class="quick-action-icon view">
                 <i class="fas fa-eye"></i>
             </div>
@@ -316,7 +304,7 @@ View::startSection('content');
             <p class="small text-muted mb-0">Revisar estado de solicitudes</p>
         </a>
         
-        <a href="/autorizaciones" class="quick-action">
+        <a href="<?= url('/autorizaciones') ?>" class="quick-action">
             <div class="quick-action-icon authorize">
                 <i class="fas fa-check-circle"></i>
             </div>
@@ -325,7 +313,7 @@ View::startSection('content');
         </a>
         
         <?php if (isset($usuario) && ($usuario['is_admin'] ?? 0) == 1): ?>
-        <a href="/admin" class="quick-action">
+        <a href="<?= url('/admin') ?>" class="quick-action">
             <div class="quick-action-icon admin">
                 <i class="fas fa-cog"></i>
             </div>
@@ -356,6 +344,7 @@ View::startSection('content');
                                 $reqProveedor = $req->nombre_razon_social;
                                 $reqFecha = $req->fecha;
                                 $reqMonto = $req->monto_total;
+                                $reqMoneda = $req->moneda ?? 'GTQ';
                                 // Obtener estado real desde la orden de compra
                                 $estado = $req->getEstadoReal();
                             } else {
@@ -363,6 +352,7 @@ View::startSection('content');
                                 $reqProveedor = $req['nombre_razon_social'];
                                 $reqFecha = $req['fecha'];
                                 $reqMonto = $req['monto_total'];
+                                $reqMoneda = $req['moneda'] ?? 'GTQ';
                                 // Obtener estado desde datos del array
                                 $estado = EstadoHelper::getEstadoFromData($req);
                             }
@@ -392,13 +382,13 @@ View::startSection('content');
                                 </div>
                             </div>
                             <div class="requisicion-amount">
-                                <?php echo View::money($reqMonto); ?>
+                                <?php echo View::money($reqMonto, $reqMoneda); ?>
                             </div>
                         </div>
                         <?php endforeach; ?>
                         
                         <div class="text-center mt-3">
-                            <a href="/requisiciones" class="btn btn-outline-primary">
+                            <a href="<?= url('/requisiciones') ?>" class="btn btn-outline-primary">
                                 <i class="fas fa-eye me-2"></i>Consultar Registro Completo
                             </a>
                         </div>
@@ -407,7 +397,7 @@ View::startSection('content');
                             <i class="fas fa-file-invoice"></i>
                             <h5>No hay actividad registrada</h5>
                             <p>Inicie el proceso registrando una nueva solicitud</p>
-                            <a href="/requisiciones/crear" class="btn btn-primary">
+                            <a href="<?= url('/requisiciones/crear') ?>" class="btn btn-primary">
                                 <i class="fas fa-plus me-2"></i>Registrar Solicitud
                             </a>
                         </div>
@@ -418,8 +408,8 @@ View::startSection('content');
 
         <!-- Sidebar -->
         <div class="col-md-4">
-            <!-- Revisiones Pendientes -->
-            <?php if (!empty($revisiones_pendientes)): ?>
+            <!-- Revisiones Pendientes (solo para revisores) -->
+            <?php if (($es_revisor ?? false) && !empty($revisiones_pendientes)): ?>
             <div class="recent-section">
                 <div class="section-header">
                     <h5 class="mb-0">
@@ -433,20 +423,20 @@ View::startSection('content');
                         <div class="requisicion-status pendiente"></div>
                         <div class="requisicion-info">
                             <div class="requisicion-title">
-                                Solicitud #<?php echo $revision['orden_id'] ?? 'N/A'; ?>
+                                Solicitud #<?php echo $revision['numero_requisicion'] ?? $revision['requisicion_id'] ?? 'N/A'; ?>
                             </div>
                             <div class="requisicion-meta">
                                 <?php echo View::e($revision['nombre_razon_social'] ?? 'Proveedor no especificado'); ?>
                             </div>
                         </div>
                         <div class="requisicion-amount">
-                            <?php echo View::money($revision['monto_total'] ?? 0); ?>
+                            <?php echo View::money($revision['monto_total'] ?? 0, $revision['moneda'] ?? 'GTQ'); ?>
                         </div>
                     </div>
                     <?php endforeach; ?>
                     
                     <div class="text-center mt-3">
-                        <a href="/autorizaciones/revision" class="btn btn-outline-primary">
+                        <a href="<?= url('/autorizaciones/revision') ?>" class="btn btn-outline-primary">
                             <i class="fas fa-check me-2"></i>Aprobar Revisiones
                         </a>
                     </div>
@@ -469,20 +459,20 @@ View::startSection('content');
                         <div class="requisicion-status pendiente"></div>
                         <div class="requisicion-info">
                             <div class="requisicion-title">
-                                Solicitud #<?php echo $auth['orden_id'] ?? 'N/A'; ?>
+                                Solicitud #<?php echo $auth['numero_requisicion'] ?? $auth['requisicion_id'] ?? 'N/A'; ?>
                             </div>
                             <div class="requisicion-meta">
                                 <?php echo View::e($auth['nombre_razon_social'] ?? 'Proveedor no especificado'); ?>
                             </div>
                         </div>
                         <div class="requisicion-amount">
-                            <?php echo View::money($auth['monto_total'] ?? 0); ?>
+                            <?php echo View::money($auth['monto_total'] ?? 0, $auth['moneda'] ?? 'GTQ'); ?>
                         </div>
                     </div>
                     <?php endforeach; ?>
                     
                     <div class="text-center mt-3">
-                        <a href="/autorizaciones" class="btn btn-outline-warning">
+                        <a href="<?= url('/autorizaciones') ?>" class="btn btn-outline-warning">
                             <i class="fas fa-tasks me-2"></i>Procesar Evaluaciones
                         </a>
                     </div>

@@ -211,9 +211,9 @@ class AutorizadorCuentaContable extends Model
                     cc.codigo as cuenta_codigo,
                     cc.descripcion as cuenta_descripcion,
                     acc.descripcion as motivo_autorizacion
-                FROM orden_compra oc
-                INNER JOIN autorizacion_flujo af ON oc.id = af.orden_compra_id
-                INNER JOIN distribucion_gasto dg ON oc.id = dg.orden_compra_id
+                FROM requisiciones oc
+                INNER JOIN autorizacion_flujo af ON oc.id = af.requisicion_id
+                INNER JOIN distribucion_gasto dg ON oc.id = dg.requisicion_id
                 INNER JOIN autorizadores_cuentas_contables acc ON dg.cuenta_contable_id = acc.cuenta_contable_id
                 INNER JOIN cuenta_contable cc ON acc.cuenta_contable_id = cc.id
                 WHERE acc.autorizador_email = ?
@@ -236,9 +236,9 @@ class AutorizadorCuentaContable extends Model
     public static function contarPendientes($email)
     {
         $sql = "SELECT COUNT(DISTINCT oc.id) as total
-                FROM orden_compra oc
-                INNER JOIN autorizacion_flujo af ON oc.id = af.orden_compra_id
-                INNER JOIN distribucion_gasto dg ON oc.id = dg.orden_compra_id
+                FROM requisiciones oc
+                INNER JOIN autorizacion_flujo af ON oc.id = af.requisicion_id
+                INNER JOIN distribucion_gasto dg ON oc.id = dg.requisicion_id
                 INNER JOIN autorizadores_cuentas_contables acc ON dg.cuenta_contable_id = acc.cuenta_contable_id
                 WHERE acc.autorizador_email = ?
                 AND af.estado = 'pendiente_autorizacion_cuenta'";
@@ -280,14 +280,14 @@ class AutorizadorCuentaContable extends Model
     public static function getEstadisticasCuenta($cuentaContableId)
     {
         $sql = "SELECT 
-                    COUNT(DISTINCT dg.orden_compra_id) as total_requisiciones,
+                    COUNT(DISTINCT dg.requisicion_id) as total_requisiciones,
                     SUM(CASE WHEN af.estado = 'autorizado' THEN 1 ELSE 0 END) as autorizadas,
                     SUM(CASE WHEN af.estado = 'rechazado' THEN 1 ELSE 0 END) as rechazadas,
                     SUM(CASE WHEN af.estado = 'pendiente_autorizacion' THEN 1 ELSE 0 END) as pendientes,
                     SUM(dg.cantidad) as monto_total
                 FROM distribucion_gasto dg
-                INNER JOIN orden_compra oc ON dg.orden_compra_id = oc.id
-                INNER JOIN autorizacion_flujo af ON oc.id = af.orden_compra_id
+                INNER JOIN requisiciones oc ON dg.requisicion_id = oc.id
+                INNER JOIN autorizacion_flujo af ON oc.id = af.requisicion_id
                 WHERE dg.cuenta_contable_id = ?";
         
         $stmt = self::getConnection()->prepare($sql);

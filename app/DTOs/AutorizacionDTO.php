@@ -25,7 +25,7 @@ class AutorizacionDTO
     public function __construct(array $data = [])
     {
         $this->id = $data['id'] ?? null;
-        $this->ordenId = $data['orden_compra_id'] ?? null;
+        $this->ordenId = $data['requisicion_id'] ?? null;
         $this->centroCostoId = $data['centro_costo_id'] ?? null;
         $this->centroCostoNombre = $data['centro_nombre'] ?? null;
         $this->autorizadorEmail = $data['autorizador_email'] ?? null;
@@ -69,7 +69,7 @@ class AutorizacionDTO
     {
         return [
             'id' => $this->id,
-            'orden_compra_id' => $this->ordenId,
+            'requisicion_id' => $this->ordenId,
             'centro_costo_id' => $this->centroCostoId,
             'centro_nombre' => $this->centroCostoNombre,
             'autorizador_email' => $this->autorizadorEmail,

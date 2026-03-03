@@ -232,7 +232,7 @@ $title = 'Detalles del Autorizador';
                 <p class="mb-0 opacity-75">Información completa del autorizador</p>
             </div>
             <div class="col-md-4 text-end">
-                <a href="/admin/autorizadores" class="btn btn-light">
+                <a href="<?= url('/admin/autorizadores') ?>" class="btn btn-light">
                     <i class="fas fa-arrow-left me-2"></i>
                     Volver a la Lista
                 </a>
@@ -500,11 +500,11 @@ $title = 'Detalles del Autorizador';
     <!-- Botones de Acción -->
     <div class="row mt-4">
         <div class="col-12 text-center">
-            <a href="/admin/autorizadores/<?= View::e($autorizador['id'] ?? '') ?>/edit" class="btn btn-edit me-3">
+            <a href="<?= url('/admin/autorizadores/' . View::e($autorizador['id'] ?? '') . '/edit') ?>" class="btn btn-edit me-3">
                 <i class="fas fa-edit me-2"></i>
                 Editar Autorizador
             </a>
-            <a href="/admin/autorizadores" class="btn btn-back">
+            <a href="<?= url('/admin/autorizadores') ?>" class="btn btn-back">
                 <i class="fas fa-arrow-left me-2"></i>
                 Volver a la Lista
             </a>

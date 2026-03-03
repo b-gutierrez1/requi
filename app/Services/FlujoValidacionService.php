@@ -19,13 +19,24 @@ namespace App\Services;
 
 use App\Models\Model;
 use App\Models\AutorizacionFlujo;
-use App\Models\AutorizacionCentroCosto;
-use App\Models\OrdenCompra;
+use App\Models\Requisicion;
 use App\Models\DistribucionGasto;
 use App\Models\HistorialRequisicion;
+use App\Repositories\AutorizacionCentroRepository;
 
 class FlujoValidacionService extends Model
 {
+    private ?AutorizacionCentroRepository $centroRepository = null;
+
+    private function centrosRepo(): AutorizacionCentroRepository
+    {
+        if ($this->centroRepository === null) {
+            $this->centroRepository = new AutorizacionCentroRepository();
+        }
+
+        return $this->centroRepository;
+    }
+
     /**
      * Inicia el flujo completo de validación para una orden de compra
      * 
@@ -39,7 +50,7 @@ class FlujoValidacionService extends Model
             error_log("Orden de Compra ID: $ordenCompraId");
 
             // 1. Verificar que la orden existe
-            $orden = OrdenCompra::find($ordenCompraId);
+            $orden = Requisicion::find($ordenCompraId);
             if (!$orden) {
                 throw new \Exception("Orden de compra no encontrada");
             }
@@ -84,7 +95,21 @@ class FlujoValidacionService extends Model
                 // No fallar el flujo por errores de historial
             }
 
-            // 6. Analizar qué tipos de autorización se requerirán
+            // 6. Notificar a revisores sobre la nueva requisición (manejo seguro de errores)
+            try {
+                $notificacionService = new \App\Services\NotificacionService();
+                $resultNotificacion = $notificacionService->notificarNuevaRequisicion($ordenCompraId);
+                if ($resultNotificacion['success']) {
+                    error_log("✅ Notificación enviada a revisores para requisición $ordenCompraId");
+                } else {
+                    error_log("⚠️ Error enviando notificación (no crítico): " . ($resultNotificacion['error'] ?? 'Error desconocido'));
+                }
+            } catch (\Exception $notificacionException) {
+                error_log("⚠️ Error en notificación (no crítico): " . $notificacionException->getMessage());
+                // No fallar el flujo por errores de notificación
+            }
+
+            // 7. Analizar qué tipos de autorización se requerirán
             $tiposRequeridos = $this->analizarAutorizacionesRequeridas($ordenCompraId, $flujo);
 
             error_log("✅ Flujo v3.0 iniciado exitosamente para orden $ordenCompraId");
@@ -159,8 +184,8 @@ class FlujoValidacionService extends Model
                 ];
             }
 
-            // Obtener autorizaciones por centro de costo
-            $autorizaciones = AutorizacionCentroCosto::porFlujo($flujo->id);
+            // Obtener autorizaciones por centro de costo (tabla unificada)
+            $autorizaciones = $this->centrosRepo()->getByRequisicion((int) $ordenCompraId);
             
             $total = count($autorizaciones);
             $pendientes = 0;
@@ -211,7 +236,7 @@ class FlujoValidacionService extends Model
     public function getResumenFlujo($ordenCompraId)
     {
         try {
-            $orden = OrdenCompra::find($ordenCompraId);
+            $orden = Requisicion::find($ordenCompraId);
             
             if (!$orden) {
                 throw new \Exception("Orden de compra no encontrada");
@@ -228,7 +253,7 @@ class FlujoValidacionService extends Model
             }
 
             // Obtener autorizaciones por centro de costo
-            $autorizaciones = AutorizacionCentroCosto::porFlujo($flujo->id);
+            $autorizaciones = $this->centrosRepo()->getByRequisicion((int) $ordenCompraId);
             
             // Obtener historial
             $historial = HistorialRequisicion::porOrdenCompra($ordenCompraId);

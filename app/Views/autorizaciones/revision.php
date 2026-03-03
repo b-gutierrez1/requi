@@ -21,7 +21,7 @@ View::startSection('content');
             </p>
         </div>
         <div class="col-md-4 text-end">
-            <a href="/autorizaciones" class="btn btn-secondary">
+            <a href="<?= url('/autorizaciones') ?>" class="btn btn-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Volver
             </a>
         </div>
@@ -35,7 +35,7 @@ View::startSection('content');
                     <div class="col-md-8">
                         <h5 class="card-title mb-3">
                             <i class="fas fa-file-invoice me-2"></i>
-                            Requisición #<?php echo $req['orden_id']; ?>
+                            Requisición #<?php echo $req['requisicion_id'] ?? $req['orden_id'] ?? $req['id']; ?>
                         </h5>
                         
                         <div class="row mb-3">
@@ -48,7 +48,7 @@ View::startSection('content');
                             <div class="col-md-6">
                                 <p class="mb-1">
                                     <strong>Monto Total:</strong><br>
-                                    <span class="h5 text-primary"><?php echo View::money($req['monto_total']); ?></span>
+                                    <span class="h5 text-primary"><?php echo View::money($req['monto_total'], $req['moneda'] ?? 'GTQ'); ?></span>
                                 </p>
                             </div>
                         </div>
@@ -88,7 +88,7 @@ View::startSection('content');
                         </div>
                         
                         <div class="btn-group-vertical d-grid gap-2">
-                            <a href="/requisiciones/<?php echo $req['orden_id']; ?>" 
+                            <a href="<?= url('/requisiciones/' . $req['requisicion_id']) ?>" 
                                class="btn btn-outline-primary">
                                 <i class="fas fa-eye me-2"></i>Ver Detalle
                             </a>
@@ -116,7 +116,7 @@ View::startSection('content');
                 <i class="fas fa-check-double fs-1 text-success mb-3"></i>
                 <h4 class="text-muted">¡Excelente!</h4>
                 <p class="text-muted">No hay requisiciones pendientes de revisión en este momento.</p>
-                <a href="/autorizaciones" class="btn btn-primary">
+                <a href="<?= url('/autorizaciones') ?>" class="btn btn-primary">
                     <i class="fas fa-arrow-left me-2"></i>Volver a Autorizaciones
                 </a>
             </div>
@@ -124,35 +124,43 @@ View::startSection('content');
     <?php endif; ?>
 </div>
 
+<?php
+View::endSection();
+
+// Sección de modales (se renderiza fuera del contenedor principal)
+View::startSection('modals');
+?>
 <!-- Modal Aprobar -->
-<div class="modal fade" id="modalAprobar" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">
+<div class="modal fade" id="modalAprobar" tabindex="-1" aria-labelledby="modalAprobarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.25);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #10b981, #059669); border: none;">
+                <h5 class="modal-title text-white" id="modalAprobarLabel">
                     <i class="fas fa-check-circle me-2"></i>
                     Aprobar Revisión
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <form id="formAprobar">
                 <?php echo \App\Middlewares\CsrfMiddleware::field(); ?>
                 <input type="hidden" id="revisar_aprobar_id" name="flujo_id">
-                <div class="modal-body">
+                <div class="modal-body" style="padding: 1.5rem;">
                     <div class="mb-3">
-                        <label class="form-label">Comentario (opcional)</label>
+                        <label class="form-label fw-semibold">Comentario (opcional)</label>
                         <textarea class="form-control" name="comentario" rows="3" 
                                   placeholder="Agregar comentarios sobre la aprobación..."></textarea>
                     </div>
-                    <div class="alert alert-info">
+                    <div class="alert alert-info mb-0">
                         <i class="fas fa-info-circle me-2"></i>
                         Al aprobar, la requisición pasará a la fase de autorización por centros de costo.
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <div class="modal-footer" style="border-top: 1px solid #e5e7eb; padding: 1rem 1.5rem;">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancelar
+                    </button>
                     <button type="submit" class="btn btn-success">
-                        <i class="fas fa-check me-2"></i>Aprobar Revisión
+                        <i class="fas fa-check me-1"></i>Aprobar Revisión
                     </button>
                 </div>
             </form>
@@ -161,38 +169,39 @@ View::startSection('content');
 </div>
 
 <!-- Modal Rechazar -->
-<div class="modal fade" id="modalRechazar" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">
+<div class="modal fade" id="modalRechazar" tabindex="-1" aria-labelledby="modalRechazarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.25);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #ef4444, #dc2626); border: none;">
+                <h5 class="modal-title text-white" id="modalRechazarLabel">
                     <i class="fas fa-times-circle me-2"></i>
                     Rechazar Revisión
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <form id="formRechazar">
                 <?php echo \App\Middlewares\CsrfMiddleware::field(); ?>
                 <input type="hidden" id="revisar_rechazar_id" name="flujo_id">
-                <div class="modal-body">
+                <div class="modal-body" style="padding: 1.5rem;">
                     <div class="mb-3">
-                        <label class="form-label">Motivo del Rechazo *</label>
+                        <label class="form-label fw-semibold">Motivo del Rechazo <span class="text-danger">*</span></label>
                         <textarea class="form-control" name="motivo" rows="4" required
                                   placeholder="Explica por qué estás rechazando esta requisición..."></textarea>
                         <small class="text-muted">El motivo será enviado al solicitante para que pueda corregir la requisición.</small>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <div class="modal-footer" style="border-top: 1px solid #e5e7eb; padding: 1rem 1.5rem;">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-arrow-left me-1"></i>Cancelar
+                    </button>
                     <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-times me-2"></i>Rechazar
+                        <i class="fas fa-times me-1"></i>Rechazar
                     </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-
 <?php
 View::endSection();
 
@@ -201,12 +210,24 @@ View::startSection('scripts');
 <script>
 function aprobarRevision(flujoId) {
     document.getElementById('revisar_aprobar_id').value = flujoId;
-    new bootstrap.Modal(document.getElementById('modalAprobar')).show();
+    const modalEl = document.getElementById('modalAprobar');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
 }
 
 function rechazarRevision(flujoId) {
     document.getElementById('revisar_rechazar_id').value = flujoId;
-    new bootstrap.Modal(document.getElementById('modalRechazar')).show();
+    const modalEl = document.getElementById('modalRechazar');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+}
+
+function cerrarModal(modalId) {
+    const modalEl = document.getElementById(modalId);
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) {
+        modal.hide();
+    }
 }
 
 document.getElementById('formAprobar').addEventListener('submit', function(e) {
@@ -215,7 +236,7 @@ document.getElementById('formAprobar').addEventListener('submit', function(e) {
     const flujoId = document.getElementById('revisar_aprobar_id').value;
     const formData = new FormData(this);
     
-    fetch('/autorizaciones/' + flujoId + '/aprobar-revision', {
+    fetch('<?= url('/autorizaciones/') ?>' + flujoId + '/aprobar-revision', {
         method: 'POST',
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
@@ -232,6 +253,9 @@ document.getElementById('formAprobar').addEventListener('submit', function(e) {
         try {
             const data = JSON.parse(text);
             if (data.success) {
+                // Cerrar el modal primero
+                cerrarModal('modalAprobar');
+                
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'success',
@@ -247,6 +271,9 @@ document.getElementById('formAprobar').addEventListener('submit', function(e) {
                     location.reload();
                 }
             } else {
+                // Cerrar modal en caso de error también
+                cerrarModal('modalAprobar');
+                
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'error',
@@ -275,7 +302,7 @@ document.getElementById('formRechazar').addEventListener('submit', function(e) {
     const flujoId = document.getElementById('revisar_rechazar_id').value;
     const formData = new FormData(this);
     
-    fetch('/autorizaciones/' + flujoId + '/rechazar-revision', {
+    fetch('<?= url('/autorizaciones/') ?>' + flujoId + '/rechazar-revision', {
         method: 'POST',
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
@@ -292,6 +319,9 @@ document.getElementById('formRechazar').addEventListener('submit', function(e) {
         try {
             const data = JSON.parse(text);
             if (data.success) {
+                // Cerrar el modal primero
+                cerrarModal('modalRechazar');
+                
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'success',
@@ -307,6 +337,9 @@ document.getElementById('formRechazar').addEventListener('submit', function(e) {
                     location.reload();
                 }
             } else {
+                // Cerrar modal en caso de error también
+                cerrarModal('modalRechazar');
+                
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'error',

@@ -165,7 +165,7 @@ $title = 'Autorizadores de Respaldo';
                 <p class="mb-0 opacity-75">Gestiona los autorizadores de respaldo del sistema</p>
             </div>
             <div class="col-md-6 text-end">
-                <a href="/admin/autorizadores/respaldos/create" class="btn btn-create">
+                <a href="<?= url('/admin/autorizadores/respaldos/create') ?>" class="btn btn-create">
                     <i class="fas fa-plus me-2"></i>
                     Nuevo Respaldo
                 </a>
@@ -211,16 +211,16 @@ $title = 'Autorizadores de Respaldo';
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="btn-group" role="group">
-                <a href="/admin/autorizadores/respaldos" class="btn filter-btn active">
+                <a href="<?= url('/admin/autorizadores/respaldos') ?>" class="btn filter-btn active">
                     Todos
                 </a>
-                <a href="/admin/autorizadores/respaldos?filtro=activos" class="btn filter-btn">
+                <a href="<?= url('/admin/autorizadores/respaldos?filtro=activos') ?>" class="btn filter-btn">
                     Activos
                 </a>
-                <a href="/admin/autorizadores/respaldos?filtro=proximos" class="btn filter-btn">
+                <a href="<?= url('/admin/autorizadores/respaldos?filtro=proximos') ?>" class="btn filter-btn">
                     Por Vencer
                 </a>
-                <a href="/admin/autorizadores/respaldos?filtro=vencidos" class="btn filter-btn">
+                <a href="<?= url('/admin/autorizadores/respaldos?filtro=vencidos') ?>" class="btn filter-btn">
                     Vencidos
                 </a>
             </div>
@@ -306,12 +306,12 @@ $title = 'Autorizadores de Respaldo';
                                 <?php endif; ?>
                                 
                                 <div class="btn-group btn-group-sm">
-                                    <a href="/admin/autorizadores/respaldos/<?= View::e($respaldo->id ?? '') ?>"
+                                    <a href="<?= url('/admin/autorizadores/respaldos/' . View::e($respaldo->id ?? '')) ?>"
                                        class="btn btn-outline-primary"
                                        title="Ver detalles">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="/admin/autorizadores/respaldos/<?= View::e($respaldo->id ?? '') ?>/edit"
+                                    <a href="<?= url('/admin/autorizadores/respaldos/' . View::e($respaldo->id ?? '') . '/edit') ?>"
                                        class="btn btn-outline-warning"
                                        title="Editar">
                                         <i class="fas fa-edit"></i>
@@ -369,7 +369,7 @@ $title = 'Autorizadores de Respaldo';
                     <i class="fas fa-hands-helping"></i>
                     <h4>No hay respaldos configurados</h4>
                     <p class="mb-3">No se encontraron autorizadores de respaldo en el sistema.</p>
-                    <a href="/admin/autorizadores/respaldos/create" class="btn btn-create">
+                    <a href="<?= url('/admin/autorizadores/respaldos/create') ?>" class="btn btn-create">
                         <i class="fas fa-plus me-2"></i>Crear Primer Respaldo
                     </a>
                 </div>
@@ -384,10 +384,10 @@ $title = 'Autorizadores de Respaldo';
                 <div class="card-body">
                     <h6 class="text-muted mb-3">Otros Autorizadores Especiales:</h6>
                     <div class="btn-group" role="group">
-                        <a href="/admin/autorizadores/metodos-pago" class="btn btn-outline-info">
+                        <a href="<?= url('/admin/autorizadores/metodos-pago') ?>" class="btn btn-outline-info">
                             <i class="fas fa-credit-card me-1"></i>Métodos de Pago
                         </a>
-                        <a href="/admin/autorizadores/cuentas-contables" class="btn btn-outline-secondary">
+                        <a href="<?= url('/admin/autorizadores/cuentas-contables') ?>" class="btn btn-outline-secondary">
                             <i class="fas fa-calculator me-1"></i>Cuentas Contables
                         </a>
                     </div>
@@ -399,13 +399,13 @@ $title = 'Autorizadores de Respaldo';
     <!-- Acciones Rápidas -->
     <div class="row mt-4">
         <div class="col-12 text-center">
-            <a href="/admin/autorizadores" class="btn btn-outline-secondary me-2">
+            <a href="<?= url('/admin/autorizadores') ?>" class="btn btn-outline-secondary me-2">
                 <i class="fas fa-arrow-left me-2"></i>Volver a Autorizadores
             </a>
-            <a href="/admin" class="btn btn-outline-primary me-2">
+            <a href="<?= url('/admin') ?>" class="btn btn-outline-primary me-2">
                 <i class="fas fa-home me-2"></i>Panel Admin
             </a>
-            <a href="/admin/autorizadores/respaldos/create" class="btn btn-create">
+            <a href="<?= url('/admin/autorizadores/respaldos/create') ?>" class="btn btn-create">
                 <i class="fas fa-plus me-2"></i>Nuevo Respaldo
             </a>
         </div>
@@ -458,7 +458,7 @@ $title = 'Autorizadores de Respaldo';
             btn.classList.remove('active');
         });
         
-        const activeBtn = document.querySelector(`a[href="/admin/autorizadores/respaldos?filtro=${filtro}"]`);
+        const activeBtn = document.querySelector(`a[href="<?= url('/admin/autorizadores/respaldos') ?>?filtro=${filtro}"]`);
         if (activeBtn) {
             activeBtn.classList.add('active');
         }

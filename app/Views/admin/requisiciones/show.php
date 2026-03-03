@@ -25,7 +25,10 @@ View::startSection('content');
             <p class="text-muted mb-0">Seguimiento paso a paso del flujo de autorización</p>
         </div>
         <div class="col-md-4 text-end">
-            <a href="/admin/requisiciones" class="btn btn-outline-secondary">
+            <a href="<?= url('/admin/requisiciones/' . getValue($orden, 'id') . '/logs') ?>" class="btn btn-info me-2" title="Ver logs detallados">
+                <i class="fas fa-file-alt me-2"></i>Ver Logs
+            </a>
+            <a href="<?= url('/admin/requisiciones') ?>" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Volver al Panel
             </a>
         </div>

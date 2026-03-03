@@ -19,9 +19,6 @@ class UnidadNegocio extends Model
 
     protected static $fillable = [
         'nombre',
-        'codigo',
-        'descripcion',
-        'activo',
     ];
 
     protected static $guarded = ['id'];
@@ -47,9 +44,9 @@ class UnidadNegocio extends Model
      */
     public static function activas()
     {
-        $instance = new static();
+        $table = static::$table;
         
-        $sql = "SELECT * FROM {$instance->table} WHERE activo = 1 ORDER BY nombre ASC";
+        $sql = "SELECT * FROM {$table} ORDER BY nombre ASC";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute();
         
@@ -64,9 +61,9 @@ class UnidadNegocio extends Model
      */
     public static function buscarPorNombre($nombre)
     {
-        $instance = new static();
+        $table = static::$table;
         
-        $sql = "SELECT * FROM {$instance->table} 
+        $sql = "SELECT * FROM {$table} 
                 WHERE nombre = ? 
                 LIMIT 1";
         
@@ -84,46 +81,41 @@ class UnidadNegocio extends Model
      */
     public static function buscar($termino)
     {
-        $instance = new static();
+        $table = static::$table;
         
-        $sql = "SELECT * FROM {$instance->table} 
-                WHERE (nombre LIKE ? OR codigo LIKE ?) 
-                AND activo = 1 
+        $sql = "SELECT * FROM {$table} 
+                WHERE nombre LIKE ? 
                 ORDER BY nombre ASC";
         
         $stmt = self::getConnection()->prepare($sql);
         $search = "%{$termino}%";
-        $stmt->execute([$search, $search]);
+        $stmt->execute([$search]);
         
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     /**
-     * Obtiene unidad de negocio por código
+     * Obtiene unidad de negocio por código (no disponible - tabla solo tiene nombre)
      * 
      * @param string $codigo
      * @return array|null
      */
     public static function porCodigo($codigo)
     {
-        $instance = new static();
-        
-        $sql = "SELECT * FROM {$instance->table} WHERE codigo = ? LIMIT 1";
-        $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$codigo]);
-        
-        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+        // La tabla unidad_de_negocio no tiene columna codigo
+        return null;
     }
 
     /**
-     * Activa o desactiva la unidad de negocio
+     * Activa o desactiva la unidad de negocio (no disponible - tabla no tiene columna activo)
      * 
      * @param bool $activo
      * @return bool
      */
     public function setActivo($activo = true)
     {
-        return self::update($this->attributes['id'], ['activo' => $activo ? 1 : 0]);
+        // La tabla unidad_de_negocio no tiene columna activo
+        return false;
     }
 
     /**
@@ -137,7 +129,7 @@ class UnidadNegocio extends Model
     {
         $sql = "SELECT SUM(dg.cantidad) as total
                 FROM distribucion_gasto dg
-                INNER JOIN orden_compra oc ON dg.orden_compra_id = oc.id
+                INNER JOIN requisiciones oc ON dg.requisicion_id = oc.id
                 WHERE dg.unidad_negocio_id = ?";
         
         $params = [$this->attributes['id']];
@@ -162,7 +154,7 @@ class UnidadNegocio extends Model
      */
     public function contarRequisiciones()
     {
-        $sql = "SELECT COUNT(DISTINCT dg.orden_compra_id) as total
+        $sql = "SELECT COUNT(DISTINCT dg.requisicion_id) as total
                 FROM distribucion_gasto dg
                 WHERE dg.unidad_negocio_id = ?";
         
@@ -181,7 +173,7 @@ class UnidadNegocio extends Model
     public function getEstadisticas()
     {
         $sql = "SELECT 
-                    COUNT(DISTINCT dg.orden_compra_id) as total_requisiciones,
+                    COUNT(DISTINCT dg.requisicion_id) as total_requisiciones,
                     SUM(dg.cantidad) as monto_total,
                     AVG(dg.cantidad) as monto_promedio,
                     COUNT(DISTINCT dg.centro_costo_id) as centros_costo_utilizados

@@ -170,9 +170,9 @@ class CalculadorCantidades {
         const precio = parseFloat(precioInput.value) || 0;
         const total = cantidad * precio;
         
-        totalInput.value = total.toFixed(5);
+        totalInput.value = total.toFixed(2);
         
-        console.log(`Item calculado: ${cantidad} × ${precio} = ${total.toFixed(5)}`);
+        console.log(`Item calculado: ${cantidad} × ${precio} = ${total.toFixed(2)}`);
     }
 
     /**
@@ -197,10 +197,10 @@ class CalculadorCantidades {
         // Actualizar el campo hidden si existe
         const totalGeneralInput = document.getElementById('total_general');
         if (totalGeneralInput) {
-            totalGeneralInput.value = total.toFixed(5);
+            totalGeneralInput.value = total.toFixed(2);
         }
         
-        console.log(`Total general calculado: ${total.toFixed(5)}`);
+        console.log(`Total general calculado: ${total.toFixed(2)}`);
         
         // Disparar actualizaciones en cascada
         this.actualizarDistribucionMontos();
@@ -224,9 +224,9 @@ class CalculadorCantidades {
                 
                 // Calcular la cantidad basada en el porcentaje del total general
                 const cantidad = (porcentaje / 100) * this.totalGeneral;
-                cantidadInput.value = cantidad.toFixed(5);
+                cantidadInput.value = cantidad.toFixed(2);
                 
-                console.log(`Distribución: ${porcentaje}% de ${this.totalGeneral} = ${cantidad.toFixed(5)}`);
+                console.log(`Distribución: ${porcentaje}% de ${this.totalGeneral} = ${cantidad.toFixed(2)}`);
             }
         });
         
@@ -288,7 +288,7 @@ class CalculadorCantidades {
                 // Actualizar porcentaje
                 const porcentajeCell = fila.querySelector('.porcentaje-factura');
                 if (porcentajeCell) {
-                    porcentajeCell.textContent = `${datosFactura.porcentaje.toFixed(2)}%`;
+                    porcentajeCell.textContent = `${datosFactura.porcentaje.toFixed(5)}%`;
                 }
                 
                 // Actualizar monto
@@ -307,7 +307,7 @@ class CalculadorCantidades {
         const totalMontoElement = document.getElementById('totalMontoFacturas');
         
         if (totalPorcentajeElement) {
-            totalPorcentajeElement.textContent = `${totalPorcentaje.toFixed(2)}%`;
+            totalPorcentajeElement.textContent = `${totalPorcentaje.toFixed(5)}%`;
         }
         
         if (totalMontoElement) {
@@ -334,7 +334,7 @@ class CalculadorCantidades {
         // Mostrar indicador visual
         const indicadorPorcentaje = document.getElementById('indicadorPorcentaje');
         if (indicadorPorcentaje) {
-            indicadorPorcentaje.textContent = `${totalPorcentaje.toFixed(2)}%`;
+            indicadorPorcentaje.textContent = `${totalPorcentaje.toFixed(5)}%`;
             indicadorPorcentaje.className = esValido ? 'text-success fw-bold' : 'text-danger fw-bold';
         }
         
@@ -345,7 +345,7 @@ class CalculadorCantidades {
                 mensajeValidacion.textContent = '✓ Los porcentajes suman correctamente';
                 mensajeValidacion.className = 'text-success small';
             } else {
-                mensajeValidacion.textContent = `⚠ Los porcentajes deben sumar exactamente 100% (actual: ${totalPorcentaje.toFixed(2)}%)`;
+                mensajeValidacion.textContent = `⚠ Los porcentajes deben sumar exactamente 100% (actual: ${totalPorcentaje.toFixed(5)}%)`;
                 mensajeValidacion.className = 'text-danger small';
             }
         }
@@ -356,7 +356,7 @@ class CalculadorCantidades {
             submitBtn.disabled = !esValido;
         }
         
-        console.log(`Validación de porcentajes: ${totalPorcentaje.toFixed(2)}% - ${esValido ? 'VÁLIDO' : 'INVÁLIDO'}`);
+        console.log(`Validación de porcentajes: ${totalPorcentaje.toFixed(5)}% - ${esValido ? 'VÁLIDO' : 'INVÁLIDO'}`);
         
         return esValido;
     }
@@ -438,7 +438,7 @@ window.agregarItem = function() {
     const newRow = document.createElement('tr');
     newRow.className = 'item-row';
     newRow.innerHTML = `
-        <td><input type="number" class="form-control item-cantidad" name="items[${contadorItems}][cantidad]" min="1" step="0.01" value="1" required></td>
+        <td><input type="number" class="form-control item-cantidad" name="items[${contadorItems}][cantidad]" min="1" step="1" value="1" required></td>
         <td><textarea class="form-control item-descripcion" name="items[${contadorItems}][descripcion]" rows="2" required></textarea></td>
         <td><input type="number" class="form-control item-precio" name="items[${contadorItems}][precio_unitario]" min="0" step="0.01" required></td>
         <td><input type="number" class="form-control item-total" name="items[${contadorItems}][total]" readonly></td>

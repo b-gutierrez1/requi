@@ -579,7 +579,7 @@ View::startSection('content');
                         <strong>Solicitante:</strong>
                         <div class="mt-1">
                             <i class="fas fa-user me-2 text-info"></i>
-                            <?php echo View::e(getValue($orden, 'created_by', 'Sistema')); ?>
+                            <?php echo View::e(getValue($orden, 'usuario_nombre') ?: getValue($orden, 'created_by', 'Sistema')); ?>
                         </div>
                     </div>
                     <div class="mb-0">
@@ -641,7 +641,6 @@ View::startSection('content');
                 <ul class="mb-0 small">
                     <li>Revisa cuidadosamente todos los datos</li>
                     <li>Verifica que los montos sean correctos</li>
-                    <li>Confirma que hay presupuesto disponible</li>
                     <li>Al rechazar debes indicar el motivo</li>
                 </ul>
             </div>
@@ -1488,7 +1487,7 @@ function createCompleteRequisitionDetail() {
                                                 <i class="fas fa-plus me-1"></i>
                                                 <?php echo View::formatDate(getValue($orden, 'fecha_solicitud')); ?>
                                             </div>
-                                            <div class="timeline-desc">Requisición creada por <?php echo View::e(getValue($orden, 'created_by', 'Sistema')); ?></div>
+                                            <div class="timeline-desc">Requisición creada por <?php echo View::e(getValue($orden, 'usuario_nombre') ?: getValue($orden, 'created_by', 'Sistema')); ?></div>
                                         </div>
                                     </div>
                                     

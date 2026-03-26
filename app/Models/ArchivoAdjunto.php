@@ -114,14 +114,20 @@ class ArchivoAdjunto extends Model
                 throw new \Exception('El archivo excede el tamaño máximo permitido');
             }
 
-            // Validar tipo
-            error_log("Validando tipo: " . $archivo['type']);
-            if (!in_array($archivo['type'], $allowedTypes)) {
-                error_log("Tipo no permitido. Tipos permitidos: " . implode(', ', $allowedTypes));
-                throw new \Exception('Tipo de archivo no permitido: ' . $archivo['type']);
+            // Validar tipo — dos capas: magic bytes + finfo (nunca confiar en $archivo['type'])
+            error_log("Validando tipo (magic bytes + finfo): " . $archivo['tmp_name']);
+            if (!self::validateMagicBytes($archivo['tmp_name'], $allowedTypes)) {
+                $finfo    = new \finfo(FILEINFO_MIME_TYPE);
+                $realMime = $finfo->file($archivo['tmp_name']);
+                error_log("Tipo no permitido. MIME real: {$realMime}. Tipos permitidos: " . implode(', ', $allowedTypes));
+                throw new \Exception('Tipo de archivo no permitido: ' . $realMime);
             }
-            
-            error_log("Validaciones OK, creando archivo...");
+
+            // Obtener MIME real del servidor para almacenar
+            $finfoStore = new \finfo(FILEINFO_MIME_TYPE);
+            $realMimeStore = $finfoStore->file($archivo['tmp_name']);
+
+            error_log("Validaciones OK, MIME real: {$realMimeStore}, creando archivo...");
 
             // Crear directorio si no existe
             if (!is_dir($uploadPath)) {
@@ -143,7 +149,7 @@ class ArchivoAdjunto extends Model
                 'requisicion_id' => $ordenCompraId,
                 'nombre_original' => $archivo['name'],
                 'nombre_archivo' => $nombreArchivo,
-                'tipo_mime' => $archivo['type'],
+                'tipo_mime' => $realMimeStore,
                 'ruta_archivo' => $rutaCompleta,
                 'tamano_bytes' => $archivo['size'],
             ]);
@@ -297,19 +303,73 @@ class ArchivoAdjunto extends Model
 
     /**
      * Obtiene el tamaño total de archivos de una orden
-     * 
+     *
      * @param int $ordenCompraId
      * @return int Bytes
      */
     public static function getTamanoTotalOrden($ordenCompraId)
     {
         $instance = new static();
-        
+
         $sql = "SELECT SUM(tamano_bytes) as total FROM {$instance->table} WHERE requisicion_id = ?";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$ordenCompraId]);
-        
+
         $result = $stmt->fetch(\PDO::FETCH_ASSOC);
         return $result['total'] ?? 0;
+    }
+
+    /**
+     * Valida el archivo por magic bytes (firma binaria real) y, como capa
+     * secundaria, por finfo para tipos no cubiertos en la tabla de firmas.
+     *
+     * Nunca confía en el MIME type declarado por el cliente.
+     *
+     * @param string $tmpPath       Ruta temporal del archivo subido
+     * @param array  $allowedMimes  Lista de MIME types permitidos (desde config)
+     * @return bool
+     */
+    private static function validateMagicBytes(string $tmpPath, array $allowedMimes): bool
+    {
+        // Mapa de MIME type => firmas binarias conocidas (magic bytes)
+        $mimeToMagic = [
+            'application/pdf' => ["\x25\x50\x44\x46"],          // %PDF
+            'image/jpeg'      => ["\xFF\xD8\xFF"],
+            'image/png'       => ["\x89\x50\x4E\x47\x0D\x0A\x1A\x0A"], // \x89PNG\r\n\x1a\n
+            'image/gif'       => ["GIF87a", "GIF89a"],
+            'application/zip' => ["\x50\x4B\x03\x04"],           // PK.. (también xlsx/docx)
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'   => ["\x50\x4B\x03\x04"],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'         => ["\x50\x4B\x03\x04"],
+            'application/msword'  => ["\xD0\xCF\x11\xE0"],       // OLE2 compound (doc/xls)
+            'application/vnd.ms-excel' => ["\xD0\xCF\x11\xE0"],
+        ];
+
+        // Leer los primeros 10 bytes del archivo real
+        $header = @file_get_contents($tmpPath, false, null, 0, 10);
+        if ($header === false) {
+            return false;
+        }
+
+        // MIME real según el servidor (finfo)
+        $finfo    = new \finfo(FILEINFO_MIME_TYPE);
+        $realMime = $finfo->file($tmpPath);
+
+        foreach ($allowedMimes as $mime) {
+            if (isset($mimeToMagic[$mime])) {
+                // Verificar magic bytes primero
+                foreach ($mimeToMagic[$mime] as $magic) {
+                    if (str_starts_with($header, $magic)) {
+                        return true;
+                    }
+                }
+            } else {
+                // Para tipos sin magic bytes registrados, confiar en finfo
+                if ($realMime === $mime) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

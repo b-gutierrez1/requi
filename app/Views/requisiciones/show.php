@@ -825,7 +825,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                         ?>
                                     </td>
                                     <td class="text-center">
-                                        <?php echo number_format(getData($dist, 'porcentaje', 0), 5); ?>%
+                                        <?php echo number_format(getData($dist, 'porcentaje', 0), 2); ?>%
                                     </td>
                                     <td class="text-end">
                                         <strong><?php echo View::money(getData($dist, 'cantidad', 0), $moneda); ?></strong>
@@ -927,7 +927,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                         }
                                     }
                                 }
-                                echo formatearPorcentaje($factura1['porcentaje'], 5);
+                                echo formatearPorcentaje($factura1['porcentaje'], 2);
                                 ?>
                             </td>
                             <td><strong><?php echo View::money($factura1['monto'], $moneda); ?></strong></td>
@@ -935,14 +935,14 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                         <tr>
                             <td><strong>Factura 2</strong></td>
                             <td>
-                                <?php echo formatearPorcentaje($factura2['porcentaje'], 5); ?>
+                                <?php echo formatearPorcentaje($factura2['porcentaje'], 2); ?>
                             </td>
                             <td><strong><?php echo View::money($factura2['monto'], $moneda); ?></strong></td>
                         </tr>
                         <tr>
                             <td><strong>Factura 3</strong></td>
                             <td>
-                                <?php echo formatearPorcentaje($factura3['porcentaje'], 5); ?>
+                                <?php echo formatearPorcentaje($factura3['porcentaje'], 2); ?>
                             </td>
                             <td><strong><?php echo View::money($factura3['monto'], $moneda); ?></strong></td>
                         </tr>
@@ -951,7 +951,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                             <td><strong><?php 
                                 $totalPorcentaje = $factura1['porcentaje'] + $factura2['porcentaje'] + $factura3['porcentaje'];
                                 $totalAproximado = aproximarPorcentaje($totalPorcentaje);
-                                echo number_format($totalAproximado, 5);
+                                echo number_format($totalAproximado, 2);
                             ?></strong></td>
                             <td><strong><?php echo View::money($factura1['monto'] + $factura2['monto'] + $factura3['monto'], $moneda); ?></strong></td>
                         </tr>

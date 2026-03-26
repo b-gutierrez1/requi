@@ -6,17 +6,17 @@ return [
     'mailers' => [
         'smtp' => [
             'transport' => 'smtp',
-            'host' => 'smtp.gmail.com',
-            'port' => 465,
-            'encryption' => 'ssl',
-            'username' => 'no-reply-moodle@iga.edu',
-            'password' => 'xmlxdkbgtkyzehdi',
-            'timeout' => null,
+            'host' => 'smtp.office365.com',
+            'port' => 587,
+            'encryption' => 'tls',
+            'username' => 'bgutierrez@sp.iga.edu',
+            'password' => 'Bryangutierrez1',
+            'timeout' => 10,
         ],
     ],
 
     'from' => [
-        'address' => 'no-reply-moodle@iga.edu',
+        'address' => 'bgutierrez@sp.iga.edu',
         'name' => 'Sistema de Requisiciones',
     ],
 

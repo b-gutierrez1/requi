@@ -326,10 +326,10 @@ $title = 'Gestión de Centros de Costo';
                                             <i class="fas fa-users"></i>
                                         </a>
                                         <button type="button"
-                                                class="btn btn-outline-danger btn-action"
-                                                onclick="eliminarCentro(<?= $centro->id ?>, '<?= addslashes($centro->nombre ?? 'Sin nombre') ?>')"
-                                                title="Eliminar centro">
-                                            <i class="fas fa-trash"></i>
+                                                class="btn btn-action <?= ($centro->activo ?? 1) ? 'btn-outline-success' : 'btn-outline-secondary' ?>"
+                                                onclick="toggleCentro(<?= $centro->id ?>, <?= ($centro->activo ?? 1) ? 1 : 0 ?>)"
+                                                title="<?= ($centro->activo ?? 1) ? 'Desactivar centro' : 'Activar centro' ?>">
+                                            <i class="fas <?= ($centro->activo ?? 1) ? 'fa-toggle-on' : 'fa-toggle-off' ?>"></i>
                                         </button>
                                     </div>
                                 </td>
@@ -412,22 +412,13 @@ $title = 'Gestión de Centros de Costo';
         }
     }
 
-    // Función para eliminar centro de costo
-    function eliminarCentro(id, nombre) {
-        if (confirm(`¿Estás seguro de que deseas eliminar el centro de costo "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
-            // Crear formulario para envío por DELETE method
+    function toggleCentro(id, activo) {
+        const accion = activo ? 'desactivar' : 'activar';
+        if (confirm(`¿Deseas ${accion} este centro de costo?`)) {
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = `<?= url('/admin/centros/') ?>${id}`;
-            
-            // Agregar campo _method para DELETE
-            const methodField = document.createElement('input');
-            methodField.type = 'hidden';
-            methodField.name = '_method';
-            methodField.value = 'DELETE';
-            form.appendChild(methodField);
-            
-            // Agregar token CSRF si está disponible
+            form.action = `<?= url('/admin/centros/') ?>${id}/toggle`;
+
             const csrfToken = document.querySelector('meta[name="csrf-token"]');
             if (csrfToken) {
                 const tokenField = document.createElement('input');
@@ -436,13 +427,12 @@ $title = 'Gestión de Centros de Costo';
                 tokenField.value = csrfToken.getAttribute('content');
                 form.appendChild(tokenField);
             }
-            
+
             document.body.appendChild(form);
             form.submit();
         }
     }
 
-    // Hacer la función global para que sea accesible desde onclick
-    window.eliminarCentro = eliminarCentro;
+    window.toggleCentro = toggleCentro;
 </script>
 <?php View::endSection(); ?>

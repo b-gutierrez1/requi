@@ -235,17 +235,6 @@ View::startSection('content');
                                         <i class="fas fa-print"></i>
                                     </a>
                                     
-                                    <?php 
-                                    // Solo permitir eliminar si está en estado pendiente_revision
-                                    if ($flujo && $flujo->estado === 'pendiente_revision'): 
-                                    ?>
-                                    <button type="button" 
-                                            class="btn btn-sm btn-outline-danger" 
-                                            onclick="eliminarRequisicion(<?php echo $req->id; ?>)"
-                                            title="Eliminar">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>

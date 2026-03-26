@@ -64,12 +64,12 @@ class RoleMiddleware
 
     /**
      * Verifica si el usuario está autenticado
-     * 
+     *
      * @return bool
      */
     private function isAuthenticated()
     {
-        return isset($_SESSION['user']) && !empty($_SESSION['user']['id']);
+        return \App\Helpers\Session::isAuthenticated();
     }
 
     /**
@@ -97,54 +97,32 @@ class RoleMiddleware
 
     /**
      * Verifica si el usuario es administrador
-     * 
+     *
      * @return bool
      */
     private function isAdmin()
     {
-        return isset($_SESSION['user']['is_admin']) && $_SESSION['user']['is_admin'] == 1;
+        return \App\Helpers\Session::isAdmin();
     }
 
     /**
      * Verifica si el usuario es revisor
-     * 
+     *
      * @return bool
      */
     private function isRevisor()
     {
-        // Verificar por sesión primero
-        if (isset($_SESSION['user']['is_revisor']) && $_SESSION['user']['is_revisor'] == 1) {
-            return true;
-        }
-        
-        // Verificar por email usando la misma lógica que DashboardController
-        $usuarioEmail = $_SESSION['user']['email'] ?? '';
-        return $this->isRevisorPorEmail($usuarioEmail);
-    }
-
-    /**
-     * Verifica si un usuario es revisor basándose en su email
-     * Solo usa el flag is_revisor de la sesión (de la base de datos)
-     * 
-     * @param string $usuarioEmail Email del usuario (no usado, mantenido por compatibilidad)
-     * @return bool
-     */
-    private function isRevisorPorEmail($usuarioEmail)
-    {
-        // Solo verificar el flag is_revisor de la sesión
-        return $this->isRevisor();
+        return \App\Helpers\Session::isRevisor();
     }
 
     /**
      * Verifica si el usuario es autorizador
-     * 
+     *
      * @return bool
      */
     private function isAutorizador()
     {
-        // Un usuario es autorizador si tiene autorizaciones pendientes
-        // o está configurado como autorizador de algún centro de costo
-        return isset($_SESSION['user']['is_autorizador']) && $_SESSION['user']['is_autorizador'] == 1;
+        return \App\Helpers\Session::isAutorizador();
     }
 
     /**
@@ -253,26 +231,12 @@ class RoleMiddleware
 
     /**
      * Obtiene los roles del usuario actual
-     * 
+     *
      * @return array
      */
     public static function getUserRoles()
     {
-        $roles = [];
-
-        if (isset($_SESSION['user']['is_admin']) && $_SESSION['user']['is_admin'] == 1) {
-            $roles[] = 'admin';
-        }
-
-        if (isset($_SESSION['user']['is_revisor']) && $_SESSION['user']['is_revisor'] == 1) {
-            $roles[] = 'revisor';
-        }
-
-        if (isset($_SESSION['user']['is_autorizador']) && $_SESSION['user']['is_autorizador'] == 1) {
-            $roles[] = 'autorizador';
-        }
-
-        return $roles;
+        return \App\Helpers\Session::getUserRoles();
     }
 
     /**

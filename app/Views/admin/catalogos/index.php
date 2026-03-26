@@ -83,14 +83,9 @@ View::startSection('content');
                                                 <?php endif; ?>
                                             </td>
                                             <td>
-                                                <div class="btn-group" role="group">
-                                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="editarCuentaModal(<?php echo $item->id; ?>, '<?php echo addslashes($item->codigo ?? ''); ?>', '<?php echo addslashes($item->descripcion ?? ''); ?>')" title="Editar cuenta">
-                                                        <i class="fas fa-edit"></i>
-                                                    </button>
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarCuenta(<?php echo $item->id; ?>)" title="Eliminar cuenta">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="editarCuentaModal(<?php echo $item->id; ?>, '<?php echo addslashes($item->codigo ?? ''); ?>', '<?php echo addslashes($item->descripcion ?? ''); ?>')" title="Editar cuenta">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -167,8 +162,8 @@ View::startSection('content');
 </div>
 
 <!-- Modal para Nueva Cuenta Contable -->
-<div class="modal fade" id="modalCuenta" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade" id="modalCuenta" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
@@ -178,6 +173,7 @@ View::startSection('content');
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="formCuenta" method="POST" action="<?= url('/admin/catalogos/cuenta') ?>">
+                <?= \App\Middlewares\CsrfMiddleware::field() ?>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="codigo" class="form-label">Código *</label>
@@ -201,8 +197,8 @@ View::startSection('content');
 </div>
 
 <!-- Modal para Editar Cuenta Contable -->
-<div class="modal fade" id="modalEditarCuenta" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade" id="modalEditarCuenta" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
@@ -213,6 +209,7 @@ View::startSection('content');
             </div>
             <form id="formEditarCuenta" method="POST">
                 <input type="hidden" name="_method" value="PUT">
+                <?= \App\Middlewares\CsrfMiddleware::field() ?>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="edit_codigo" class="form-label">Código *</label>
@@ -240,12 +237,19 @@ function editarCuentaModal(id, codigo, descripcion) {
     // Llenar el formulario con los datos actuales
     document.getElementById('edit_codigo').value = codigo;
     document.getElementById('edit_descripcion').value = descripcion;
-    
+
     // Configurar la acción del formulario
     document.getElementById('formEditarCuenta').action = `<?= url('/admin/catalogos/cuenta/') ?>${id}`;
-    
+
+    // Mover el modal al body para evitar problemas de posicionamiento
+    const modalEl = document.getElementById('modalEditarCuenta');
+    if (modalEl.parentElement !== document.body) {
+        document.body.appendChild(modalEl);
+    }
+
     // Mostrar el modal
-    const modal = new bootstrap.Modal(document.getElementById('modalEditarCuenta'));
+    document.activeElement.blur();
+    const modal = new bootstrap.Modal(modalEl);
     modal.show();
 }
 
@@ -328,15 +332,14 @@ document.getElementById('formCuenta').addEventListener('submit', function(e) {
     }
 });
 
-// Scroll suave hacia arriba al cargar la página para mostrar los botones
+// Mover modales al body para evitar problemas de posicionamiento con position:fixed
 window.addEventListener('DOMContentLoaded', function() {
-    // Pequeño delay para que termine cualquier animación CSS
-    setTimeout(function() {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
-    }, 100);
+    ['modalCuenta', 'modalEditarCuenta'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el && el.parentElement !== document.body) {
+            document.body.appendChild(el);
+        }
+    });
 });
 </script>
 

@@ -30,6 +30,13 @@ class AutorizacionFlujo extends Model
         'requiere_autorizacion_especial_pago',
         'requiere_autorizacion_especial_cuenta',
         'monto_total',
+        'revisor_email',
+        'revisor_comentario',
+        'revisor_fecha',
+        'motivo_rechazo',
+        'observaciones_generales',
+        'prioridad',
+        'fecha_limite',
     ];
 
     protected static $guarded = ['id', 'fecha_inicio', 'fecha_completado'];
@@ -42,7 +49,13 @@ class AutorizacionFlujo extends Model
     const ESTADO_PENDIENTE_AUTORIZACION_PAGO = 'pendiente_autorizacion_pago';
     const ESTADO_PENDIENTE_AUTORIZACION_CUENTA = 'pendiente_autorizacion_cuenta';
     const ESTADO_PENDIENTE_AUTORIZACION_CENTROS = 'pendiente_autorizacion_centros';
-    const ESTADO_PENDIENTE_AUTORIZACION = 'pendiente_autorizacion';
+    /**
+     * @deprecated Estado legacy — el flujo ya nunca asigna este valor.
+     *             Se conserva únicamente para compatibilidad con registros históricos
+     *             en BD que puedan tener el valor 'pendiente_autorizacion'.
+     *             No usar en código nuevo; usar ESTADO_PENDIENTE_AUTORIZACION_CENTROS.
+     */
+    const ESTADO_PENDIENTE_AUTORIZACION = 'pendiente_autorizacion'; // @deprecated usar ESTADO_PENDIENTE_AUTORIZACION_PAGO
     const ESTADO_RECHAZADO_AUTORIZACION = 'rechazado_autorizacion';
     const ESTADO_AUTORIZADO = 'autorizado';
     const ESTADO_RECHAZADO = 'rechazado';
@@ -140,13 +153,12 @@ class AutorizacionFlujo extends Model
                 }
             }
 
-            // Crear el flujo
             $flujo = self::create([
-                'requisicion_id' => $ordenCompraId,
-                'estado' => self::ESTADO_PENDIENTE_REVISION,
-                'requiere_autorizacion_especial_pago' => $requiereEspecialPago ? 1 : 0,
+                'requisicion_id'                    => $ordenCompraId,
+                'estado'                            => self::ESTADO_PENDIENTE_REVISION,
+                'requiere_autorizacion_especial_pago'   => $requiereEspecialPago ? 1 : 0,
                 'requiere_autorizacion_especial_cuenta' => $requiereEspecialCuenta ? 1 : 0,
-                'monto_total' => $orden->monto_total ?? 0,
+                'monto_total'                       => $requisicion->monto_total ?? 0,
             ]);
 
             return $flujo ? ($flujo->id ?? $flujo['id']) : false;
@@ -166,48 +178,54 @@ class AutorizacionFlujo extends Model
      */
     public static function aprobarRevision($id, $usuarioId, $comentario = '')
     {
+        $pdo = self::getConnection();
         try {
             $flujo = self::find($id);
             if (!$flujo) {
                 return false;
             }
-            
-            $estado = is_object($flujo) ? $flujo->estado : $flujo['estado'];
+
+            $flujoArray = is_object($flujo) ? $flujo->toArray() : $flujo;
+            $estado = $flujoArray['estado'];
+
             if ($estado !== self::ESTADO_PENDIENTE_REVISION) {
                 return false;
             }
-            
-            // Convertir a array para compatibilidad
-            $flujoArray = is_object($flujo) ? $flujo->toArray() : $flujo;
 
-            // Determinar el siguiente estado según el flujo correcto
-            $requiereEspecialPago = $flujoArray['requiere_autorizacion_especial_pago'];
+            $requiereEspecialPago   = $flujoArray['requiere_autorizacion_especial_pago'];
             $requiereEspecialCuenta = $flujoArray['requiere_autorizacion_especial_cuenta'];
-            
-            $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS; // Por defecto
-            
-            if ($requiereEspecialPago && $requiereEspecialCuenta) {
-                // Si requiere ambos especiales, empezar por pago
-                $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_PAGO;
-            } elseif ($requiereEspecialPago) {
-                // Solo requiere pago especial
-                $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_PAGO;
-            } elseif ($requiereEspecialCuenta) {
-                // Solo requiere cuenta especial
-                $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA;
-            }
-            // Si no requiere ningún especial, va directo a centros
 
-            // Actualizar estado según el flujo correcto
+            if ($requiereEspecialCuenta) {
+                $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA;
+            } elseif ($requiereEspecialPago) {
+                $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_PAGO;
+            } else {
+                $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS;
+            }
+
+            $revisorEmail = null;
+            if ($usuarioId) {
+                $revisor = \App\Models\Usuario::find($usuarioId);
+                $revisorEmail = $revisor ? ($revisor->email ?? $revisor->azure_email ?? null) : null;
+            }
+
+            // Transacción única: cambio de estado + creación de autorizaciones son atómicos.
+            // Si falla la creación de autorizaciones, el estado NO queda actualizado.
+            $pdo->beginTransaction();
+
             self::updateById($id, [
-                'estado' => $nuevoEstado,
+                'estado'             => $nuevoEstado,
+                'revisor_email'      => $revisorEmail,
+                'revisor_comentario' => $comentario ?: null,
+                'revisor_fecha'      => date('Y-m-d H:i:s'),
             ]);
 
-            // Crear autorizaciones especiales si son requeridas
+            // crearAutorizacionesEspeciales lanza excepción si no hay autorizadores
             self::crearAutorizacionesEspeciales($id, $flujoArray);
 
-            // Registrar en historial  
-            $ordenCompraId = is_object($flujo) ? $flujo->requisicion_id : $flujoArray['requisicion_id'];
+            $pdo->commit();
+
+            $ordenCompraId = $flujoArray['requisicion_id'];
             HistorialRequisicion::registrarAprobacion(
                 $ordenCompraId,
                 $usuarioId,
@@ -216,8 +234,12 @@ class AutorizacionFlujo extends Model
             );
 
             return true;
+
         } catch (\Exception $e) {
-            error_log("Error aprobando revisión: " . $e->getMessage());
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log("Error aprobando revisión flujo #{$id}: " . $e->getMessage());
             return false;
         }
     }
@@ -278,47 +300,58 @@ class AutorizacionFlujo extends Model
      */
     public static function verificarYActualizarEstado($id)
     {
+        $pdo = self::getConnection();
         try {
-            $flujo = self::find($id);
+            $pdo->beginTransaction();
+
+            // SELECT FOR UPDATE: bloquea el registro durante la transacción
+            // para evitar race conditions cuando dos autorizadores actúan simultáneamente.
+            $stmt = $pdo->prepare(
+                "SELECT * FROM autorizacion_flujo WHERE id = ? FOR UPDATE"
+            );
+            $stmt->execute([$id]);
+            $flujo = $stmt->fetch(\PDO::FETCH_ASSOC);
+
             if (!$flujo) {
+                $pdo->rollBack();
                 return false;
             }
-            
-            $estado = is_object($flujo) ? $flujo->estado : $flujo['estado'];
-            // Solo verificar flujos que están en algún estado de autorización pendiente
+
+            $estado = $flujo['estado'];
             $estadosAutorizacionPendiente = [
                 self::ESTADO_PENDIENTE_AUTORIZACION,
                 self::ESTADO_PENDIENTE_AUTORIZACION_PAGO,
                 self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA,
-                self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS
+                self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS,
             ];
-            
+
             if (!in_array($estado, $estadosAutorizacionPendiente)) {
+                $pdo->rollBack();
                 return false;
             }
-            
-            $requisicionId = is_object($flujo) ? $flujo->requisicion_id : $flujo['requisicion_id'];
+
+            $requisicionId = (int) $flujo['requisicion_id'];
             if (!$requisicionId) {
+                $pdo->rollBack();
                 return false;
             }
 
             // Verificar si hay rechazos
-            if (self::centrosRepo()->hasRejected((int) $requisicionId)) {
+            if (self::centrosRepo()->hasRejected($requisicionId)) {
                 self::updateById($id, [
-                    'estado' => self::ESTADO_RECHAZADO,
+                    'estado'           => self::ESTADO_RECHAZADO,
                     'fecha_completado' => date('Y-m-d H:i:s'),
                 ]);
+                $pdo->commit();
                 return true;
             }
 
-            // Obtener información de qué autorizaciones especiales se requieren
-            $requierePago = is_object($flujo) ? $flujo->requiere_autorizacion_especial_pago : $flujo['requiere_autorizacion_especial_pago'];
-            $requiereCuenta = is_object($flujo) ? $flujo->requiere_autorizacion_especial_cuenta : $flujo['requiere_autorizacion_especial_cuenta'];
-            
-            // Verificar autorizaciones especiales pendientes usando consulta directa
-            $pdo = self::getConnection();
+            $requierePago   = $flujo['requiere_autorizacion_especial_pago'];
+            $requiereCuenta = $flujo['requiere_autorizacion_especial_cuenta'];
+
+            // Contar autorizaciones especiales pendientes dentro de la misma transacción
             $stmt = $pdo->prepare("
-                SELECT COUNT(*) as pendientes, tipo
+                SELECT tipo, COUNT(*) as pendientes
                 FROM autorizaciones
                 WHERE requisicion_id = ?
                   AND tipo IN ('forma_pago', 'cuenta_contable')
@@ -327,59 +360,47 @@ class AutorizacionFlujo extends Model
             ");
             $stmt->execute([$requisicionId]);
             $especialesPendientes = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-            
-            $pagosPendientes = false;
+
+            $pagosPendientes   = false;
             $cuentasPendientes = false;
             foreach ($especialesPendientes as $pendiente) {
-                if ($pendiente['tipo'] === 'forma_pago') {
-                    $pagosPendientes = true;
-                }
-                if ($pendiente['tipo'] === 'cuenta_contable') {
-                    $cuentasPendientes = true;
-                }
+                if ($pendiente['tipo'] === 'forma_pago')     $pagosPendientes   = true;
+                if ($pendiente['tipo'] === 'cuenta_contable') $cuentasPendientes = true;
             }
 
-            // Lógica de transición de estados
-            if ($estado === self::ESTADO_PENDIENTE_AUTORIZACION_PAGO) {
-                if (!$pagosPendientes) {
-                    // Pago completado, determinar siguiente estado
-                    if ($requiereCuenta && $cuentasPendientes) {
-                        // Pasar a cuenta contable
-                        self::updateById($id, ['estado' => self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA]);
-                        return true;
-                    } else {
-                        // Pasar a centros de costo
-                        self::updateById($id, ['estado' => self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS]);
-                        return true;
-                    }
-                }
-                return false;
-            }
-            
+            $updated = false;
+
             if ($estado === self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA) {
                 if (!$cuentasPendientes) {
-                    // Cuenta completada, pasar a centros de costo
-                    self::updateById($id, ['estado' => self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS]);
-                    return true;
+                    $nuevoEstado = ($requierePago && $pagosPendientes)
+                        ? self::ESTADO_PENDIENTE_AUTORIZACION_PAGO
+                        : self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS;
+                    self::updateById($id, ['estado' => $nuevoEstado]);
+                    $updated = true;
                 }
-                return false;
-            }
-            
-            // Para estados pendiente_autorizacion_centros y pendiente_autorizacion (legacy)
-            if (!$pagosPendientes && !$cuentasPendientes) {
-                // Verificar si todos los centros están autorizados
-                if (self::centrosRepo()->allAuthorized((int) $requisicionId)) {
+            } elseif ($estado === self::ESTADO_PENDIENTE_AUTORIZACION_PAGO) {
+                if (!$pagosPendientes) {
+                    self::updateById($id, ['estado' => self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS]);
+                    $updated = true;
+                }
+            } elseif (!$pagosPendientes && !$cuentasPendientes) {
+                if (self::centrosRepo()->allAuthorized($requisicionId)) {
                     self::updateById($id, [
-                        'estado' => self::ESTADO_AUTORIZADO,
+                        'estado'           => self::ESTADO_AUTORIZADO,
                         'fecha_completado' => date('Y-m-d H:i:s'),
                     ]);
-                    return true;
+                    $updated = true;
                 }
             }
 
-            return false;
+            $pdo->commit();
+            return $updated;
+
         } catch (\Exception $e) {
-            error_log("Error verificando estado: " . $e->getMessage());
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log("Error verificando estado flujo #{$id}: " . $e->getMessage());
             return false;
         }
     }
@@ -654,56 +675,48 @@ class AutorizacionFlujo extends Model
      */
     private static function crearAutorizacionesEspeciales($flujoId, $flujo)
     {
-        try {
-            error_log("=== CREANDO AUTORIZACIONES ESPECIALES ===");
-            error_log("Flujo ID: $flujoId");
-            
-            // Asegurar compatibilidad objeto/array
-            $requiereEspecialPago = is_object($flujo) ? $flujo->requiere_autorizacion_especial_pago : $flujo['requiere_autorizacion_especial_pago'];
-            $requiereEspecialCuenta = is_object($flujo) ? $flujo->requiere_autorizacion_especial_cuenta : $flujo['requiere_autorizacion_especial_cuenta'];
-            $ordenCompraId = is_object($flujo) ? $flujo->requisicion_id : $flujo['requisicion_id'];
-            
-            error_log("Requiere autorización especial de pago: " . ($requiereEspecialPago ? 'SÍ' : 'NO'));
-            error_log("Requiere autorización especial de cuenta: " . ($requiereEspecialCuenta ? 'SÍ' : 'NO'));
+        // NOTA: este método se ejecuta siempre dentro de la transacción de aprobarRevision().
+        // NO debe abrir/cerrar su propia transacción para evitar doble-begin en PDO.
+        error_log("=== CREANDO AUTORIZACIONES ESPECIALES ===");
+        error_log("Flujo ID: $flujoId");
 
-            $pdo = self::getConnection();
-            $pdo->beginTransaction();
+        // Asegurar compatibilidad objeto/array
+        $requiereEspecialPago   = is_object($flujo) ? $flujo->requiere_autorizacion_especial_pago   : $flujo['requiere_autorizacion_especial_pago'];
+        $requiereEspecialCuenta = is_object($flujo) ? $flujo->requiere_autorizacion_especial_cuenta : $flujo['requiere_autorizacion_especial_cuenta'];
+        $ordenCompraId          = is_object($flujo) ? $flujo->requisicion_id                        : $flujo['requisicion_id'];
 
-            // 1. Autorización especial por método de pago
-            if ($requiereEspecialPago) {
-                self::crearAutorizacionEspecialPago($flujoId, $ordenCompraId, $pdo);
-            }
+        error_log("Requiere autorización especial de pago: " . ($requiereEspecialPago ? 'SÍ' : 'NO'));
+        error_log("Requiere autorización especial de cuenta: " . ($requiereEspecialCuenta ? 'SÍ' : 'NO'));
 
-            // 2. Autorización especial por cuenta contable
-            if ($requiereEspecialCuenta) {
-                self::crearAutorizacionEspecialCuentas($flujoId, $ordenCompraId, $pdo);
-            }
+        $pdo = self::getConnection();
 
-            // Solo crear autorizaciones por centro cuando no hay especiales pendientes
-            $stmt = $pdo->prepare("
-                SELECT COUNT(*)
-                FROM autorizaciones
-                WHERE requisicion_id = ?
-                  AND tipo IN ('forma_pago', 'cuenta_contable')
-                  AND estado = 'pendiente'
-            ");
-            $stmt->execute([$ordenCompraId]);
-            $pendientesEspeciales = (int)$stmt->fetchColumn();
-
-            if ($pendientesEspeciales === 0) {
-                self::centrosRepo()->createFromDistribucion((int) $ordenCompraId);
-            }
-
-            $pdo->commit();
-
-            error_log("✅ Autorizaciones especiales creadas exitosamente");
-
-        } catch (\Exception $e) {
-            if (isset($pdo) && $pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
-            error_log("❌ Error creando autorizaciones especiales: " . $e->getMessage());
+        // 1. Autorización especial por método de pago
+        if ($requiereEspecialPago) {
+            self::crearAutorizacionEspecialPago($flujoId, $ordenCompraId, $pdo);
         }
+
+        // 2. Autorización especial por cuenta contable
+        if ($requiereEspecialCuenta) {
+            self::crearAutorizacionEspecialCuentas($flujoId, $ordenCompraId, $pdo);
+        }
+
+        // Solo crear autorizaciones por centro cuando no hay especiales pendientes
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*)
+            FROM autorizaciones
+            WHERE requisicion_id = ?
+              AND tipo IN ('forma_pago', 'cuenta_contable')
+              AND estado = 'pendiente'
+        ");
+        $stmt->execute([$ordenCompraId]);
+        $pendientesEspeciales = (int)$stmt->fetchColumn();
+
+        if ($pendientesEspeciales === 0) {
+            self::centrosRepo()->createFromDistribucion((int) $ordenCompraId);
+        }
+
+        error_log("✅ Autorizaciones especiales creadas exitosamente");
+        // Cualquier excepción aquí se propaga hacia aprobarRevision(), que hace rollBack().
     }
 
     /**
@@ -751,8 +764,10 @@ class AutorizacionFlujo extends Model
         $todosAutorizadores = array_unique($todosAutorizadores); // Eliminar duplicados
 
         if (empty($todosAutorizadores)) {
-            error_log("⚠️ No se encontraron autorizadores (principales + respaldo) para la forma de pago: " . $orden['forma_pago']);
-            return;
+            throw new \Exception(
+                "No hay autorizadores configurados para la forma de pago: '{$orden['forma_pago']}'. " .
+                "Configure al menos un autorizador antes de enviar requisiciones con este método de pago."
+            );
         }
 
         // Crear autorizaciones en la nueva tabla 'autorizaciones'
@@ -797,8 +812,10 @@ class AutorizacionFlujo extends Model
         $cuentasEspeciales = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         if (empty($cuentasEspeciales)) {
-            error_log("⚠️ No se encontraron cuentas contables especiales para la orden $ordenCompraId");
-            return;
+            throw new \Exception(
+                "No hay autorizadores configurados para las cuentas contables de la requisición #{$ordenCompraId}. " .
+                "Configure autorizadores para cada cuenta contable que requiera autorización especial."
+            );
         }
 
         // Agrupar por cuenta contable y obtener todos los autorizadores (principales + respaldo)

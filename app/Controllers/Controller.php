@@ -270,8 +270,51 @@ abstract class Controller
     }
 
     /**
+     * Alias corto para isAjaxRequest().
+     * Verifica si la petición actual es AJAX.
+     *
+     * @return bool
+     */
+    protected function isAjax()
+    {
+        return $this->isAjaxRequest();
+    }
+
+    /**
+     * Verifica si el usuario actual tiene permisos para acceder a una requisición.
+     *
+     * Lógica centralizada: es dueño, revisor, autorizador general,
+     * puede autorizar específicamente esta req., o es administrador.
+     *
+     * @param object|array $orden          Objeto/array de la orden (debe tener usuario_id)
+     * @param int          $requisicionId  ID de la requisición
+     * @param object|null  $autorizacionService  Instancia de AutorizacionService (opcional)
+     * @return bool
+     */
+    protected function tienePermisosRequisicion($orden, $requisicionId, $autorizacionService = null)
+    {
+        $usuarioId    = $this->getUsuarioId();
+        $usuarioEmail = $this->getUsuarioEmail();
+
+        $ordenUsuarioId = is_object($orden) ? $orden->usuario_id : ($orden['usuario_id'] ?? null);
+        $esDueno        = $ordenUsuarioId == $usuarioId;
+        $esRevisor      = $this->isRevisor() || $this->isRevisorPorEmail($usuarioEmail);
+        $esAdmin        = $this->isAdmin();
+
+        $esAutorizadorGeneral = false;
+        $puedeAutorizar       = false;
+
+        if ($autorizacionService !== null && $usuarioEmail) {
+            $esAutorizadorGeneral = $autorizacionService->esAutorizadorGeneral($usuarioEmail);
+            $puedeAutorizar       = $autorizacionService->puedeAutorizar($usuarioEmail, $requisicionId);
+        }
+
+        return $esDueno || $esRevisor || $esAutorizadorGeneral || $puedeAutorizar || $esAdmin;
+    }
+
+    /**
      * Verifica si es una petición AJAX
-     * 
+     *
      * @return bool
      */
     protected function isAjaxRequest()

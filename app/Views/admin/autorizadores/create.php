@@ -1,4 +1,4 @@
-<?php 
+<?php
 use App\Helpers\View;
 use App\Helpers\Session;
 
@@ -15,14 +15,32 @@ $title = 'Nuevo Autorizador';
         border-radius: 0 0 15px 15px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
-    
+
     .form-card {
         background: white;
         border-radius: 12px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.08);
         border: 1px solid #e9ecef;
     }
-    
+
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+
+    .form-control {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 12px 16px;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #e74c3c;
+        box-shadow: 0 0 0 0.2rem rgba(231, 76, 60, 0.25);
+    }
+
     .btn-create {
         background: linear-gradient(135deg, #e74c3c, #c0392b);
         border: none;
@@ -33,48 +51,177 @@ $title = 'Nuevo Autorizador';
         transition: all 0.3s ease;
         box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
     }
-    
+
     .btn-create:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
         color: white;
     }
-    
-    .permission-section {
+
+    .btn-cancel {
+        background: #6c757d;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 30px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-cancel:hover {
+        background: #5a6268;
+        color: white;
+    }
+
+    .centros-section {
         background: #f8f9fa;
         border-radius: 8px;
         padding: 1.5rem;
-        margin-bottom: 1rem;
+        margin-top: 1rem;
     }
-    
-    .form-check-custom {
+
+    .search-centros {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 10px 14px 10px 38px;
+        width: 100%;
+        transition: all 0.3s ease;
+    }
+
+    .search-centros:focus {
+        border-color: #e74c3c;
+        box-shadow: 0 0 0 0.2rem rgba(231, 76, 60, 0.25);
+        outline: none;
+    }
+
+    .search-centros-wrapper {
         position: relative;
-        margin-bottom: 0.75rem;
     }
-    
-    .form-check-custom .form-check-input {
-        width: 1.25rem;
-        height: 1.25rem;
-        margin-top: 0;
+
+    .search-centros-wrapper i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+    }
+
+    .centro-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 14px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        margin-bottom: 6px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .centro-item:hover {
+        border-color: #3498db;
+        background: #f8f9ff;
+    }
+
+    .centro-item.checked {
+        border-color: #28a745;
+        background: #f0fff4;
+    }
+
+    .centro-item input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        min-width: 18px;
+        margin-right: 10px;
+        border: 2px solid #ced4da;
+        border-radius: 4px;
+        background: white;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: all 0.2s ease;
+    }
+
+    .centro-item input[type="checkbox"]:hover {
         border-color: #e74c3c;
     }
-    
-    .form-check-custom .form-check-input:checked {
+
+    .centro-item input[type="checkbox"]:checked {
         background-color: #e74c3c;
         border-color: #e74c3c;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+        background-size: 100%;
+        background-position: center;
+        background-repeat: no-repeat;
     }
-    
-    .form-check-custom .form-check-label {
-        font-weight: 500;
-        color: #495057;
-        margin-left: 0.5rem;
+
+    .centro-nombre {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 0.9rem;
     }
-    
-    .permission-description {
-        font-size: 0.875rem;
+
+    .centro-codigo {
+        font-size: 0.8rem;
         color: #6c757d;
-        margin-left: 2rem;
-        margin-top: -0.25rem;
+    }
+
+    .toolbar-centros {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .counter-centros {
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.9rem;
+    }
+
+    .counter-centros span {
+        color: #e74c3c;
+        font-weight: 700;
+    }
+
+    .btn-sel {
+        background: transparent;
+        border: 1px solid #3498db;
+        border-radius: 6px;
+        padding: 4px 12px;
+        color: #3498db;
+        font-weight: 600;
+        font-size: 0.8rem;
+        cursor: pointer;
+    }
+
+    .btn-sel:hover { background: #3498db; color: white; }
+
+    .btn-desel {
+        background: transparent;
+        border: 1px solid #e74c3c;
+        border-radius: 6px;
+        padding: 4px 12px;
+        color: #e74c3c;
+        font-weight: 600;
+        font-size: 0.8rem;
+        cursor: pointer;
+    }
+
+    .btn-desel:hover { background: #e74c3c; color: white; }
+
+    .centros-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .no-results-centros {
+        text-align: center;
+        padding: 1rem;
+        color: #6c757d;
+        display: none;
     }
 </style>
 
@@ -101,28 +248,25 @@ $title = 'Nuevo Autorizador';
 
 <div class="container">
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <!-- Formulario Principal -->
+        <div class="col-md-10">
             <div class="form-card">
                 <div class="card-header bg-white border-bottom">
                     <h5 class="mb-0">
                         <i class="fas fa-user-shield me-2 text-danger"></i>
-                        Información del Autorizador
+                        Informacion del Autorizador
                     </h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-4">
                     <form method="POST" action="<?= url('/admin/autorizadores') ?>" id="formNuevoAutorizador">
-                        <!-- CSRF Token -->
-                        <input type="hidden" name="csrf_token" value="<?= Session::get('csrf_token') ?>">
-                        
-                        <!-- Información Personal -->
+                        <?= \App\Middlewares\CsrfMiddleware::field() ?>
+
+                        <!-- Nombre y Email -->
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="nombre" class="form-label">Nombre Completo *</label>
                                     <input type="text" class="form-control" id="nombre" name="nombre" required
                                            value="<?= View::e(Session::old('nombre') ?? '') ?>">
-                                    <div class="form-text">Nombre completo del autorizador</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -130,281 +274,86 @@ $title = 'Nuevo Autorizador';
                                     <label for="email" class="form-label">Email *</label>
                                     <input type="email" class="form-control" id="email" name="email" required
                                            value="<?= View::e(Session::old('email') ?? '') ?>">
-                                    <div class="form-text">Dirección de correo electrónico</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="cargo" class="form-label">Cargo</label>
-                                    <input type="text" class="form-control" id="cargo" name="cargo"
-                                           value="<?= View::e(Session::old('cargo') ?? '') ?>">
-                                    <div class="form-text">Cargo o posición en la organización</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="centro_costo_id" class="form-label">Centro de Costo *</label>
-                                    <select class="form-control" id="centro_costo_id" name="centro_costo_id" required>
-                                        <option value="">Seleccionar centro de costo...</option>
-                                        <?php if (!empty($centros)): ?>
-                                            <?php foreach ($centros as $centro): ?>
-                                                <option value="<?= View::e($centro->id) ?>"
-                                                    <?= (Session::old('centro_costo_id') == $centro->id) ? 'selected' : '' ?>>
-                                                    <?= View::e($centro->nombre) ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        <?php endif; ?>
-                                    </select>
-                                    <div class="form-text">Centro de costo al que pertenece</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Permisos de Autorización -->
-                        <div class="permission-section">
+                        <!-- Centros de Costo con checkboxes -->
+                        <div class="centros-section">
                             <h6 class="mb-3">
-                                <i class="fas fa-key me-2 text-warning"></i>
-                                Permisos de Autorización
+                                <i class="fas fa-building me-2 text-danger"></i>
+                                Centros de Costo a Asignar *
                             </h6>
-                            <p class="text-muted mb-3">Selecciona qué tipos de autorizaciones puede realizar este autorizador:</p>
 
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-check form-check-custom">
-                                        <input class="form-check-input" type="checkbox" 
-                                               id="puede_autorizar_centro_costo" name="puede_autorizar_centro_costo" value="1"
-                                               <?= Session::old('puede_autorizar_centro_costo') ? 'checked' : '' ?>>
-                                        <label class="form-check-label" for="puede_autorizar_centro_costo">
-                                            Autorización por Centro de Costo
-                                        </label>
-                                    </div>
-                                    <div class="permission-description">
-                                        Puede aprobar o rechazar requisiciones de su centro de costo
-                                    </div>
-
-                                    <div class="form-check form-check-custom">
-                                        <input class="form-check-input" type="checkbox" 
-                                               id="puede_autorizar_flujo" name="puede_autorizar_flujo" value="1"
-                                               <?= Session::old('puede_autorizar_flujo') ? 'checked' : '' ?>>
-                                        <label class="form-check-label" for="puede_autorizar_flujo">
-                                            Autorización de Flujo
-                                        </label>
-                                    </div>
-                                    <div class="permission-description">
-                                        Puede revisar el flujo general de autorizaciones
-                                    </div>
-
-                                    <div class="form-check form-check-custom">
-                                        <input class="form-check-input" type="checkbox" 
-                                               id="puede_autorizar_cuenta_contable" name="puede_autorizar_cuenta_contable" value="1"
-                                               <?= Session::old('puede_autorizar_cuenta_contable') ? 'checked' : '' ?>>
-                                        <label class="form-check-label" for="puede_autorizar_cuenta_contable">
-                                            Autorización por Cuenta Contable
-                                        </label>
-                                    </div>
-                                    <div class="permission-description">
-                                        Puede autorizar requisiciones con cuentas contables específicas
-                                    </div>
+                            <div class="toolbar-centros">
+                                <div class="search-centros-wrapper" style="flex: 1; max-width: 350px;">
+                                    <i class="fas fa-search"></i>
+                                    <input type="text" class="search-centros" id="searchCentrosCreate" placeholder="Buscar centro de costo...">
                                 </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="form-check form-check-custom">
-                                        <input class="form-check-input" type="checkbox" 
-                                               id="puede_autorizar_metodo_pago" name="puede_autorizar_metodo_pago" value="1"
-                                               <?= Session::old('puede_autorizar_metodo_pago') ? 'checked' : '' ?>>
-                                        <label class="form-check-label" for="puede_autorizar_metodo_pago">
-                                            Autorización por Método de Pago
-                                        </label>
-                                    </div>
-                                    <div class="permission-description">
-                                        Puede autorizar requisiciones con métodos de pago específicos
-                                    </div>
-
-                                    <div class="form-check form-check-custom">
-                                        <input class="form-check-input" type="checkbox" 
-                                               id="puede_autorizar_respaldo" name="puede_autorizar_respaldo" value="1"
-                                               <?= Session::old('puede_autorizar_respaldo') ? 'checked' : '' ?>>
-                                        <label class="form-check-label" for="puede_autorizar_respaldo">
-                                            Autorizador de Respaldo
-                                        </label>
-                                    </div>
-                                    <div class="permission-description">
-                                        Puede actuar como respaldo de otros autorizadores
-                                    </div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn-sel" id="btnSelAll">
+                                        <i class="fas fa-check-double me-1"></i> Todos
+                                    </button>
+                                    <button type="button" class="btn-desel" id="btnDeselAll">
+                                        <i class="fas fa-times me-1"></i> Ninguno
+                                    </button>
                                 </div>
+                            </div>
+
+                            <div class="counter-centros mb-2">
+                                <span id="selCount">0</span> de <?= count($centros ?? []) ?> centros seleccionados
+                            </div>
+
+                            <div class="centros-list" id="centrosListCreate">
+                                <div class="row">
+                                    <?php if (!empty($centros)): ?>
+                                        <?php foreach ($centros as $centro): ?>
+                                            <?php
+                                                $cId = is_object($centro) ? $centro->id : $centro['id'];
+                                                $cNombre = is_object($centro) ? ($centro->nombre ?? 'Sin nombre') : ($centro['nombre'] ?? 'Sin nombre');
+                                                $cCodigo = is_object($centro) ? ($centro->codigo ?? '') : ($centro['codigo'] ?? '');
+                                            ?>
+                                            <div class="col-lg-6 centro-col-create"
+                                                 data-nombre="<?= strtolower(View::e($cNombre)) ?>"
+                                                 data-codigo="<?= strtolower(View::e($cCodigo)) ?>">
+                                                <label class="centro-item">
+                                                    <input type="checkbox" name="centro_costo_ids[]" value="<?= View::e($cId) ?>">
+                                                    <div>
+                                                        <div class="centro-nombre"><?= View::e($cNombre) ?></div>
+                                                        <?php if ($cCodigo): ?>
+                                                            <div class="centro-codigo"><?= View::e($cCodigo) ?></div>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <div class="no-results-centros" id="noResultsCreate">
+                                <i class="fas fa-search"></i> No se encontraron centros
                             </div>
                         </div>
 
-                        <!-- Estado -->
-                        <div class="row">
-                            <div class="col-md-10">
-                                <div class="clean-field" id="estadoField">
-                                    <div class="field-content">
-                                        <div class="field-label">
-                                            <i class="fas fa-power-off me-2 text-primary"></i>
-                                            Estado del Autorizador
-                                        </div>
-                                        <div class="field-description">
-                                            Controla si este autorizador está activo y puede procesar requisiciones
-                                        </div>
-                                    </div>
-                                    <div class="modern-switch">
-                                        <input type="checkbox" id="activo" name="activo" value="1" 
-                                               <?= (Session::old('activo', '1') == '1') ? 'checked' : '' ?>>
-                                        <span class="modern-switch-track" onclick="toggleModernStatus(this)"></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Botones de Acción -->
+                        <!-- Botones -->
                         <div class="row mt-4">
-                            <div class="col-md-6">
-                                <a href="<?= url('/admin/autorizadores') ?>" class="btn btn-outline-secondary">
-                                    <i class="fas fa-times me-2"></i>
-                                    Cancelar
-                                </a>
-                            </div>
-                            <div class="col-md-6 text-end">
+                            <div class="col-12 d-flex justify-content-center gap-3">
                                 <button type="submit" class="btn btn-create">
                                     <i class="fas fa-save me-2"></i>
                                     Crear Autorizador
                                 </button>
+                                <a href="<?= url('/admin/autorizadores') ?>" class="btn btn-cancel">
+                                    <i class="fas fa-times me-2"></i>
+                                    Cancelar
+                                </a>
                             </div>
                         </div>
                     </form>
-                </div>
-            </div>
-
-            <!-- Información Adicional -->
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-info-circle me-2 text-info"></i>
-                        Información Importante
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <h6 class="alert-heading">
-                            <i class="fas fa-lightbulb me-2"></i>
-                            ¿Qué sucede después de crear el autorizador?
-                        </h6>
-                        <ul class="mb-0">
-                            <li><strong>Notificaciones:</strong> El autorizador recibirá notificaciones por email cuando tenga requisiciones pendientes de autorización.</li>
-                            <li><strong>Permisos:</strong> Solo podrá autorizar los tipos de requisiciones que hayas seleccionado.</li>
-                            <li><strong>Centro de Costo:</strong> Tendrá acceso para autorizar requisiciones de su centro de costo asignado.</li>
-                        </ul>
-                    </div>
-
-                    <div class="alert alert-warning">
-                        <h6 class="alert-heading">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            Recomendaciones
-                        </h6>
-                        <ul class="mb-0">
-                            <li>Asegúrate que el email sea correcto, ya que se usará para notificaciones.</li>
-                            <li>Revisa cuidadosamente los permisos antes de crear el autorizador.</li>
-                        </ul>
-                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<script>
-// Validación del formulario
-document.getElementById('formNuevoAutorizador').addEventListener('submit', function(e) {
-    const nombre = document.getElementById('nombre').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const centro_costo_id = document.getElementById('centro_costo_id').value;
-    
-    // Validar campos requeridos
-    if (nombre.length < 2) {
-        e.preventDefault();
-        alert('El nombre debe tener al menos 2 caracteres');
-        document.getElementById('nombre').focus();
-        return false;
-    }
-    
-    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-        e.preventDefault();
-        alert('Por favor ingresa un email válido');
-        document.getElementById('email').focus();
-        return false;
-    }
-    
-    if (!centro_costo_id) {
-        e.preventDefault();
-        alert('Por favor selecciona un centro de costo');
-        document.getElementById('centro_costo_id').focus();
-        return false;
-    }
-    
-    // Validar que al menos un permiso esté seleccionado
-    const permisos = document.querySelectorAll('input[type="checkbox"][name^="puede_autorizar"]');
-    let tienePermisos = false;
-    permisos.forEach(permiso => {
-        if (permiso.checked) {
-            tienePermisos = true;
-        }
-    });
-    
-    if (!tienePermisos) {
-        e.preventDefault();
-        alert('Por favor selecciona al menos un tipo de autorización');
-        return false;
-    }
-    
-    
-    return true;
-});
-
-// Auto-focus en el primer campo
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('nombre').focus();
-    updateModernStatusField();
-});
-
-// Toggle para el switch moderno
-function toggleModernStatus(track) {
-    const checkbox = track.parentElement.querySelector('input[type="checkbox"]');
-    checkbox.checked = !checkbox.checked;
-    updateModernStatusField();
-}
-
-// Actualizar apariencia del campo moderno según el estado
-function updateModernStatusField() {
-    const checkbox = document.getElementById('activo');
-    const field = document.getElementById('estadoField');
-    
-    field.classList.remove('active', 'inactive');
-    if (checkbox.checked) {
-        field.classList.add('active');
-    } else {
-        field.classList.add('inactive');
-    }
-}
-
-
-// Prevenir envío múltiple
-let formSubmitted = false;
-document.getElementById('formNuevoAutorizador').addEventListener('submit', function() {
-    if (formSubmitted) {
-        return false;
-    }
-    formSubmitted = true;
-    
-    // Deshabilitar botón de envío
-    const submitBtn = this.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creando...';
-    
-    return true;
-});
-</script>
+<script src="<?php echo \App\Helpers\View::asset('js/admin/autorizadores-create.js'); ?>"></script>
 <?php View::endSection(); ?>

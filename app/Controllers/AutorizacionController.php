@@ -907,23 +907,34 @@ class AutorizacionController extends Controller
     public function historial()
     {
         $usuarioId = $this->getUsuarioId();
-        
-        // Obtener filtros
+
         $filtros = [
-            'accion' => $_GET['accion'] ?? '',
-            'fecha_desde' => $_GET['fecha_desde'] ?? '',
-            'fecha_hasta' => $_GET['fecha_hasta'] ?? '',
-            'busqueda' => $_GET['busqueda'] ?? ''
+            'accion'       => $_GET['accion'] ?? '',
+            'fecha_desde'  => $_GET['fecha_desde'] ?? '',
+            'fecha_hasta'  => $_GET['fecha_hasta'] ?? '',
+            'busqueda'     => $_GET['busqueda'] ?? '',
+            'autorizador'  => $_GET['autorizador'] ?? ''
         ];
 
-        // Obtener historial de autorizaciones
-        $autorizaciones = $this->autorizacionService->getHistorialAutorizaciones($usuarioId, $filtros);
-
-        View::render('autorizaciones/historial', [
-            'autorizaciones' => $autorizaciones,
-            'filtros' => $filtros,
-            'title' => 'Historial de Autorizaciones'
-        ]);
+        if ($this->isAdmin()) {
+            // Admin ve historial agrupado por autorizador
+            $historialPorAutorizador = $this->autorizacionService->getHistorialPorAutorizador($filtros);
+            View::render('autorizaciones/historial', [
+                'historialPorAutorizador' => $historialPorAutorizador,
+                'es_admin'   => true,
+                'filtros'    => $filtros,
+                'title'      => 'Historial de Autorizaciones'
+            ]);
+        } else {
+            // Autorizador ve su propio historial
+            $autorizaciones = $this->autorizacionService->getHistorialAutorizaciones($usuarioId, $filtros);
+            View::render('autorizaciones/historial', [
+                'autorizaciones' => $autorizaciones,
+                'es_admin'       => false,
+                'filtros'        => $filtros,
+                'title'          => 'Historial de Autorizaciones'
+            ]);
+        }
     }
 
     // ========================================================================
@@ -1486,6 +1497,7 @@ class AutorizacionController extends Controller
             'tipo_autorizacion' => $autorizacion['tipo'],
             'requisicion' => $requisicion,
             'orden' => $requisicion['orden'],
+            'items' => $requisicion['items'] ?? [],
             'distribucion' => $requisicion['distribuciones'] ?? [],
             'flujo' => $requisicion['flujo'],
             'historial' => $requisicion['historial'] ?? []

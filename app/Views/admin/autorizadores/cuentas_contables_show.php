@@ -44,31 +44,13 @@ $title = 'Detalles del Autorizador de Cuenta Contable';
     <div class="row justify-content-center">
         <div class="col-lg-10">
             <div class="detail-container">
-                <?php 
-                // Datos de ejemplo para demostración
-                $autorizador = (object)[
-                    'id' => 1,
-                    'nombre' => 'Carlos Mendoza',
-                    'email' => 'carlos.mendoza@empresa.com',
-                    'cargo' => 'Contador General',
-                    'cuentas_contables' => json_encode([
-                        ['codigo' => '1101', 'nombre' => 'Caja General'],
-                        ['codigo' => '1102', 'nombre' => 'Bancos Nacionales'],
-                        ['codigo' => '5101', 'nombre' => 'Gastos de Oficina']
-                    ]),
-                    'activo' => true,
-                    'fecha_inicio' => '2024-01-01',
-                    'fecha_fin' => '2024-12-31',
-                    'observaciones' => 'Autorización para cuentas contables del área financiera',
-                    'centros_costo_count' => 2
-                ];
-                
+                <?php
                 $activo = $autorizador->activo ?? true;
-                
+
                 $estado = 'activo';
                 $estadoTexto = 'Activo';
                 $estadoClass = 'status-active';
-                
+
                 if (!$activo) {
                     $estado = 'inactivo';
                     $estadoTexto = 'Inactivo';

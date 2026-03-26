@@ -261,9 +261,14 @@ class DistribucionGasto extends Model
      */
     public static function crearMultiples($ordenCompraId, $distribuciones)
     {
+        $conn = null;
+        $ownTransaction = false;
         try {
             $conn = self::getConnection();
-            $conn->beginTransaction();
+            $ownTransaction = !$conn->inTransaction();
+            if ($ownTransaction) {
+                $conn->beginTransaction();
+            }
 
             // Validar que los porcentajes sumen 100%
             if (!self::validarPorcentajes($distribuciones)) {
@@ -273,7 +278,7 @@ class DistribucionGasto extends Model
             // Crear cada distribución
             foreach ($distribuciones as $dist) {
                 $dist['requisicion_id'] = $ordenCompraId;
-                
+
                 $errores = self::validar($dist);
                 if (!empty($errores)) {
                     throw new \Exception(implode(', ', $errores));
@@ -282,14 +287,16 @@ class DistribucionGasto extends Model
                 self::create($dist);
             }
 
-            $conn->commit();
+            if ($ownTransaction) {
+                $conn->commit();
+            }
             return true;
         } catch (\Exception $e) {
-            if (isset($conn)) {
+            if ($ownTransaction && isset($conn) && $conn->inTransaction()) {
                 $conn->rollBack();
             }
             error_log("Error creando distribuciones: " . $e->getMessage());
-            return false;
+            throw $e;
         }
     }
 
@@ -302,9 +309,14 @@ class DistribucionGasto extends Model
      */
     public static function actualizarMultiples($ordenCompraId, $distribuciones)
     {
+        $conn = null;
+        $ownTransaction = false;
         try {
             $conn = self::getConnection();
-            $conn->beginTransaction();
+            $ownTransaction = !$conn->inTransaction();
+            if ($ownTransaction) {
+                $conn->beginTransaction();
+            }
 
             // Eliminar distribuciones existentes
             $table = static::$table;
@@ -313,20 +325,18 @@ class DistribucionGasto extends Model
             $stmt->execute([$ordenCompraId]);
 
             // Crear nuevas distribuciones
-            $result = self::crearMultiples($ordenCompraId, $distribuciones);
-            
-            if (!$result) {
-                throw new \Exception('Error al crear nuevas distribuciones');
-            }
+            self::crearMultiples($ordenCompraId, $distribuciones);
 
-            $conn->commit();
+            if ($ownTransaction) {
+                $conn->commit();
+            }
             return true;
         } catch (\Exception $e) {
-            if (isset($conn)) {
+            if ($ownTransaction && isset($conn) && $conn->inTransaction()) {
                 $conn->rollBack();
             }
             error_log("Error actualizando distribuciones: " . $e->getMessage());
-            return false;
+            throw $e;
         }
     }
 

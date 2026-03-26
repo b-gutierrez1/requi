@@ -221,17 +221,13 @@ class NotificacionService
                 $data
             );
 
-            // Notificar al siguiente nivel según el estado
+            // Notificar al siguiente nivel según el estado (siempre, independiente del correo al creador)
             error_log("NotificacionService: Resultado envío correo creador: " . ($result['success'] ? 'OK' : 'FALLO'));
             error_log("NotificacionService: Siguiente paso detectado: " . $siguientePaso);
-            
-            if ($result['success']) {
-                error_log("NotificacionService: Llamando a notificarSiguienteNivel($ordenId, $siguientePaso)");
-                $resultadoSiguiente = $this->notificarSiguienteNivel($ordenId, $siguientePaso);
-                error_log("NotificacionService: Resultado notificarSiguienteNivel: " . json_encode($resultadoSiguiente));
-            } else {
-                error_log("NotificacionService: NO se llamó notificarSiguienteNivel porque el correo al creador falló");
-            }
+
+            error_log("NotificacionService: Llamando a notificarSiguienteNivel($ordenId, $siguientePaso)");
+            $resultadoSiguiente = $this->notificarSiguienteNivel($ordenId, $siguientePaso);
+            error_log("NotificacionService: Resultado notificarSiguienteNivel: " . json_encode($resultadoSiguiente));
 
             return $result;
         } catch (\Exception $e) {
@@ -614,21 +610,11 @@ class NotificacionService
                 ];
             }
         } else {
-            // Si es array, buscar directamente en la base de datos
+            // Si es array, buscar usando los modelos que manejan la estructura correcta
             try {
-                $pdo = \App\Core\Database::getInstance();
-                
-                // Buscar respaldo activo primero
-                $sqlRespaldo = "SELECT autorizador_respaldo_email 
-                                FROM autorizador_respaldo 
-                                WHERE centro_costo_id = ? 
-                                AND estado = 'activo'
-                                AND CURRENT_DATE BETWEEN fecha_inicio AND fecha_fin
-                                LIMIT 1";
-                $stmt = $pdo->prepare($sqlRespaldo);
-                $stmt->execute([$centroId]);
-                $respaldo = $stmt->fetch(\PDO::FETCH_ASSOC);
-                
+                // Buscar respaldo activo primero (usa AutorizadorRespaldo que maneja nueva estructura)
+                $respaldo = \App\Models\AutorizadorRespaldo::activoPorCentro($centroId);
+
                 if ($respaldo && !empty($respaldo['autorizador_respaldo_email'])) {
                     $autorizadores[] = [
                         'email' => $respaldo['autorizador_respaldo_email'],
@@ -636,15 +622,8 @@ class NotificacionService
                     ];
                 } else {
                     // Buscar autorizador principal
-                    $sqlPrincipal = "SELECT email, nombre 
-                                     FROM persona_autorizada 
-                                     WHERE centro_costo_id = ? 
-                                     ORDER BY id ASC 
-                                     LIMIT 1";
-                    $stmt = $pdo->prepare($sqlPrincipal);
-                    $stmt->execute([$centroId]);
-                    $principal = $stmt->fetch(\PDO::FETCH_ASSOC);
-                    
+                    $principal = \App\Models\PersonaAutorizada::principalPorCentro($centroId);
+
                     if ($principal && !empty($principal['email'])) {
                         $autorizadores[] = [
                             'email' => $principal['email'],
@@ -849,6 +828,17 @@ class NotificacionService
             ]));
             if ($pendienteCentros > 0) {
                 return 'centro_costo';
+            }
+
+            // Fallback: los registros de centro_costo aún no se crean en este punto del flujo
+            // (se crean después de que las autorizaciones especiales terminan).
+            // Verificar el estado del flujo directamente para detectar este caso.
+            $flujo = AutorizacionFlujo::porOrdenCompra($ordenId);
+            if ($flujo) {
+                $estadoFlujo = is_object($flujo) ? $flujo->estado : $flujo['estado'];
+                if ($estadoFlujo === AutorizacionFlujo::ESTADO_PENDIENTE_AUTORIZACION_CENTROS) {
+                    return 'centro_costo';
+                }
             }
         } catch (\Exception $e) {
             error_log("Error determinando siguiente paso: " . $e->getMessage());

@@ -254,7 +254,7 @@ $title = 'Crear Autorizador por Método de Pago';
                     </small>
                 </div>
 
-                <form action="/admin/autorizadores/metodos-pago" method="POST" id="metodoPagoForm">
+                <form action="<?= url('/admin/autorizadores/metodos-pago') ?>" method="POST" id="metodoPagoForm">
                     <?= CsrfMiddleware::field() ?>
                     
                     <!-- Sección: Información del Autorizador -->

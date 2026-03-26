@@ -21,11 +21,6 @@ class PersonaAutorizada extends Model
         'centro_costo_id',
         'nombre',
         'email',
-        'cargo',
-        'prioridad',
-        'activo',
-        'fecha_inicio',
-        'fecha_fin',
     ];
 
     protected static $guarded = ['id'];
@@ -65,23 +60,17 @@ class PersonaAutorizada extends Model
     }
 
     /**
-     * Obtiene personas activas de un centro de costo
-     * 
+     * Obtiene personas activas de un centro de costo.
+     *
+     * Alias de porCentroCosto() — ambos métodos eran idénticos.
+     * Se mantiene por backward compatibility; preferir porCentroCosto() en código nuevo.
+     *
      * @param int $centroCostoId
      * @return array
      */
     public static function activasPorCentroCosto($centroCostoId)
     {
-        $table = static::getTable();
-        
-        $sql = "SELECT * FROM {$table} 
-                WHERE centro_costo_id = ? 
-                ORDER BY id ASC";
-        
-        $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$centroCostoId]);
-        
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        return self::porCentroCosto($centroCostoId);
     }
 
     /**
@@ -290,7 +279,7 @@ class PersonaAutorizada extends Model
 
     /**
      * Contar total de personas autorizadas
-     * 
+     *
      * @return int
      */
     public static function count()
@@ -298,5 +287,37 @@ class PersonaAutorizada extends Model
         $stmt = self::query("SELECT COUNT(*) as total FROM " . self::getTable());
         $result = $stmt->fetch(\PDO::FETCH_ASSOC);
         return (int)($result['total'] ?? 0);
+    }
+
+    /**
+     * Obtiene personas autorizadas paginadas
+     *
+     * @param int $page    Página actual (base 1)
+     * @param int $perPage Registros por página
+     * @return array
+     */
+    public static function paginate($page = 1, $perPage = 20)
+    {
+        $page    = max(1, (int)$page);
+        $perPage = max(1, (int)$perPage);
+        $offset  = ($page - 1) * $perPage;
+
+        $table = static::getTable();
+        $sql   = "SELECT * FROM {$table} ORDER BY id ASC LIMIT ? OFFSET ?";
+        $stmt  = self::getConnection()->prepare($sql);
+        $stmt->bindValue(1, $perPage, \PDO::PARAM_INT);
+        $stmt->bindValue(2, $offset,  \PDO::PARAM_INT);
+        $stmt->execute();
+
+        $rows    = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $objects = [];
+        foreach ($rows as $row) {
+            $obj = new static();
+            foreach ($row as $key => $value) {
+                $obj->setAttribute($key, $value);
+            }
+            $objects[] = $obj;
+        }
+        return $objects;
     }
 }

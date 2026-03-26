@@ -170,9 +170,9 @@ class CalculadorCantidades {
         const precio = parseFloat(precioInput.value) || 0;
         const total = cantidad * precio;
         
-        totalInput.value = total.toFixed(5);
-        
-        console.log(`Item calculado: ${cantidad} × ${precio} = ${total.toFixed(5)}`);
+        totalInput.value = total.toFixed(2);
+
+        console.log(`Item calculado: ${cantidad} × ${precio} = ${total.toFixed(2)}`);
     }
 
     /**
@@ -191,16 +191,16 @@ class CalculadorCantidades {
         // Actualizar el campo de total general
         const totalGeneralElement = document.getElementById('totalGeneral');
         if (totalGeneralElement) {
-            totalGeneralElement.textContent = `Q ${total.toFixed(5)}`;
+            totalGeneralElement.textContent = `Q ${total.toFixed(2)}`;
         }
-        
+
         // Actualizar el campo hidden si existe
         const totalGeneralInput = document.getElementById('total_general');
         if (totalGeneralInput) {
-            totalGeneralInput.value = total.toFixed(5);
+            totalGeneralInput.value = total.toFixed(2);
         }
-        
-        console.log(`Total general calculado: ${total.toFixed(5)}`);
+
+        console.log(`Total general calculado: ${total.toFixed(2)}`);
         
         // Disparar actualizaciones en cascada
         this.actualizarDistribucionMontos();
@@ -224,9 +224,9 @@ class CalculadorCantidades {
                 
                 // Calcular la cantidad basada en el porcentaje del total general
                 const cantidad = (porcentaje / 100) * this.totalGeneral;
-                cantidadInput.value = cantidad.toFixed(5);
-                
-                console.log(`Distribución: ${porcentaje}% de ${this.totalGeneral} = ${cantidad.toFixed(5)}`);
+                cantidadInput.value = cantidad.toFixed(2);
+
+                console.log(`Distribución: ${porcentaje}% de ${this.totalGeneral} = ${cantidad.toFixed(2)}`);
             }
         });
         
@@ -254,10 +254,19 @@ class CalculadorCantidades {
             const cantidadInput = row.querySelector('input[name*="[cantidad]"]');
             
             if (facturaInput && porcentajeInput && cantidadInput) {
-                const facturaTipo = facturaInput.value;
+                const facturaRaw = facturaInput.value;
                 const porcentaje = parseFloat(porcentajeInput.value) || 0;
                 const monto = parseFloat(cantidadInput.value) || 0;
-                
+
+                // Normalizar: el hidden puede tener "1" o "Factura 1"
+                let facturaTipo;
+                const num = parseInt(facturaRaw);
+                if (!isNaN(num) && num >= 1 && num <= 3) {
+                    facturaTipo = 'Factura ' + num;
+                } else {
+                    facturaTipo = facturaRaw;
+                }
+
                 if (this.facturas.hasOwnProperty(facturaTipo)) {
                     this.facturas[facturaTipo].porcentaje += porcentaje;
                     this.facturas[facturaTipo].monto += monto;
@@ -294,7 +303,7 @@ class CalculadorCantidades {
                 // Actualizar monto
                 const montoCell = fila.querySelector('.monto-factura');
                 if (montoCell) {
-                    montoCell.textContent = `Q ${datosFactura.monto.toFixed(5)}`;
+                    montoCell.textContent = `Q ${datosFactura.monto.toFixed(2)}`;
                 }
             }
         });
@@ -311,7 +320,7 @@ class CalculadorCantidades {
         }
         
         if (totalMontoElement) {
-            totalMontoElement.textContent = `Q ${totalMonto.toFixed(5)}`;
+            totalMontoElement.textContent = `Q ${totalMonto.toFixed(2)}`;
         }
     }
 

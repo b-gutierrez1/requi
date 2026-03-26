@@ -25,6 +25,40 @@ $title = 'Crear Autorizador por Cuenta Contable';
     .input-group-text.bg-white { border-right: 0; }
     .form-control.border-start-0 { border-left: 0; }
     .form-control:focus.border-start-0 { border-left: 0; box-shadow: none; }
+
+    /* Checkboxes custom — usando contenedor padre para ganar a Bootstrap */
+    #cuentaContableForm input[type="checkbox"],
+    #centros_exclusion_container input[type="checkbox"] {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        width: 20px !important;
+        height: 20px !important;
+        min-width: 20px !important;
+        border: 2px solid #ced4da !important;
+        border-radius: 5px !important;
+        background-color: white !important;
+        background-image: none !important;
+        cursor: pointer !important;
+        flex-shrink: 0;
+        transition: border-color 0.2s ease, background-color 0.2s ease;
+        vertical-align: middle;
+        display: inline-block;
+    }
+
+    #cuentaContableForm input[type="checkbox"]:hover,
+    #centros_exclusion_container input[type="checkbox"]:hover {
+        border-color: #6f42c1 !important;
+    }
+
+    #cuentaContableForm input[type="checkbox"]:checked,
+    #centros_exclusion_container input[type="checkbox"]:checked {
+        background-color: #6f42c1 !important;
+        border-color: #6f42c1 !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e") !important;
+        background-size: 100% !important;
+        background-position: center !important;
+        background-repeat: no-repeat !important;
+    }
 </style>
 
 <div class="main-header">

@@ -1,6 +1,7 @@
-<?php 
+<?php
 use App\Helpers\View;
 use App\Helpers\Session;
+use App\Middlewares\CsrfMiddleware;
 
 $title = 'Nuevo Centro de Costo';
 ?>
@@ -35,7 +36,8 @@ $title = 'Nuevo Centro de Costo';
                 </div>
                 <div class="card-body">
                     <form method="POST" action="<?= url('/admin/centros') ?>" id="formNuevoCentro">
-                        
+                        <?php echo CsrfMiddleware::field(); ?>
+
                         <!-- Nombre -->
                         <div class="mb-3">
                             <label for="nombre" class="form-label">Nombre *</label>
@@ -43,9 +45,33 @@ $title = 'Nuevo Centro de Costo';
                             <div class="form-text">Nombre descriptivo del centro de costo</div>
                         </div>
 
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Nota:</strong> La tabla actual solo soporta el campo nombre. Los campos adicionales como código, descripción y unidad de negocio requieren modificaciones en la base de datos.
+                        <!-- Factura -->
+                        <div class="mb-3">
+                            <label for="factura" class="form-label">Factura Asignada *</label>
+                            <select class="form-select" id="factura" name="factura" required>
+                                <option value="">-- Seleccionar --</option>
+                                <option value="1">Factura 1</option>
+                                <option value="2">Factura 2</option>
+                                <option value="3">Factura 3</option>
+                            </select>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Seleccione a qué factura se cargarán los gastos de este centro de costo.
+                            </div>
+                        </div>
+
+                        <!-- Unidad de Negocio -->
+                        <div class="mb-3">
+                            <label for="unidad_negocio_id" class="form-label">Unidad de Negocio *</label>
+                            <select class="form-select" id="unidad_negocio_id" name="unidad_negocio_id" required>
+                                <option value="">-- Seleccionar --</option>
+                                <?php foreach ($unidadesNegocio as $unidad): ?>
+                                <option value="<?= $unidad['id'] ?>">
+                                    <?= View::e($unidad['nombre']) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">Seleccione la unidad de negocio a la que pertenece este centro de costo.</div>
                         </div>
 
                         <!-- Botones -->
@@ -106,15 +132,6 @@ document.getElementById('formNuevoCentro').addEventListener('submit', function(e
         e.preventDefault();
         alert('El nombre debe tener al menos 3 caracteres');
         document.getElementById('nombre').focus();
-        return;
-    }
-    
-    // Validación adicional para código si se proporciona
-    const codigo = document.getElementById('codigo').value.trim();
-    if (codigo && codigo.length < 2) {
-        e.preventDefault();
-        alert('El código debe tener al menos 2 caracteres');
-        document.getElementById('codigo').focus();
         return;
     }
 });

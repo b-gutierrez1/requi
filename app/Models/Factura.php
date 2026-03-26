@@ -119,9 +119,14 @@ class Factura extends Model
      */
     public static function crearMultiples($ordenCompraId, $facturas)
     {
+        $conn = null;
+        $ownTransaction = false;
         try {
             $conn = self::getConnection();
-            $conn->beginTransaction();
+            $ownTransaction = !$conn->inTransaction();
+            if ($ownTransaction) {
+                $conn->beginTransaction();
+            }
 
             // Filtrar facturas con monto mayor a 0
             $facturasValidas = array_filter($facturas, function($f) {
@@ -130,7 +135,9 @@ class Factura extends Model
 
             // Si no hay facturas válidas, no hacer nada
             if (empty($facturasValidas)) {
-                $conn->commit();
+                if ($ownTransaction) {
+                    $conn->commit();
+                }
                 return true;
             }
 
@@ -142,7 +149,7 @@ class Factura extends Model
             // Crear cada factura
             foreach ($facturasValidas as $factura) {
                 $factura['requisicion_id'] = $ordenCompraId;
-                
+
                 $errores = self::validar($factura);
                 if (!empty($errores)) {
                     throw new \Exception(implode(', ', $errores));
@@ -151,14 +158,16 @@ class Factura extends Model
                 self::create($factura);
             }
 
-            $conn->commit();
+            if ($ownTransaction) {
+                $conn->commit();
+            }
             return true;
         } catch (\Exception $e) {
-            if (isset($conn)) {
+            if ($ownTransaction && isset($conn) && $conn->inTransaction()) {
                 $conn->rollBack();
             }
             error_log("Error creando facturas: " . $e->getMessage());
-            return false;
+            throw $e;
         }
     }
 
@@ -171,31 +180,34 @@ class Factura extends Model
      */
     public static function actualizarMultiples($ordenCompraId, $facturas)
     {
+        $conn = null;
+        $ownTransaction = false;
         try {
             $conn = self::getConnection();
-            $conn->beginTransaction();
+            $ownTransaction = !$conn->inTransaction();
+            if ($ownTransaction) {
+                $conn->beginTransaction();
+            }
 
             // Eliminar facturas existentes
             $instance = new static();
-            $sql = "DELETE FROM {$instance->table} WHERE requisicion_id = ?";
+            $sql = "DELETE FROM " . static::$table . " WHERE requisicion_id = ?";
             $stmt = $conn->prepare($sql);
             $stmt->execute([$ordenCompraId]);
 
             // Crear nuevas facturas
-            $result = self::crearMultiples($ordenCompraId, $facturas);
-            
-            if (!$result) {
-                throw new \Exception('Error al crear nuevas facturas');
-            }
+            self::crearMultiples($ordenCompraId, $facturas);
 
-            $conn->commit();
+            if ($ownTransaction) {
+                $conn->commit();
+            }
             return true;
         } catch (\Exception $e) {
-            if (isset($conn)) {
+            if ($ownTransaction && isset($conn) && $conn->inTransaction()) {
                 $conn->rollBack();
             }
             error_log("Error actualizando facturas: " . $e->getMessage());
-            return false;
+            throw $e;
         }
     }
 

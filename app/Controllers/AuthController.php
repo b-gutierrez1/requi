@@ -43,9 +43,15 @@ class AuthController extends Controller
      */
     public function login()
     {
-        // Guardar URL de redirección si existe
+        // Guardar URL de redirección si existe (validar que sea interna para evitar open redirect)
         if (isset($_GET['redirect'])) {
-            Session::setIntendedUrl($_GET['redirect']);
+            $redirect = $_GET['redirect'];
+            if (!empty($redirect) && (str_starts_with($redirect, 'http://') || str_starts_with($redirect, 'https://') || str_starts_with($redirect, '//') || strpos($redirect, '@') !== false)) {
+                $redirect = '';
+            }
+            if (!empty($redirect)) {
+                Session::setIntendedUrl($redirect);
+            }
         }
 
         // Generar state para CSRF
@@ -69,7 +75,7 @@ class AuthController extends Controller
         try {
             // Verificar que no haya error
             if (isset($_GET['error'])) {
-                $errorDescription = $_GET['error_description'] ?? 'Error desconocido';
+                $errorDescription = htmlspecialchars($_GET['error_description'] ?? 'Error desconocido', ENT_QUOTES, 'UTF-8');
                 Redirect::toLogin('Error de autenticación: ' . $errorDescription);
             }
 
@@ -536,8 +542,50 @@ class AuthController extends Controller
     }
 
     /**
+     * Muestra el perfil del usuario autenticado
+     */
+    public function perfil()
+    {
+        $usuario = Session::getUser();
+
+        if (!$usuario) {
+            Redirect::to('/login')->send();
+            return;
+        }
+
+        // Enriquecer con datos frescos de DB si existe
+        if (!empty($usuario['id'])) {
+            $pdo  = \App\Models\Usuario::getConnection();
+            $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE id = ? LIMIT 1");
+            $stmt->execute([$usuario['id']]);
+            $row  = $stmt->fetch(\PDO::FETCH_ASSOC);
+            if ($row) {
+                $usuario = array_merge($usuario, [
+                    'name'            => $row['azure_display_name'] ?? $row['nombre'] ?? $usuario['name'] ?? '',
+                    'email'           => $row['azure_email'] ?? $row['email'] ?? $usuario['email'] ?? '',
+                    'job_title'       => $row['azure_job_title'] ?? $row['job_title'] ?? null,
+                    'department'      => $row['azure_department'] ?? $row['department'] ?? null,
+                    'is_admin'        => $row['is_admin'] ?? $usuario['is_admin'] ?? 0,
+                    'is_revisor'      => $row['is_revisor'] ?? $usuario['is_revisor'] ?? 0,
+                    'is_autorizador'  => $row['is_autorizador'] ?? $usuario['is_autorizador'] ?? 0,
+                    'activo'          => $row['activo'] ?? 1,
+                    'last_login'      => $row['last_login'] ?? null,
+                    'fecha_creacion'  => $row['fecha_creacion'] ?? null,
+                    'azure_id'        => $row['azure_id'] ?? null,
+                    'azure_last_sync' => $row['azure_last_sync'] ?? null,
+                ]);
+            }
+        }
+
+        \App\Helpers\View::render('perfil', [
+            'usuario' => $usuario,
+            'title'   => 'Mi Perfil',
+        ]);
+    }
+
+    /**
      * Limpia todas las cookies relacionadas con autenticación
-     * 
+     *
      * @return void
      */
     private function clearAllAuthCookies()

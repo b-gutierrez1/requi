@@ -43,27 +43,13 @@ $title = 'Detalles del Autorizador de Método de Pago';
     <div class="row justify-content-center">
         <div class="col-lg-10">
             <div class="detail-container">
-                <?php 
-                // Datos de ejemplo para demostración
-                $autorizador = (object)[
-                    'id' => 1,
-                    'nombre' => 'María González',
-                    'email' => 'maria.gonzalez@empresa.com',
-                    'cargo' => 'Gerente de Finanzas',
-                    'metodos_pago' => 'efectivo,transferencia,cheque',
-                    'activo' => true,
-                    'fecha_inicio' => '2024-01-01',
-                    'fecha_fin' => '2024-12-31',
-                    'observaciones' => 'Autorización para métodos de pago en el departamento de finanzas',
-                    'centros_costo_count' => 3
-                ];
-                
+                <?php
                 $activo = $autorizador->activo ?? true;
-                
+
                 $estado = 'activo';
                 $estadoTexto = 'Activo';
                 $estadoClass = 'status-active';
-                
+
                 if (!$activo) {
                     $estado = 'inactivo';
                     $estadoTexto = 'Inactivo';
@@ -126,27 +112,27 @@ $title = 'Detalles del Autorizador de Método de Pago';
                 <div class="detail-section">
                     <h3 class="section-title"><i class="fas fa-credit-card"></i>Métodos de Pago Autorizados</h3>
                     <div class="mb-3">
-                        <?php if (!empty($autorizador->metodos_pago)): ?>
-                            <?php 
-                            $metodos = is_string($autorizador->metodos_pago) 
-                                ? explode(',', $autorizador->metodos_pago) 
-                                : $autorizador->metodos_pago;
-                            ?>
-                            <?php foreach ($metodos as $metodo): ?>
+                        <?php
+                        $metodos = $autorizador->metodos_autorizados ?? [];
+                        $metodosTexto = [
+                            'efectivo'        => 'Efectivo',
+                            'transferencia'   => 'Transferencia Bancaria',
+                            'cheque'          => 'Cheque',
+                            'tarjeta'         => 'Tarjeta de Crédito',
+                            'tarjeta_credito' => 'Tarjeta de Crédito',
+                            'tarjeta_debito'  => 'Tarjeta de Débito',
+                            'deposito'        => 'Depósito Bancario'
+                        ];
+                        if (!empty($metodos)):
+                            foreach ($metodos as $metodo):
+                                $key = trim($metodo);
+                        ?>
                                 <span class="metodo-badge">
-                                    <?php
-                                    $metodosTexto = [
-                                        'efectivo' => 'Efectivo',
-                                        'transferencia' => 'Transferencia Bancaria',
-                                        'cheque' => 'Cheque',
-                                        'tarjeta' => 'Tarjeta de Crédito',
-                                        'deposito' => 'Depósito Bancario'
-                                    ];
-                                    echo View::e($metodosTexto[trim($metodo)] ?? trim($metodo));
-                                    ?>
+                                    <?= View::e($metodosTexto[$key] ?? $autorizador->descripcion ?? $key) ?>
                                 </span>
-                            <?php endforeach; ?>
-                        <?php else: ?>
+                        <?php
+                            endforeach;
+                        else: ?>
                             <p class="text-muted">No hay métodos de pago específicos asignados</p>
                         <?php endif; ?>
                     </div>

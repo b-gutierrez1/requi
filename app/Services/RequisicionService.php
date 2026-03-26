@@ -21,6 +21,7 @@ use App\Models\Usuario;
 use App\Models\CentroCosto;
 use App\Models\CuentaContable;
 use App\Models\AutorizacionFlujo;
+use App\Models\UnidadRequirente;
 
 class RequisicionService
 {
@@ -219,6 +220,16 @@ class RequisicionService
         // Validar moneda
         if (empty($data['moneda'])) {
             $errores[] = 'La moneda es obligatoria';
+        }
+
+        // Validar especificaciones y datos del proveedor
+        if (empty(trim($data['datos_proveedor'] ?? ''))) {
+            $errores[] = 'Las especificaciones y datos del proveedor son obligatorias';
+        }
+
+        // Validar razón de selección de cotización
+        if (empty(trim($data['razon_seleccion'] ?? ''))) {
+            $errores[] = 'La razón de selección de cotización es obligatoria';
         }
 
         // Validar items
@@ -793,48 +804,62 @@ class RequisicionService
 
             // Procesar datos del formulario
             $datosProcesados = $this->procesarDatosFormulario($data);
-            
-            // Actualizar orden de compra
-            $resultado = Requisicion::updateById($ordenId, [
-                'proveedor_nombre' => $datosProcesados['nombre_razon_social'] ?? null,
-                'justificacion' => $datosProcesados['justificacion'] ?? null,
-                'observaciones' => $datosProcesados['observaciones'] ?? null,
-                'causal_compra' => $datosProcesados['causal_compra'] ?? null,
-                'moneda' => $datosProcesados['moneda'] ?? null,
-                'forma_pago' => $datosProcesados['forma_pago'] ?? null,
-                'anticipo' => $datosProcesados['anticipo'] ?? null,
-                'unidad_requirente' => $datosProcesados['unidad_requirente'] ?? null,
-                'fecha_solicitud' => $datosProcesados['fecha'] ?? null,
-                'monto_total' => $datosProcesados['monto_total'] ?? null
-            ]);
 
-            if ($resultado) {
-                // Actualizar items
-                if (!empty($datosProcesados['items'])) {
-                    DetalleItem::actualizarMultiples($ordenId, $datosProcesados['items']);
-                }
-                
-                // Actualizar distribución
-                if (!empty($datosProcesados['distribucion'])) {
-                    DistribucionGasto::actualizarMultiples($ordenId, $datosProcesados['distribucion']);
-                }
-                
-                // Registrar en historial
-                HistorialRequisicion::registrarEdicion($ordenId, $usuarioId, array_keys($data));
+            $conn = Requisicion::getConnection();
+            $conn->beginTransaction();
 
-                // Reiniciar flujo de autorización: enviar de nuevo a aprobación
-                $this->reiniciarFlujoAutorizacion($ordenId, $datosProcesados);
+            try {
+                // Actualizar orden de compra
+                $resultado = Requisicion::updateById($ordenId, [
+                    'proveedor_nombre' => $datosProcesados['nombre_razon_social'] ?? null,
+                    'justificacion' => $datosProcesados['justificacion'] ?? null,
+                    'observaciones' => $datosProcesados['observaciones'] ?? null,
+                    'causal_compra' => $datosProcesados['causal_compra'] ?? null,
+                    'moneda' => $datosProcesados['moneda'] ?? null,
+                    'forma_pago' => $datosProcesados['forma_pago'] ?? null,
+                    'anticipo' => $datosProcesados['anticipo'] ?? null,
+                    'unidad_requirente' => $datosProcesados['unidad_requirente'] ?? null,
+                    'fecha_solicitud' => $datosProcesados['fecha'] ?? null,
+                    'monto_total' => $datosProcesados['monto_total'] ?? null
+                ]);
+
+                if ($resultado) {
+                    // Actualizar items
+                    if (!empty($datosProcesados['items'])) {
+                        DetalleItem::actualizarMultiples($ordenId, $datosProcesados['items']);
+                    }
+
+                    // Actualizar distribución
+                    if (!empty($datosProcesados['distribucion'])) {
+                        DistribucionGasto::actualizarMultiples($ordenId, $datosProcesados['distribucion']);
+                    }
+
+                    // Registrar en historial
+                    HistorialRequisicion::registrarEdicion($ordenId, $usuarioId, array_keys($data));
+
+                    // Reiniciar flujo de autorización: enviar de nuevo a aprobación
+                    $this->reiniciarFlujoAutorizacion($ordenId, $datosProcesados);
+
+                    $conn->commit();
+
+                    return [
+                        'success' => true,
+                        'message' => 'Requisición editada correctamente y enviada de nuevo a aprobación'
+                    ];
+                }
+
+                $conn->rollBack();
 
                 return [
-                    'success' => true,
-                    'message' => 'Requisición editada correctamente y enviada de nuevo a aprobación'
+                    'success' => false,
+                    'error' => 'Error al editar la requisición'
                 ];
+            } catch (\Exception $e) {
+                if ($conn->inTransaction()) {
+                    $conn->rollBack();
+                }
+                throw $e;
             }
-
-            return [
-                'success' => false,
-                'error' => 'Error al editar la requisición'
-            ];
         } catch (\Exception $e) {
             error_log("Error editando requisición: " . $e->getMessage());
             return [
@@ -990,6 +1015,14 @@ class RequisicionService
         } else {
             $orden->usuario_nombre = 'Usuario no encontrado';
             $orden->usuario_email = '';
+        }
+
+        // Resolver nombre de unidad requirente
+        if ($orden->unidad_requirente && is_numeric($orden->unidad_requirente)) {
+            $unidad = UnidadRequirente::find($orden->unidad_requirente);
+            $orden->unidad_requirente_nombre = $unidad ? ($unidad->nombre ?? '') : $orden->unidad_requirente;
+        } else {
+            $orden->unidad_requirente_nombre = $orden->unidad_requirente ?? '';
         }
 
         // Obtener flujo de autorización
@@ -1236,8 +1269,21 @@ class RequisicionService
         }
         
         $datosProcesados['items'] = $items;
-        $datosProcesados['monto_total'] = $montoTotal;
-        
+
+        // Calcular suma real de items
+        $sumaItems = $montoTotal;
+
+        // Validar contra monto_total enviado (tolerancia de centavos)
+        $montoEnviado = (float)($data['monto_total'] ?? 0);
+        if ($montoEnviado !== 0.0 && abs($sumaItems - $montoEnviado) > 0.01) {
+            throw new \InvalidArgumentException(
+                sprintf('El monto total (%.2f) no coincide con la suma de items (%.2f)', $montoEnviado, $sumaItems)
+            );
+        }
+
+        // Usar la suma calculada, no la enviada
+        $datosProcesados['monto_total'] = $sumaItems;
+
         // 2. Procesar distribución y calcular cantidades
         $distribucion = [];
         if (!empty($data['distribucion'])) {
@@ -1536,7 +1582,20 @@ class RequisicionService
                 'comentarios' => 'Flujo de autorización reiniciado después de edición',
                 'fecha_cambio' => date('Y-m-d H:i:s')
             ]);
-            
+
+            // 5. Notificar a revisores que hay una requisición pendiente de revisión
+            try {
+                $notificacionService = new \App\Services\NotificacionService();
+                $resultNotif = $notificacionService->notificarNuevaRequisicion($ordenId);
+                if ($resultNotif['success']) {
+                    error_log("Notificación enviada a revisores para requisición reeditada $ordenId");
+                } else {
+                    error_log("Error enviando notificación (no crítico): " . ($resultNotif['error'] ?? 'Error desconocido'));
+                }
+            } catch (\Exception $notifEx) {
+                error_log("Error en notificación al reiniciar flujo (no crítico): " . $notifEx->getMessage());
+            }
+
         } catch (\Exception $e) {
             error_log("Error reiniciando flujo de autorización: " . $e->getMessage());
             // No lanzamos la excepción para que no falle la edición si hay problemas con el flujo

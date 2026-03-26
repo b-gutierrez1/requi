@@ -146,11 +146,6 @@ class CsrfMiddleware
             }
         }
 
-        // Prioridad 4: Query string (menos común, menos seguro)
-        if (isset($_GET['_token'])) {
-            return $_GET['_token'];
-        }
-
         return null;
     }
 

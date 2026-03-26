@@ -96,32 +96,36 @@ View::startSection('content');
         margin-right: auto;
     }
     
-    /* Animaciones de carga */
+    /* Overlay de carga */
     .loading-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.7);
+        background: rgba(0, 0, 0, 0.5);
         display: none;
         justify-content: center;
         align-items: center;
         z-index: 9999;
     }
-    
+
     .loading-spinner {
         text-align: center;
+        background: #fff;
+        padding: 2rem 3rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
     }
 
     .spinner {
-        border: 4px solid rgba(255, 255, 255, 0.3);
-        border-top: 4px solid #ffffff;
+        border: 4px solid #e9ecef;
+        border-top: 4px solid #3b82f6;
         border-radius: 50%;
-        width: 50px;
-        height: 50px;
+        width: 40px;
+        height: 40px;
         animation: spin 0.8s linear infinite;
-        margin: 0 auto;
+        margin: 0 auto 1rem;
     }
 
     @keyframes spin {
@@ -130,7 +134,9 @@ View::startSection('content');
     }
 
     .loading-text {
-        display: none;
+        color: #374151;
+        font-size: 0.95rem;
+        margin: 0;
     }
     
     /* Animaciones de validación */
@@ -410,93 +416,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
     pointer-events: none !important;
 }
 
-/* REGLAS AGRESIVAS PARA SOBREPONERSE A TODO */
-.cuenta-contable-suggestions {
-    position: absolute !important;
-    z-index: 2147483647 !important; /* Z-index máximo de CSS */
-    background: white !important;
-    border: 2px solid #007bff !important;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3) !important;
-    border-radius: 6px !important;
-}
-
 .cuenta-contable-suggestions.show {
-    position: absolute !important;
-    z-index: 2147483647 !important; /* Z-index máximo de CSS */
-    display: block !important;
-    background: white !important;
-    border: 2px solid #007bff !important;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3) !important;
-}
-
-/* Forzar que las sugerencias se sobrepongan a cualquier elemento */
-.cuenta-contable-suggestions,
-.cuenta-contable-suggestions * {
-    z-index: 2147483647 !important;
-    position: relative !important;
-}
-
-/* Asegurar que ningún elemento interfiera con las sugerencias */
-* {
-    position: relative;
-    z-index: auto;
-}
-
-.cuenta-contable-suggestions {
-    position: absolute !important;
-    z-index: 2147483647 !important;
-}
-
-/* SOBREPONERSE A MODALES, DROPDOWNS Y CUALQUIER ELEMENTO */
-.cuenta-contable-suggestions {
-    z-index: 2147483647 !important;
-    position: absolute !important;
-}
-
-/* Forzar que esté por encima de Bootstrap modals, dropdowns, etc. */
-.cuenta-contable-suggestions {
-    z-index: 2147483647 !important;
-    position: absolute !important;
-}
-
-/* Asegurar que esté por encima de cualquier elemento con z-index alto */
-.cuenta-contable-suggestions.show {
-    z-index: 2147483647 !important;
-    position: absolute !important;
-    display: block !important;
-}
-
-/* SOBREPONERSE A TODOS LOS CAMPOS DE FORMULARIO */
-.cuenta-contable-suggestions {
-    z-index: 2147483647 !important;
-    position: absolute !important;
-}
-
-/* Asegurar que se sobreponga a campos de Forma de Pago, Ubicación, etc. */
-.cuenta-contable-suggestions.show {
-    z-index: 2147483647 !important;
-    position: absolute !important;
-    display: block !important;
-}
-
-/* Forzar que esté por encima de TODOS los elementos del formulario */
-.cuenta-contable-suggestions.show ~ *,
-.cuenta-contable-suggestions.show ~ * *,
-.cuenta-contable-suggestions.show + *,
-.cuenta-contable-suggestions.show + * * {
-    z-index: 1 !important;
-}
-
-/* Asegurar que las sugerencias estén por encima de Bootstrap y cualquier framework */
-.cuenta-contable-suggestions {
-    z-index: 2147483647 !important;
-    position: absolute !important;
-}
-
-/* Forzar que esté por encima de modales, dropdowns, tooltips, etc. */
-.cuenta-contable-suggestions.show {
-    z-index: 2147483647 !important;
-    position: absolute !important;
     display: block !important;
 }
 </style>
@@ -727,13 +647,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                             <span id="indicadorPorcentaje" class="fw-bold">0.00%</span>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="ajustarPorcentajesA100()" title="Ajustar automáticamente para que sumen exactamente 100%">
-                            <i class="fas fa-calculator"></i>
-                            Ajustar al 100%
-                        </button>
-                    </div>
-                    <div class="col-md-4">
+                    <div class="col-md-8">
                         <div id="mensajeValidacionPorcentajes" class="small"></div>
                     </div>
                 </div>
@@ -823,7 +737,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
             
             <div class="mb-3">
                 <label for="datos_proveedor" class="form-label">Especificaciones y Datos del Proveedor</label>
-                <textarea class="form-control" id="datos_proveedor" name="datos_proveedor" rows="5" placeholder="Ingrese las especificaciones técnicas, características y detalles del bien o servicio solicitado..."></textarea>
+                <textarea class="form-control" id="datos_proveedor" name="datos_proveedor" rows="5" placeholder="Ingrese las especificaciones técnicas, características y detalles del bien o servicio solicitado..." required></textarea>
             </div>
         </div>
         
@@ -836,7 +750,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
             
             <div class="mb-3">
                 <label for="razon_seleccion" class="form-label">Razón de Selección de Cotización</label>
-                <textarea class="form-control" id="razon_seleccion" name="razon_seleccion" rows="5" placeholder="Indique la justificación, necesidad y razones por las cuales se requiere esta compra..."></textarea>
+                <textarea class="form-control" id="razon_seleccion" name="razon_seleccion" rows="5" placeholder="Indique la justificación, necesidad y razones por las cuales se requiere esta compra..." required></textarea>
             </div>
         </div>
         
@@ -846,12 +760,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                 <a href="<?= url('/requisiciones') ?>" class="btn btn-cancelar">
                     <i class="fas fa-times me-2"></i> Cancelar
                 </a>
-                <button type="button" class="btn btn-secondary btn-submit" id="saveDraftBtn">
-                    <span class="btn-spinner"></span>
-                    <i class="fas fa-file-alt me-2"></i> 
-                    <span class="btn-text">Guardar como Borrador</span>
-                </button>
-                <button type="submit" class="btn btn-guardar btn-submit" id="submitBtn">
+<button type="submit" class="btn btn-guardar btn-submit" id="submitBtn">
                     <span class="btn-spinner"></span>
                     <i class="fas fa-paper-plane me-2"></i> 
                     <span class="btn-text">Enviar Requisición</span>
@@ -865,7 +774,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
 <div id="loadingOverlay" class="loading-overlay">
     <div class="loading-spinner">
         <div class="spinner"></div>
-        <p class="loading-text" id="loadingText">Creando requisición...</p>
+        <p class="loading-text" id="loadingText">Enviando requisición...</p>
     </div>
 </div>
 
@@ -1217,23 +1126,44 @@ function calcularDistribucionPorcentajes() {
 }
 
 
+// DataTransfer mantiene los archivos seleccionados para poder quitar individualmente
+let archivosDataTransfer = new DataTransfer();
+
 function mostrarArchivosSeleccionados(input) {
+    // Agregar nuevos archivos al DataTransfer existente
+    Array.from(input.files).forEach(file => archivosDataTransfer.items.add(file));
+    // Sincronizar input con la lista actualizada
+    input.files = archivosDataTransfer.files;
+    renderizarArchivos(input);
+}
+
+function renderizarArchivos(input) {
     const container = document.getElementById('archivosSeleccionados');
     container.innerHTML = '';
-    
-    if (input.files.length > 0) {
-        const list = document.createElement('ul');
-        list.className = 'list-group';
-        
-        Array.from(input.files).forEach((file, index) => {
-            const item = document.createElement('li');
-            item.className = 'list-group-item d-flex justify-content-between align-items-center';
-            item.innerHTML = `<span><i class="fas fa-file me-2"></i>${file.name} (${(file.size / 1024).toFixed(2)} KB)</span>`;
-            list.appendChild(item);
-        });
-        
-        container.appendChild(list);
-    }
+
+    if (archivosDataTransfer.files.length === 0) return;
+
+    const list = document.createElement('ul');
+    list.className = 'list-group';
+
+    Array.from(archivosDataTransfer.files).forEach((file, index) => {
+        const item = document.createElement('li');
+        item.className = 'list-group-item d-flex justify-content-between align-items-center';
+        item.innerHTML = `
+            <span><i class="fas fa-file me-2 text-secondary"></i>${file.name} <small class="text-muted">(${(file.size / 1024).toFixed(1)} KB)</small></span>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="quitarArchivo(${index}, document.getElementById('archivos'))">
+                <i class="fas fa-times"></i>
+            </button>`;
+        list.appendChild(item);
+    });
+
+    container.appendChild(list);
+}
+
+function quitarArchivo(index, input) {
+    archivosDataTransfer.items.remove(index);
+    input.files = archivosDataTransfer.files;
+    renderizarArchivos(input);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -2025,18 +1955,17 @@ document.addEventListener('DOMContentLoaded', function() {
     function setupSubmitAnimations() {
         const form = document.getElementById('requisicionForm');
         const submitBtn = document.getElementById('submitBtn');
-        const saveDraftBtn = document.getElementById('saveDraftBtn');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const loadingText = document.getElementById('loadingText');
-        
+
         if (form && submitBtn && loadingOverlay) {
             // Manejar envío de requisición (estado enviado)
             form.addEventListener('submit', function(e) {
                 e.preventDefault(); // Prevenir envío normal
-                
+
                 // Agregar campo oculto para indicar envío
                 addHiddenField(form, 'action_type', 'enviar');
-                
+
                 // Validar formulario antes de mostrar loading
                 if (!form.checkValidity()) {
                     // Mostrar campos inválidos con animación
@@ -2047,32 +1976,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     return false;
                 }
-                
+
                 // Validación personalizada
                 const validationResult = validateFormData(form);
                 if (!validationResult.valid) {
                     showValidationError(validationResult.message);
                     return false;
                 }
-                
+
                 // IMPORTANTE: Enviar formulario ANTES de deshabilitar campos
                 // Enviar formulario con manejo de CSRF
                 submitFormWithCsrfHandling(form);
             });
-            
-            // Manejar guardar como borrador
-            if (saveDraftBtn) {
-                saveDraftBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    // Agregar campo oculto para indicar borrador
-                    addHiddenField(form, 'action_type', 'borrador');
-                    
-                    // No validar formulario para borradores (permite guardar incompleto)
-                    // Enviar directamente
-                    submitFormWithCsrfHandling(form);
-                });
-            }
         }
     }
     
@@ -2095,32 +2010,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Función auxiliar para restaurar el estado de los botones
     function restoreButtonsState() {
         const submitBtn = document.getElementById('submitBtn');
-        const saveDraftBtn = document.getElementById('saveDraftBtn');
-        
+
         if (submitBtn) {
             submitBtn.classList.remove('loading');
             submitBtn.querySelector('.btn-text').textContent = 'Enviar Requisición';
-        }
-        
-        if (saveDraftBtn) {
-            saveDraftBtn.classList.remove('loading');
-            saveDraftBtn.querySelector('.btn-text').textContent = 'Guardar como Borrador';
         }
     }
     
     function showLoadingState() {
         const submitBtn = document.getElementById('submitBtn');
-        const saveDraftBtn = document.getElementById('saveDraftBtn');
         const loadingOverlay = document.getElementById('loadingOverlay');
-        
-        // Determinar cuál botón fue presionado y animar ese botón
-        const form = document.getElementById('requisicionForm');
-        const actionType = form.querySelector('input[name="action_type"]')?.value;
-        
-        if (actionType === 'borrador' && saveDraftBtn) {
-            saveDraftBtn.classList.add('loading');
-            saveDraftBtn.querySelector('.btn-text').textContent = 'Guardando borrador...';
-        } else if (submitBtn) {
+
+        if (submitBtn) {
             submitBtn.classList.add('loading');
             submitBtn.querySelector('.btn-text').textContent = 'Enviando...';
         }
@@ -2134,25 +2035,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function simulateProgress() {
-        const loadingText = document.getElementById('loadingText');
-        const messages = [
-            'Validando datos...',
-            'Calculando totales...',
-            'Generando distribución...',
-            'Creando facturas...',
-            'Iniciando flujo de autorización...',
-            'Finalizando...'
-        ];
-        
-        let currentMessage = 0;
-        const interval = setInterval(() => {
-            if (currentMessage < messages.length) {
-                loadingText.textContent = messages[currentMessage];
-                currentMessage++;
-            } else {
-                clearInterval(interval);
-            }
-        }, 800);
+        // Solo muestra el texto estático del overlay
     }
     
     // Configurar validación de porcentajes en tiempo real

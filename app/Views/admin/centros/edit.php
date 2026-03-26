@@ -62,14 +62,19 @@ $title = 'Editar Centro de Costo';
                             </div>
                         </div>
 
-                        <!-- Unidad de Negocio (solo lectura) -->
-                        <?php if (!empty($centro->unidad_negocio_id)): ?>
+                        <!-- Unidad de Negocio -->
                         <div class="mb-3">
-                            <label class="form-label">Unidad de Negocio</label>
-                            <input type="text" class="form-control" value="<?= View::e($centro->unidad_negocio_nombre ?? 'N/A') ?>" readonly disabled>
-                            <div class="form-text">La unidad de negocio se asigna automáticamente según la configuración del sistema.</div>
+                            <label for="unidad_negocio_id" class="form-label">Unidad de Negocio *</label>
+                            <select class="form-select" id="unidad_negocio_id" name="unidad_negocio_id" required>
+                                <option value="">-- Seleccionar --</option>
+                                <?php foreach ($unidadesNegocio as $unidad): ?>
+                                <option value="<?= $unidad['id'] ?>" <?= ($centro->unidad_negocio_id ?? '') == $unidad['id'] ? 'selected' : '' ?>>
+                                    <?= View::e($unidad['nombre']) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">Seleccione la unidad de negocio a la que pertenece este centro de costo.</div>
                         </div>
-                        <?php endif; ?>
 
                         <!-- Botones -->
                         <div class="row">

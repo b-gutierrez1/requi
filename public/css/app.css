@@ -3,6 +3,18 @@
    ======================================== */
 
 /* ========================================
+   PALETA DE MÓDULOS - VARIABLES GLOBALES
+   Autorizadores : rojo  (#c0392b / #a93226)
+   Requisiciones : azul  (#2980b9 / #2471a3)
+   ======================================== */
+:root {
+    --color-autorizadores:       #c0392b;
+    --color-autorizadores-hover: #a93226;
+    --color-requisiciones:       #2980b9;
+    --color-requisiciones-hover: #2471a3;
+}
+
+/* ========================================
    ULTRA-MODERN SWITCH SYSTEM - CLEAN & MINIMAL
    ======================================== */
 
@@ -3582,7 +3594,7 @@ button[data-bs-target="#modalCuenta"]:hover {
 }
 
 /* Ensure modal shows properly on catalog page */
-body.modal-open .modal {
+body.modal-open #modalCuenta {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -3615,4 +3627,10 @@ body.modal-open .modal {
     border: 1px solid rgba(0, 0, 0, 0.2) !important;
     border-radius: 0.3rem !important;
     box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ---- Mobile table scroll ---- */
+@media (max-width: 768px) {
+    .table-wrapper { overflow-x: auto; }
+    table.table { min-width: 600px; }
 }

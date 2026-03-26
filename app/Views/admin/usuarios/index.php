@@ -244,19 +244,19 @@ View::startSection('content');
     <!-- Estadísticas -->
     <div class="stats-row">
         <div class="stat-card">
-            <div class="stat-number text-primary"><?php echo $stats['total'] ?? 0; ?></div>
+            <div class="stat-number text-primary"><?php echo $total ?? 0; ?></div>
             <div class="stat-label">Total Usuarios</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number text-success"><?php echo $stats['activos'] ?? 0; ?></div>
+            <div class="stat-number text-success"><?php echo $activos ?? 0; ?></div>
             <div class="stat-label">Usuarios Activos</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number text-danger"><?php echo $stats['admins'] ?? 0; ?></div>
+            <div class="stat-number text-danger"><?php echo $admins ?? 0; ?></div>
             <div class="stat-label">Administradores</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number text-warning"><?php echo $stats['revisores'] ?? 0; ?></div>
+            <div class="stat-number text-warning"><?php echo $revisores ?? 0; ?></div>
             <div class="stat-label">Revisores</div>
         </div>
     </div>

@@ -290,10 +290,25 @@ $title = 'Autorizadores de Respaldo';
                                 </div>
                             </div>
                             <div class="col-md-4 text-end">
-                                <?php if ($respaldo->centro_costo_id): ?>
-                                    <?php 
-                                    $centro = array_filter($centros ?? [], function($c) use ($respaldo) { 
-                                        return $c->id == $respaldo->centro_costo_id; 
+                                <?php if (!empty($respaldo->centros_nombres)): ?>
+                                    <div class="mb-2">
+                                        <i class="fas fa-building text-primary me-1"></i>
+                                        <?php
+                                        $centrosArray = explode(', ', $respaldo->centros_nombres);
+                                        $totalCentros = $respaldo->total_centros ?? count($centrosArray);
+                                        if ($totalCentros == 1): ?>
+                                            <strong><?= View::e($centrosArray[0]) ?></strong>
+                                        <?php elseif ($totalCentros <= 3): ?>
+                                            <strong><?= View::e($respaldo->centros_nombres) ?></strong>
+                                        <?php else: ?>
+                                            <strong><?= View::e($centrosArray[0]) ?></strong>
+                                            <span class="badge bg-secondary ms-1">+<?= $totalCentros - 1 ?> más</span>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php elseif (!empty($respaldo->centro_costo_id)): ?>
+                                    <?php
+                                    $centro = array_filter($centros ?? [], function($c) use ($respaldo) {
+                                        return $c->id == $respaldo->centro_costo_id;
                                     });
                                     $centro = reset($centro);
                                     ?>
@@ -316,8 +331,8 @@ $title = 'Autorizadores de Respaldo';
                                        title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <form action="/admin/autorizadores/respaldos/<?= View::e($respaldo->id ?? '') ?>" 
-                                          method="POST" 
+                                    <form action="<?= url('/admin/autorizadores/respaldos/' . View::e($respaldo->id ?? '')) ?>"
+                                          method="POST"
                                           style="display: inline;"
                                           onsubmit="return confirm('¿Estás seguro de eliminar este respaldo? Esta acción no se puede deshacer.')">
                                         <input type="hidden" name="_method" value="DELETE">

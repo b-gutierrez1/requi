@@ -22,7 +22,7 @@
 
 namespace App\Services;
 
-use App\Models\Model;
+use App\Models\Model; // usado solo para getConnection()
 use App\Models\AutorizacionFlujo;
 use App\Models\AutorizacionFlujoAdaptador;
 use App\Repositories\AutorizacionCentroRepository;
@@ -32,13 +32,8 @@ use App\Models\Requisicion;
 use App\Models\Usuario;
 use App\Models\HistorialRequisicion;
 
-class AutorizacionService extends Model
+class AutorizacionService
 {
-    // Propiedades requeridas para extender Model (no las usa, pero son requeridas)
-    protected static $table = 'autorizaciones'; // Tabla por defecto
-    protected static $primaryKey = 'id';
-    protected static $timestamps = false;
-
     /**
      * Servicio de notificaciones
      * @var NotificacionService
@@ -83,7 +78,7 @@ class AutorizacionService extends Model
     private function countAutorizacionesEspecialesPendientes(int $ordenId): int
     {
         try {
-            $pdo = static::getConnection();
+            $pdo = Model::getConnection();
             $stmt = $pdo->prepare("
                 SELECT COUNT(*)
                 FROM autorizaciones
@@ -846,7 +841,7 @@ class AutorizacionService extends Model
     public function aprobarAutorizacionPago($autorizacionId, $autorizadorEmail, $comentario = '')
     {
         try {
-            $pdo = static::getConnection();
+            $pdo = Model::getConnection();
             $pdo->beginTransaction();
 
             // Verificar que la autorización existe y es del autorizador correcto
@@ -889,8 +884,16 @@ class AutorizacionService extends Model
 
             $pdo->commit();
 
+            // Transicionar el estado del flujo
+            $flujo = AutorizacionFlujo::porOrdenCompra($ordenId);
+            if ($flujo) {
+                $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
+                error_log("Actualizando estado del flujo $flujoId después de aprobar forma de pago");
+                AutorizacionFlujo::verificarYActualizarEstado($flujoId);
+            }
+
             // Si todas las autorizaciones especiales están completas, crear autorizaciones de centros de costo
-            if ($pendientesAntes && !$this->tieneAutorizacionesEspecialesPendientes($ordenId)) {
+            if (!$this->tieneAutorizacionesEspecialesPendientes($ordenId)) {
                 error_log("Todas las autorizaciones especiales completadas para requisición $ordenId, creando autorizaciones de centros de costo");
                 
                 // Verificar si ya existen autorizaciones de centros de costo
@@ -942,7 +945,7 @@ class AutorizacionService extends Model
     public function rechazarAutorizacionPago($autorizacionId, $autorizadorEmail, $motivo)
     {
         try {
-            $pdo = static::getConnection();
+            $pdo = Model::getConnection();
             $pdo->beginTransaction();
 
             // Verificar que la autorización existe y es del autorizador correcto
@@ -1018,7 +1021,7 @@ class AutorizacionService extends Model
     public function aprobarAutorizacionCuenta($autorizacionId, $autorizadorEmail, $comentario = '')
     {
         try {
-            $pdo = static::getConnection();
+            $pdo = Model::getConnection();
             $pdo->beginTransaction();
 
             // Verificar que la autorización existe y es del autorizador correcto
@@ -1061,8 +1064,16 @@ class AutorizacionService extends Model
 
             $pdo->commit();
 
+            // Transicionar el estado del flujo
+            $flujo = AutorizacionFlujo::porOrdenCompra($ordenId);
+            if ($flujo) {
+                $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
+                error_log("Actualizando estado del flujo $flujoId después de aprobar cuenta contable");
+                AutorizacionFlujo::verificarYActualizarEstado($flujoId);
+            }
+
             // Si todas las autorizaciones especiales están completas, crear autorizaciones de centros de costo
-            if ($pendientesAntes && !$this->tieneAutorizacionesEspecialesPendientes($ordenId)) {
+            if (!$this->tieneAutorizacionesEspecialesPendientes($ordenId)) {
                 error_log("Todas las autorizaciones especiales completadas para requisición $ordenId, creando autorizaciones de centros de costo");
                 
                 // Verificar si ya existen autorizaciones de centros de costo
@@ -1114,7 +1125,7 @@ class AutorizacionService extends Model
     public function rechazarAutorizacionCuenta($autorizacionId, $autorizadorEmail, $motivo)
     {
         try {
-            $pdo = static::getConnection();
+            $pdo = Model::getConnection();
             $pdo->beginTransaction();
 
             // Verificar que la autorización existe y es del autorizador correcto
@@ -1189,9 +1200,9 @@ class AutorizacionService extends Model
     public function getAutorizacionesPendientesPago($email)
     {
         try {
-            $pdo = static::getConnection();
+            $pdo = Model::getConnection();
             $stmt = $pdo->prepare("
-                SELECT 
+                SELECT
                     a.id,
                     a.requisicion_id,
                     a.tipo,
@@ -1203,9 +1214,11 @@ class AutorizacionService extends Model
                     r.fecha_solicitud as fecha
                 FROM autorizaciones a
                 INNER JOIN requisiciones r ON a.requisicion_id = r.id
-                WHERE a.autorizador_email = ? 
-                AND a.tipo = 'forma_pago' 
+                INNER JOIN autorizacion_flujo af ON af.requisicion_id = a.requisicion_id
+                WHERE a.autorizador_email = ?
+                AND a.tipo = 'forma_pago'
                 AND a.estado = 'pendiente'
+                AND af.estado IN ('pendiente_autorizacion_pago', 'pendiente_autorizacion')
                 ORDER BY a.created_at ASC
             ");
             $stmt->execute([$email]);
@@ -1225,7 +1238,7 @@ class AutorizacionService extends Model
     public function getAutorizacionesPendientesCuenta($email)
     {
         try {
-            $pdo = static::getConnection();
+            $pdo = Model::getConnection();
             $stmt = $pdo->prepare("
                 SELECT 
                     a.id,
@@ -1241,10 +1254,12 @@ class AutorizacionService extends Model
                     cc.descripcion as cuenta_nombre
                 FROM autorizaciones a
                 INNER JOIN requisiciones r ON a.requisicion_id = r.id
+                INNER JOIN autorizacion_flujo af ON af.requisicion_id = a.requisicion_id
                 LEFT JOIN cuenta_contable cc ON a.cuenta_contable_id = cc.id
-                WHERE a.autorizador_email = ? 
-                AND a.tipo = 'cuenta_contable' 
+                WHERE a.autorizador_email = ?
+                AND a.tipo = 'cuenta_contable'
                 AND a.estado = 'pendiente'
+                AND af.estado IN ('pendiente_autorizacion_cuenta', 'pendiente_autorizacion')
                 ORDER BY a.created_at ASC
             ");
             $stmt->execute([$email]);
@@ -1264,7 +1279,7 @@ class AutorizacionService extends Model
     public function esAutorizadorPago($email)
     {
         try {
-            $pdo = static::getConnection();
+            $pdo = Model::getConnection();
             $stmt = $pdo->prepare("
                 SELECT COUNT(*) 
                 FROM autorizadores_metodos_pago 
@@ -1287,7 +1302,7 @@ class AutorizacionService extends Model
     public function esAutorizadorCuenta($email)
     {
         try {
-            $pdo = static::getConnection();
+            $pdo = Model::getConnection();
             $stmt = $pdo->prepare("
                 SELECT COUNT(*) 
                 FROM autorizadores_cuentas_contables 
@@ -1310,7 +1325,7 @@ class AutorizacionService extends Model
     public function esAutorizadorRespaldo($email)
     {
         try {
-            $pdo = static::getConnection();
+            $pdo = Model::getConnection();
             $stmt = $pdo->prepare("
                 SELECT COUNT(*) 
                 FROM autorizador_respaldo 
@@ -1605,8 +1620,128 @@ class AutorizacionService extends Model
     }
 
     /**
+     * Obtiene el historial de autorizaciones agrupado por autorizador (para admin)
+     */
+    public function getHistorialPorAutorizador($filtros = [])
+    {
+        try {
+            $pdo = Model::getConnection();
+
+            $sql = "
+                SELECT
+                    COALESCE(a.autorizador_nombre, a.autorizador_email) as autorizador_nombre,
+                    a.autorizador_email,
+                    a.id as autorizacion_id,
+                    a.requisicion_id as orden_id,
+                    a.estado as estado_autorizacion,
+                    a.tipo as tipo_autorizacion,
+                    a.comentarios as comentario,
+                    a.motivo_rechazo as motivo,
+                    COALESCE(a.fecha_respuesta, a.fecha_asignacion) as fecha_autorizacion,
+                    r.proveedor_nombre as nombre_razon_social,
+                    r.monto_total,
+                    COALESCE(af.estado, 'pendiente') as estado_actual,
+                    CASE
+                        WHEN a.estado = 'aprobada' AND a.tipo = 'centro_costo' THEN 'centro_autorizado'
+                        WHEN a.estado = 'rechazada' AND a.tipo = 'centro_costo' THEN 'centro_rechazado'
+                        WHEN a.estado = 'aprobada' AND a.tipo IN ('forma_pago','cuenta_contable','revision') THEN 'revision_aprobada'
+                        WHEN a.estado = 'rechazada' AND a.tipo IN ('forma_pago','cuenta_contable','revision') THEN 'revision_rechazada'
+                        ELSE 'accion_desconocida'
+                    END as tipo_accion
+                FROM autorizaciones a
+                INNER JOIN requisiciones r ON a.requisicion_id = r.id
+                LEFT JOIN autorizacion_flujo af ON r.id = af.requisicion_id
+                WHERE a.estado IN ('aprobada', 'rechazada')
+            ";
+
+            $params = [];
+
+            if (!empty($filtros['autorizador'])) {
+                $sql .= " AND a.autorizador_email = :autorizador";
+                $params['autorizador'] = $filtros['autorizador'];
+            }
+
+            if (!empty($filtros['accion'])) {
+                $tipoFiltro = match($filtros['accion']) {
+                    'revision_aprobada'  => "a.estado = 'aprobada' AND a.tipo IN ('forma_pago','cuenta_contable','revision')",
+                    'revision_rechazada' => "a.estado = 'rechazada' AND a.tipo IN ('forma_pago','cuenta_contable','revision')",
+                    'centro_autorizado'  => "a.estado = 'aprobada' AND a.tipo = 'centro_costo'",
+                    'centro_rechazado'   => "a.estado = 'rechazada' AND a.tipo = 'centro_costo'",
+                    default => null
+                };
+                if ($tipoFiltro) {
+                    $sql .= " AND ($tipoFiltro)";
+                }
+            }
+
+            if (!empty($filtros['fecha_desde'])) {
+                $sql .= " AND DATE(COALESCE(a.fecha_respuesta, a.fecha_asignacion)) >= :fecha_desde";
+                $params['fecha_desde'] = $filtros['fecha_desde'];
+            }
+
+            if (!empty($filtros['fecha_hasta'])) {
+                $sql .= " AND DATE(COALESCE(a.fecha_respuesta, a.fecha_asignacion)) <= :fecha_hasta";
+                $params['fecha_hasta'] = $filtros['fecha_hasta'];
+            }
+
+            if (!empty($filtros['busqueda'])) {
+                $sql .= " AND (r.numero_requisicion LIKE :busqueda OR r.proveedor_nombre LIKE :busqueda)";
+                $params['busqueda'] = '%' . $filtros['busqueda'] . '%';
+            }
+
+            $sql .= " ORDER BY a.autorizador_email, COALESCE(a.fecha_respuesta, a.fecha_asignacion) DESC";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            // Agrupar por autorizador
+            $porAutorizador = [];
+            foreach ($rows as $row) {
+                $email = $row['autorizador_email'];
+                if (!isset($porAutorizador[$email])) {
+                    $porAutorizador[$email] = [
+                        'nombre'    => $row['autorizador_nombre'],
+                        'email'     => $email,
+                        'total'     => 0,
+                        'aprobadas' => 0,
+                        'rechazadas'=> 0,
+                        'registros' => []
+                    ];
+                }
+                $porAutorizador[$email]['total']++;
+                if ($row['estado_autorizacion'] === 'aprobada') {
+                    $porAutorizador[$email]['aprobadas']++;
+                } else {
+                    $porAutorizador[$email]['rechazadas']++;
+                }
+                $porAutorizador[$email]['registros'][] = [
+                    'id'                => $row['autorizacion_id'],
+                    'orden_id'          => $row['orden_id'],
+                    'fecha_autorizacion'=> $row['fecha_autorizacion'],
+                    'nombre_razon_social'=> $row['nombre_razon_social'],
+                    'tipo_accion'       => $row['tipo_accion'],
+                    'comentario'        => $row['comentario'] ?? '',
+                    'motivo'            => $row['motivo'] ?? '',
+                    'monto_total'       => $row['monto_total'],
+                    'estado_actual'     => $row['estado_actual'],
+                ];
+            }
+
+            // Ordenar por nombre de autorizador
+            uasort($porAutorizador, fn($a, $b) => strcmp($a['nombre'], $b['nombre']));
+
+            return array_values($porAutorizador);
+
+        } catch (\Exception $e) {
+            error_log("Error en getHistorialPorAutorizador: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Verifica si un email es autorizador general (tiene algún tipo de autorización)
-     * 
+     *
      * @param string $email Email a verificar
      * @return bool
      */
@@ -1614,7 +1749,7 @@ class AutorizacionService extends Model
     {
         try {
             // Verificar si es autorizador de centro de costo
-            $pdo = static::getConnection();
+            $pdo = Model::getConnection();
             $stmt = $pdo->prepare("
                 SELECT COUNT(*) 
                 FROM autorizacion_centro_costo 

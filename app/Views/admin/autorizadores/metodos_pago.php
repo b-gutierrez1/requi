@@ -323,33 +323,25 @@ $metodosCubiertos = count($metodosUnicos);
                             <div class="col-md-6">
                                 <strong><i class="fas fa-credit-card me-2"></i>Métodos de Pago Autorizados:</strong>
                                 <div class="mt-2">
-                                    <?php if (!empty($autorizador->metodos_pago)): ?>
-                                        <?php 
-                                        $metodos = is_string($autorizador->metodos_pago) 
-                                            ? explode(',', $autorizador->metodos_pago) 
-                                            : $autorizador->metodos_pago;
-                                        ?>
-                                        <?php foreach ($metodos as $metodo): ?>
-                                            <span class="metodo-badge">
-                                                <?php
-                                                $metodosTexto = [
-                                                    'efectivo' => 'Efectivo',
-                                                    'transferencia' => 'Transferencia Bancaria',
-                                                    'cheque' => 'Cheque',
-                                                    'tarjeta' => 'Tarjeta de Crédito',
-                                                    'tarjeta_credito' => 'Tarjeta de Crédito',
-                                                    'tarjeta_debito' => 'Tarjeta de Débito',
-                                                    'tarjeta_credito_lic_milton' => 'Tarjeta de Crédito (Lic. Milton)',
-                                                    'deposito' => 'Depósito Bancario',
-                                                    'otro' => 'Otro'
-                                                ];
-                                                $metodoKey = trim($metodo);
-                                                echo View::e($metodosTexto[$metodoKey] ?? $metodoKey);
-                                                ?>
-                                            </span>
-                                        <?php endforeach; ?>
+                                    <?php if (!empty($autorizador->metodo_pago)): ?>
+                                        <span class="metodo-badge">
+                                            <?php
+                                            $metodosTexto = [
+                                                'efectivo' => 'Efectivo',
+                                                'transferencia' => 'Transferencia Bancaria',
+                                                'cheque' => 'Cheque',
+                                                'tarjeta' => 'Tarjeta de Crédito',
+                                                'tarjeta_credito' => 'Tarjeta de Crédito',
+                                                'tarjeta_debito' => 'Tarjeta de Débito',
+                                                'deposito' => 'Depósito Bancario',
+                                                'otro' => 'Otro'
+                                            ];
+                                            $metodoKey = trim($autorizador->metodo_pago);
+                                            echo View::e($metodosTexto[$metodoKey] ?? $autorizador->observaciones ?? $metodoKey);
+                                            ?>
+                                        </span>
                                     <?php else: ?>
-                                        <span class="text-muted">No especificados</span>
+                                        <span class="text-muted">No especificado</span>
                                     <?php endif; ?>
                                 </div>
                             </div>

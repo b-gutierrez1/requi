@@ -47,11 +47,11 @@ class RequisicionController extends Controller
     public function __construct()
     {
         parent::__construct();
-        
-        $this->requisicionService = new RequisicionService(
-            new AutorizacionService()
-        );
+
         $this->autorizacionService = new AutorizacionService();
+        $this->requisicionService = new RequisicionService(
+            $this->autorizacionService
+        );
     }
 
     // ========================================================================
@@ -67,17 +67,30 @@ class RequisicionController extends Controller
     {
         $usuarioId = $this->getUsuarioId();
         
-        // Obtener filtros
+        // Obtener filtros — whitelist para estado
+        $estadosValidos = [
+            AutorizacionFlujo::ESTADO_PENDIENTE_REVISION,
+            AutorizacionFlujo::ESTADO_RECHAZADO_REVISION,
+            AutorizacionFlujo::ESTADO_PENDIENTE_AUTORIZACION_PAGO,
+            AutorizacionFlujo::ESTADO_PENDIENTE_AUTORIZACION_CUENTA,
+            AutorizacionFlujo::ESTADO_PENDIENTE_AUTORIZACION_CENTROS,
+            AutorizacionFlujo::ESTADO_PENDIENTE_AUTORIZACION,
+            AutorizacionFlujo::ESTADO_RECHAZADO_AUTORIZACION,
+            AutorizacionFlujo::ESTADO_AUTORIZADO,
+            AutorizacionFlujo::ESTADO_RECHAZADO,
+            'borrador',
+        ];
+        $estadoInput = $_GET['estado'] ?? '';
         $filtros = [
-            'estado' => $_GET['estado'] ?? '',
+            'estado'      => in_array($estadoInput, $estadosValidos) ? $estadoInput : '',
             'fecha_desde' => $_GET['fecha_desde'] ?? '',
             'fecha_hasta' => $_GET['fecha_hasta'] ?? '',
-            'busqueda' => $_GET['busqueda'] ?? ''
+            'busqueda'    => substr(trim($_GET['busqueda'] ?? ''), 0, 100),
         ];
-        
+
         // Parámetros de paginación
-        $pagina = max(1, intval($_GET['pagina'] ?? 1));
-        $porPagina = max(5, min(100, intval($_GET['por_pagina'] ?? 5))); // Requisiciones por página (5-100)
+        $pagina    = max(1, (int) ($_GET['pagina'] ?? 1));
+        $porPagina = max(5, min(100, (int) ($_GET['por_pagina'] ?? 5))); // Requisiciones por página (5-100)
 
         // Obtener requisiciones filtradas
         $todasRequisiciones = $this->aplicarFiltros($usuarioId, $filtros);
@@ -150,21 +163,7 @@ class RequisicionController extends Controller
 
         // Verificar permisos: permitir acceso amplio a revisores y autorizadores
         $orden = $requisicion['orden'];
-        $esDueño = (is_object($orden) ? $orden->usuario_id : $orden['usuario_id']) == $this->getUsuarioId();
-        $esRevisor = $this->isRevisor() || $this->isRevisorPorEmail($this->getUsuarioEmail());
-        $esAutorizadorGeneral = $this->autorizacionService->esAutorizadorGeneral($this->getUsuarioEmail());
-        $puedeAutorizar = $this->autorizacionService->puedeAutorizar($this->getUsuarioEmail(), $id);
-        $esAdmin = $this->isAdmin();
-        
-        // Permitir acceso si:
-        // 1. Es el dueño de la requisición
-        // 2. Es revisor (puede ver cualquier requisición para referencia)
-        // 3. Es autorizador general (puede ver cualquier requisición para contexto)
-        // 4. Puede autorizar específicamente esta requisición
-        // 5. Es administrador
-        $tienePermisos = $esDueño || $esRevisor || $esAutorizadorGeneral || $puedeAutorizar || $esAdmin;
-        
-        if (!$tienePermisos) {
+        if (!$this->tienePermisosRequisicion($orden, $id, $this->autorizacionService)) {
             Redirect::to('/requisiciones')
                 ->withError('No tienes permisos para ver esta requisición')
                 ->send();
@@ -271,6 +270,7 @@ class RequisicionController extends Controller
                     ];
                 } else {
                     $data = $_POST;
+                    $data['centro_costo_ids'] = array_map('intval', $_POST['centro_costo_ids'] ?? []);
                     $usuarioId = $this->getUsuarioId();
                     
                     // Verificar que el usuario esté autenticado
@@ -410,8 +410,9 @@ class RequisicionController extends Controller
         }
 
         $data = $_POST;
+        $data['centro_costo_ids'] = array_map('intval', $_POST['centro_costo_ids'] ?? []);
         $usuarioId = $this->getUsuarioId();
-        
+
         // Verificar que el usuario esté autenticado
         if (!$usuarioId) {
             Redirect::to('/login')
@@ -530,6 +531,7 @@ class RequisicionController extends Controller
         }
 
         $data = $_POST;
+        $data['centro_costo_ids'] = array_map('intval', $_POST['centro_costo_ids'] ?? []);
         $usuarioId = $this->getUsuarioId();
 
         $resultado = $this->requisicionService->editarRequisicion($id, $data, $usuarioId);
@@ -740,15 +742,7 @@ class RequisicionController extends Controller
 
         // Verificar permisos: permitir acceso amplio a revisores y autorizadores
         $orden = $requisicion['orden'];
-        $esDueño = $orden->usuario_id == $this->getUsuarioId();
-        $esRevisor = $this->isRevisor() || $this->isRevisorPorEmail($this->getUsuarioEmail());
-        $esAutorizadorGeneral = $this->autorizacionService->esAutorizadorGeneral($this->getUsuarioEmail());
-        $puedeAutorizar = $this->autorizacionService->puedeAutorizar($this->getUsuarioEmail(), $id);
-        $esAdmin = $this->isAdmin();
-        
-        $tienePermisos = $esDueño || $esRevisor || $esAutorizadorGeneral || $puedeAutorizar || $esAdmin;
-        
-        if (!$tienePermisos) {
+        if (!$this->tienePermisosRequisicion($orden, $id, $this->autorizacionService)) {
             Redirect::to('/requisiciones')
                 ->withError('No tienes permisos para ver esta requisición')
                 ->send();
@@ -758,7 +752,7 @@ class RequisicionController extends Controller
             'requisicion' => $requisicion,
             'orden' => $orden,
             'items' => $requisicion['items'],
-            'distribucion' => $requisicion['distribucion'],
+            'distribucion' => $requisicion['distribuciones'],
             'flujo' => $requisicion['flujo'],
         ], null); // Sin layout
     }
@@ -788,7 +782,7 @@ class RequisicionController extends Controller
      */
     public function apiBuscar()
     {
-        $termino = $_GET['q'] ?? '';
+        $termino = substr(trim($_GET['q'] ?? ''), 0, 100);
         $usuarioId = $this->getUsuarioId();
 
         if (strlen($termino) < 2) {
@@ -838,8 +832,8 @@ class RequisicionController extends Controller
      */
     public function apiBuscarCuentas()
     {
-        $termino = $_GET['q'] ?? '';
-        
+        $termino = substr(trim($_GET['q'] ?? ''), 0, 100);
+
         if (strlen($termino) < 2) {
             $this->jsonResponse([]);
             return;
@@ -878,15 +872,7 @@ class RequisicionController extends Controller
 
             // Verificar permisos: permitir acceso amplio a revisores y autorizadores
             $orden = $requisicion['orden'];
-            $esDueño = $orden->usuario_id == $this->getUsuarioId();
-            $esRevisor = $this->isRevisor() || $this->isRevisorPorEmail($this->getUsuarioEmail());
-            $esAutorizadorGeneral = $this->autorizacionService->esAutorizadorGeneral($this->getUsuarioEmail());
-            $puedeAutorizar = $this->autorizacionService->puedeAutorizar($this->getUsuarioEmail(), $id);
-            $esAdmin = $this->isAdmin();
-            
-            $tienePermisos = $esDueño || $esRevisor || $esAutorizadorGeneral || $puedeAutorizar || $esAdmin;
-            
-            if (!$tienePermisos) {
+            if (!$this->tienePermisosRequisicion($orden, $id, $this->autorizacionService)) {
                 http_response_code(403);
                 echo '<div class="alert alert-danger">No tienes permisos para ver esta requisición</div>';
                 return;
@@ -1048,188 +1034,17 @@ class RequisicionController extends Controller
             return;
         }
 
-        // TODO: Implementar métodos en el modelo CentroCosto
-        $unidadNegocio = null; // $centroCosto->getUnidadNegocio();
-        $autorizadores = []; // $centroCosto->getAutorizadoresAsignados();
+        // Obtener unidad de negocio desde la relación en BD
+        $unidadNegocioId = $centroCosto->unidad_negocio_id;
+        $unidadNegocio = $unidadNegocioId ? UnidadNegocio::find($unidadNegocioId) : null;
 
         $this->jsonResponse([
             'success' => true,
-            'unidad_negocio_id' => $unidadNegocio['id'] ?? null,
-            'unidad_negocio_nombre' => $unidadNegocio['nombre'] ?? null,
-            'autorizadores' => $autorizadores
+            'unidad_negocio_id' => $unidadNegocio->id ?? null,
+            'unidad_negocio_nombre' => $unidadNegocio->nombre ?? null,
+            'factura' => $centroCosto->factura ?? 1
         ]);
     }
 
-    /**
-     * API: Obtiene todos los centros de costo con su mapeo a unidades de negocio y facturas
-     * 
-     * @return void
-     */
-    public function apiCentrosCosto()
-    {
-        try {
-            // Obtener todos los centros de costo activos
-            $centrosCosto = CentroCosto::activos();
-            $unidadesNegocio = UnidadNegocio::activas();
-            
-            // Crear mapeo de centros de costo a unidades de negocio y facturas
-            $mapeo = [];
-            
-            foreach ($centrosCosto as $centro) {
-                $nombreCentro = strtoupper($centro->nombre ?? $centro->descripcion ?? '');
-                
-                // Determinar unidad de negocio basada en el nombre del centro de costo
-                $unidadNegocio = $this->determinarUnidadNegocio($nombreCentro);
-                
-                // Determinar tipo de factura basado en el centro de costo
-                $tipoFactura = $this->determinarTipoFactura($nombreCentro);
-                
-                $mapeo[$centro->id] = [
-                    'id' => $centro->id,
-                    'nombre' => $centro->nombre ?? $centro->descripcion ?? 'Sin nombre',
-                    'codigo' => $centro->codigo ?? '',
-                    'unidad_negocio' => $unidadNegocio,
-                    'tipo_factura' => $tipoFactura,
-                    'factura_numero' => "Factura {$tipoFactura}"
-                ];
-            }
-            
-            $this->jsonResponse([
-                'success' => true,
-                'centros_costo' => $mapeo,
-                'unidades_negocio' => $unidadesNegocio
-            ]);
-            
-        } catch (\Exception $e) {
-            error_log("Error en apiCentrosCosto: " . $e->getMessage());
-            $this->jsonResponse([
-                'success' => false,
-                'error' => 'Error interno del servidor'
-            ], 500);
-        }
-    }
 
-    /**
-     * Determina la unidad de negocio basada en el nombre del centro de costo
-     * 
-     * @param string $nombreCentro Nombre del centro de costo en mayúsculas
-     * @return string Unidad de negocio correspondiente
-     */
-    private function determinarUnidadNegocio($nombreCentro)
-    {
-        // ADMINISTRACION
-        if (strpos($nombreCentro, 'PARQUEO GENERAL') !== false ||
-            strpos($nombreCentro, 'DIRECCION GENERAL') !== false ||
-            strpos($nombreCentro, 'EDUCATION USA') !== false ||
-            strpos($nombreCentro, 'FINANZAS') !== false ||
-            strpos($nombreCentro, 'SISTEMAS') !== false ||
-            strpos($nombreCentro, 'MERCADEO') !== false ||
-            strpos($nombreCentro, 'ORGANIZACION Y PROCEDIMIENTOS') !== false ||
-            strpos($nombreCentro, 'OPERACIONES') !== false ||
-            strpos($nombreCentro, 'RECURSOS HUMANOS') !== false ||
-            strpos($nombreCentro, 'SERVICIO AL CLIENTE') !== false ||
-            strpos($nombreCentro, 'UNIDAD ACADEMICA') !== false) {
-            return 'ADMINISTRACION';
-        }
-        
-        // COMERCIAL
-        if (strpos($nombreCentro, 'BODEGA') !== false ||
-            strpos($nombreCentro, 'DISTRIBUCION FISICA') !== false ||
-            strpos($nombreCentro, 'DISTRIBUIDORA') !== false ||
-            strpos($nombreCentro, 'LIBRERIA COBAN') !== false ||
-            strpos($nombreCentro, 'LIBRERIA QUETZALTENANGO') !== false ||
-            strpos($nombreCentro, 'LIBRERIA ZONA 4') !== false) {
-            return 'COMERCIAL';
-        }
-        
-        // COLEGIO
-        if (strpos($nombreCentro, 'BASICOS') !== false ||
-            strpos($nombreCentro, 'BACHILLERATO') !== false ||
-            strpos($nombreCentro, 'PERITO CONTADOR') !== false ||
-            strpos($nombreCentro, 'SECRETARIADO') !== false ||
-            strpos($nombreCentro, 'PRIMARIA') !== false) {
-            return 'COLEGIO';
-        }
-        
-        // CURSOS ADULTOS
-        if (strpos($nombreCentro, 'CURSOS ADULTOS Z.4') !== false ||
-            strpos($nombreCentro, 'CURSOS EMPRESARIALES') !== false ||
-            strpos($nombreCentro, 'CURSOS ADULTOS HUEHUE') !== false ||
-            strpos($nombreCentro, 'PROGRAMAS EXTERNOS') !== false) {
-            return 'CURSOS ADULTOS';
-        }
-        
-        // ACTIVIDADES CULTURALES
-        if (strpos($nombreCentro, 'ACTIVIDADES CULTURALES') !== false ||
-            strpos($nombreCentro, 'BIBLIOTECA') !== false) {
-            return 'ACTIVIDADES CULTURALES';
-        }
-        
-        // CURSOS NIÑOS
-        if (strpos($nombreCentro, 'CURSOS NIÑOS Y ADOLECENTES Z.4') !== false) {
-            return 'CURSOS NIÑOS';
-        }
-        
-        // GENERAL
-        if (strpos($nombreCentro, 'CENTRO DE COSTO GENERAL') !== false) {
-            return 'UNIDAD DE NEGOCIO GENERAL';
-        }
-        
-        // Valor por defecto
-        return 'UNIDAD DE NEGOCIO GENERAL';
-    }
-
-    /**
-     * Determina el tipo de factura basado en el nombre del centro de costo
-     * 
-     * @param string $nombreCentro Nombre del centro de costo en mayúsculas
-     * @return int Tipo de factura (1, 2, o 3)
-     */
-    private function determinarTipoFactura($nombreCentro)
-    {
-        // FACTURA 1 - COMERCIAL Y ADMINISTRACIÓN
-        if (strpos($nombreCentro, 'PARQUEO GENERAL') !== false ||
-            strpos($nombreCentro, 'BODEGA') !== false ||
-            strpos($nombreCentro, 'DISTRIBUCION FISICA') !== false ||
-            strpos($nombreCentro, 'DISTRIBUIDORA') !== false ||
-            strpos($nombreCentro, 'LIBRERIA COBAN') !== false ||
-            strpos($nombreCentro, 'LIBRERIA QUETZALTENANGO') !== false ||
-            strpos($nombreCentro, 'LIBRERIA ZONA 4') !== false ||
-            strpos($nombreCentro, 'ACTIVIDADES CULTURALES') !== false) {
-            return 1;
-        }
-        
-        // FACTURA 2 - COLEGIO
-        if (strpos($nombreCentro, 'BASICOS') !== false ||
-            strpos($nombreCentro, 'BACHILLERATO') !== false ||
-            strpos($nombreCentro, 'PERITO CONTADOR') !== false ||
-            strpos($nombreCentro, 'SECRETARIADO') !== false ||
-            strpos($nombreCentro, 'PRIMARIA') !== false) {
-            return 2;
-        }
-        
-        // FACTURA 3 - CURSOS Y ACTIVIDADES
-        if (strpos($nombreCentro, 'CURSOS ADULTOS Z.4') !== false ||
-            strpos($nombreCentro, 'CURSOS EMPRESARIALES') !== false ||
-            strpos($nombreCentro, 'CURSOS ADULTOS HUEHUE') !== false ||
-            strpos($nombreCentro, 'PROGRAMAS EXTERNOS') !== false ||
-            strpos($nombreCentro, 'DIRECCION GENERAL') !== false ||
-            strpos($nombreCentro, 'EDUCATION USA') !== false ||
-            strpos($nombreCentro, 'FINANZAS') !== false ||
-            strpos($nombreCentro, 'SISTEMAS') !== false ||
-            strpos($nombreCentro, 'MERCADEO') !== false ||
-            strpos($nombreCentro, 'ORGANIZACION Y PROCEDIMIENTOS') !== false ||
-            strpos($nombreCentro, 'OPERACIONES') !== false ||
-            strpos($nombreCentro, 'RECURSOS HUMANOS') !== false ||
-            strpos($nombreCentro, 'SERVICIO AL CLIENTE') !== false ||
-            strpos($nombreCentro, 'UNIDAD ACADEMICA') !== false ||
-            strpos($nombreCentro, 'BIBLIOTECA') !== false ||
-            strpos($nombreCentro, 'CURSOS NIÑOS Y ADOLECENTES Z.4') !== false ||
-            strpos($nombreCentro, 'CENTRO DE COSTO GENERAL') !== false) {
-            return 3;
-        }
-        
-        // Valor por defecto
-        return 1;
-    }
 }

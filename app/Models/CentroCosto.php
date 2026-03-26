@@ -89,25 +89,17 @@ class CentroCosto extends Model
 
     /**
      * Obtiene el autorizador de respaldo activo actual
-     * 
+     *
      * @return array|null
      */
     public function getAutorizadorRespaldoActivo()
     {
-        $sql = "SELECT * FROM autorizador_respaldo 
-                WHERE centro_costo_id = ? 
-                AND estado = 'activo'
-                AND CURRENT_DATE BETWEEN fecha_inicio AND fecha_fin
-                LIMIT 1";
-        
-        $stmt = self::getConnection()->prepare($sql);
         $centroId = $this->attributes['id'] ?? $this->id ?? null;
         if (!$centroId) {
             return null;
         }
-        $stmt->execute([$centroId]);
-        
-        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+
+        return AutorizadorRespaldo::activoPorCentro($centroId);
     }
 
     /**
@@ -159,7 +151,7 @@ class CentroCosto extends Model
         $sql = "SELECT cc.*, 
                        un.id as rel_unidad_negocio_id,
                        un.nombre as unidad_negocio_nombre,
-                       COALESCE(cc.factura, 1) as factura
+                       cc.factura as factura_numero
                 FROM {$table} cc
                 LEFT JOIN unidad_de_negocio un ON cc.unidad_negocio_id = un.id
                 ORDER BY cc.nombre ASC";

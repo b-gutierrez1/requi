@@ -174,13 +174,17 @@ class DetalleItem extends Model
      */
     public static function actualizarMultiples($ordenCompraId, $items)
     {
+        $conn = null;
+        $ownTransaction = false;
         try {
             $conn = self::getConnection();
-            $conn->beginTransaction();
+            $ownTransaction = !$conn->inTransaction();
+            if ($ownTransaction) {
+                $conn->beginTransaction();
+            }
 
             // Eliminar items existentes
-            $instance = new static();
-            $sql = "DELETE FROM {$instance->table} WHERE requisicion_id = ?";
+            $sql = "DELETE FROM " . static::$table . " WHERE requisicion_id = ?";
             $stmt = $conn->prepare($sql);
             $stmt->execute([$ordenCompraId]);
 
@@ -191,14 +195,16 @@ class DetalleItem extends Model
                 self::create($item);
             }
 
-            $conn->commit();
+            if ($ownTransaction) {
+                $conn->commit();
+            }
             return true;
         } catch (\Exception $e) {
-            if (isset($conn)) {
+            if ($ownTransaction && isset($conn) && $conn->inTransaction()) {
                 $conn->rollBack();
             }
             error_log("Error actualizando items: " . $e->getMessage());
-            return false;
+            throw $e;
         }
     }
 

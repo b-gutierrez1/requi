@@ -167,6 +167,60 @@ $title = 'Crear Autorizador de Respaldo';
         color: #999;
         font-style: italic;
     }
+
+    /* ── Tarjetas de centros de costo ── */
+    .centros-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .centro-card {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        margin: 0;
+    }
+
+    .centro-card input[type="checkbox"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .centro-card-inner {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        background: #f8f9fa;
+        color: #495057;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.18s ease;
+        user-select: none;
+    }
+
+    .centro-card-icon { color: #adb5bd; font-size: 0.9rem; }
+    .centro-card-check { display: none; color: #fff; font-size: 0.9rem; }
+
+    .centro-card:hover .centro-card-inner {
+        border-color: #ff6b6b;
+        background: #fff5f5;
+        color: #ee5a24;
+    }
+
+    .centro-card input:checked + .centro-card-inner {
+        border-color: #ee5a24;
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        color: #fff;
+    }
+
+    .centro-card input:checked + .centro-card-inner .centro-card-icon { display: none; }
+    .centro-card input:checked + .centro-card-inner .centro-card-check { display: inline; }
 </style>
 
 <!-- Header Principal -->
@@ -199,7 +253,7 @@ $title = 'Crear Autorizador de Respaldo';
                     <strong>Información:</strong> Los autorizadores de respaldo permiten asignar temporalmente las responsabilidades de autorización a otra persona durante períodos específicos (vacaciones, ausencias, etc.).
                 </div>
 
-                <form action="/admin/autorizadores/respaldos" method="POST" id="respaldoForm">
+                <form action="<?= url('/admin/autorizadores/respaldos') ?>" method="POST" id="respaldoForm">
                     <?= CsrfMiddleware::field() ?>
                     
                     <!-- Sección: Autorizador Principal -->
@@ -431,7 +485,7 @@ document.addEventListener('DOMContentLoaded', function() {
         respaldoSuggestions.innerHTML = '<div class="autocomplete-item"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
         respaldoSuggestions.style.display = 'block';
         
-        fetch(`/admin/api/usuarios/buscar?q=${encodeURIComponent(query)}`)
+        fetch(`<?= url('/admin/api/usuarios/buscar') ?>?q=${encodeURIComponent(query)}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.usuarios && data.usuarios.length > 0) {
@@ -521,7 +575,7 @@ document.addEventListener('DOMContentLoaded', function() {
         centrosList.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Cargando centros de costo...</p>';
         
         // Hacer petición AJAX
-        fetch(`/admin/api/autorizadores/centros-costo?email=${encodeURIComponent(email)}`)
+        fetch(`<?= url('/admin/api/autorizadores/centros-costo') ?>?email=${encodeURIComponent(email)}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.centros && data.centros.length > 0) {
@@ -543,27 +597,28 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     });
     
-    // Renderizar lista de centros con checkboxes
+    // Renderizar centros como tarjetas seleccionables
     function renderCentros(centros) {
-        let html = '';
+        let html = '<div class="centros-grid">';
         centros.forEach(centro => {
             const nombre = centro.nombre || 'Sin nombre';
-            const esPrincipal = centro.es_principal == 1 ? '<i class="fas fa-star text-warning ms-2"></i>' : '';
-            
             html += `
-                <div class="form-check mb-2">
-                    <input class="form-check-input centro-checkbox" type="checkbox" 
-                           name="centros_costo_ids[]" value="${centro.id}" 
+                <label class="centro-card" for="centro_${centro.id}">
+                    <input class="centro-checkbox" type="checkbox"
+                           name="centros_costo_ids[]" value="${centro.id}"
                            id="centro_${centro.id}">
-                    <label class="form-check-label" for="centro_${centro.id}">
-                        ${nombre} ${esPrincipal}
-                    </label>
-                </div>
+                    <span class="centro-card-inner">
+                        <i class="fas fa-building centro-card-icon"></i>
+                        <i class="fas fa-check-circle centro-card-check"></i>
+                        <span class="centro-card-name">${nombre}</span>
+                    </span>
+                </label>
             `;
         });
+        html += '</div>';
         centrosList.innerHTML = html;
-        
-        // Agregar event listeners a los checkboxes
+
+        // Event listeners
         document.querySelectorAll('.centro-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', updateSelectedCount);
         });
@@ -643,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Confirmar creación múltiple
         if (centrosSeleccionados > 1) {
-            if (!confirm(`Se crearán ${centrosSeleccionados} respaldos (uno para cada centro de costo). ¿Desea continuar?`)) {
+            if (!confirm(`Se asignarán ${centrosSeleccionados} centros de costo a este respaldo. ¿Desea continuar?`)) {
                 e.preventDefault();
                 return false;
             }

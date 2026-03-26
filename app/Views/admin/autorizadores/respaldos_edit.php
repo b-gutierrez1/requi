@@ -249,24 +249,48 @@ $title = 'Editar Autorizador de Respaldo';
                             </div>
                             
                             <div class="col-md-6">
-                                <label for="centro_costo_id" class="form-label">
-                                    Centro de Costo <span class="required">*</span>
+                                <label class="form-label">
+                                    Centros de Costo <span class="required">*</span>
                                 </label>
-                                <select name="centro_costo_id" id="centro_costo_id" class="form-select" required>
-                                    <option value="">Seleccionar centro de costo...</option>
+                                <div id="centros_container" style="border: 2px solid #e9ecef; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; background: #f8f9fa;">
+                                    <div class="mb-2">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" id="seleccionar_todos">
+                                            <i class="fas fa-check-double"></i> Todos
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="deseleccionar_todos">
+                                            <i class="fas fa-times"></i> Ninguno
+                                        </button>
+                                    </div>
+                                    <?php
+                                    $centrosAsignados = $respaldo['centros_asignados'] ?? [];
+                                    // Fallback para estructura antigua
+                                    if (empty($centrosAsignados) && !empty($respaldo['centro_costo_id'])) {
+                                        $centrosAsignados = [$respaldo['centro_costo_id']];
+                                    }
+                                    ?>
                                     <?php if (!empty($centros)): ?>
                                         <?php foreach ($centros as $centro): ?>
-                                            <?php $selected = ($centro->id ?? '') == ($respaldo['centro_costo_id'] ?? '') ? 'selected' : ''; ?>
-                                            <option value="<?= View::e($centro->id ?? '') ?>" <?= $selected ?>>
-                                                <?= View::e($centro->nombre ?? 'Sin nombre') ?>
-                                                <?php if (!empty($centro->codigo)): ?>
-                                                    (<?= View::e($centro->codigo) ?>)
-                                                <?php endif; ?>
-                                            </option>
+                                            <?php $checked = in_array($centro->id, $centrosAsignados) ? 'checked' : ''; ?>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input centro-checkbox" type="checkbox"
+                                                       name="centros_costo_ids[]" value="<?= View::e($centro->id ?? '') ?>"
+                                                       id="centro_<?= View::e($centro->id ?? '') ?>" <?= $checked ?>>
+                                                <label class="form-check-label" for="centro_<?= View::e($centro->id ?? '') ?>">
+                                                    <?= View::e($centro->nombre ?? 'Sin nombre') ?>
+                                                    <?php if (!empty($centro->codigo)): ?>
+                                                        <small class="text-muted">(<?= View::e($centro->codigo) ?>)</small>
+                                                    <?php endif; ?>
+                                                </label>
+                                            </div>
                                         <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <p class="text-muted mb-0">No hay centros de costo disponibles</p>
                                     <?php endif; ?>
-                                </select>
-                                <div class="help-text">Centro de costo para el cual aplica el respaldo</div>
+                                </div>
+                                <div class="help-text">Seleccione los centros de costo para los cuales aplica el respaldo</div>
+                                <div id="centros_count" class="mt-2">
+                                    <span class="badge bg-primary"><span id="selected_count"><?= count($centrosAsignados) ?></span> seleccionados</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -557,20 +581,63 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // ========================================================================
+    // MANEJO DE CHECKBOXES DE CENTROS DE COSTO
+    // ========================================================================
+
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.centro-checkbox:checked').length;
+        document.getElementById('selected_count').textContent = selected;
+    }
+
+    // Botón seleccionar todos
+    const selectAllBtn = document.getElementById('seleccionar_todos');
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.centro-checkbox').forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateSelectedCount();
+        });
+    }
+
+    // Botón deseleccionar todos
+    const deselectAllBtn = document.getElementById('deseleccionar_todos');
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.centro-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateSelectedCount();
+        });
+    }
+
+    // Actualizar contador cuando cambia un checkbox
+    document.querySelectorAll('.centro-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
+
     // Interceptar envío del formulario para usar PUT
     form.addEventListener('submit', function(e) {
         e.preventDefault();
-        
+
         // Validar fechas
         if (fechaInicio.value && fechaFin.value && fechaInicio.value > fechaFin.value) {
             alert('La fecha de inicio no puede ser posterior a la fecha de fin');
             return;
         }
-        
+
+        // Validar que al menos un centro esté seleccionado
+        const centrosSeleccionados = document.querySelectorAll('.centro-checkbox:checked').length;
+        if (centrosSeleccionados === 0) {
+            alert('Debe seleccionar al menos un centro de costo');
+            return;
+        }
+
         // Crear FormData
         const formData = new FormData(form);
         formData.append('_method', 'PUT');
-        
+
         // Enviar con fetch
         fetch(form.action, {
             method: 'POST',

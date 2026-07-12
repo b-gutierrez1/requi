@@ -156,10 +156,11 @@ class CentroCosto extends Model
                        cc.factura as factura_numero
                 FROM {$table} cc
                 LEFT JOIN unidad_de_negocio un ON cc.unidad_negocio_id = un.id
+                WHERE cc.activo = 1
                 ORDER BY cc.nombre ASC";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute();
-        
+
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 

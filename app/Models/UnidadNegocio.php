@@ -46,7 +46,7 @@ class UnidadNegocio extends Model
     {
         $table = static::$table;
         
-        $sql = "SELECT * FROM {$table} ORDER BY nombre ASC";
+        $sql = "SELECT * FROM {$table} WHERE activo = 1 ORDER BY nombre ASC";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute();
         

@@ -312,79 +312,24 @@ $title = 'Gestión de Autorizadores';
     <!-- Lista Agrupada de Autorizadores -->
     <div id="autorizadoresContainer">
         <?php if (!empty($autorizadores)): ?>
-            <?php 
-            // ✅ AGRUPAR AUTORIZADORES MEJORADO - Eliminar duplicaciones
-            $autorizadoresAgrupados = [];
-            $centrosUnicos = []; // Evitar centros duplicados
-            
-            foreach ($autorizadores as $autorizador) {
-                // Limpiar y normalizar datos
-                $nombre = trim($autorizador->nombre ?? 'Sin nombre');
-                $email = trim(strtolower($autorizador->email ?? 'sin.email@example.com'));
-                
-                // Clave única basada en email normalizado (más confiable que nombre)
-                $key = $email;
-                
-                if (!isset($autorizadoresAgrupados[$key])) {
-                    $autorizadoresAgrupados[$key] = [
-                        'autorizador' => $autorizador,
-                        'centros' => [],
-                        'centro_ids' => [], // Para evitar duplicados
-                        'permisos' => [
-                            'centro_costo' => $autorizador->puede_autorizar_centro_costo ?? false,
-                            'flujo' => $autorizador->puede_autorizar_flujo ?? false,
-                            'cuenta_contable' => $autorizador->puede_autorizar_cuenta_contable ?? false,
-                            'metodo_pago' => $autorizador->puede_autorizar_metodo_pago ?? false,
-                            'respaldo' => $autorizador->puede_autorizar_respaldo ?? false
-                        ],
-                        'monto_limite_max' => $autorizador->monto_limite ?? 0,
-                        'registros_count' => 1
-                    ];
-                } else {
-                    // Si ya existe, actualizar información
-                    $grupo = &$autorizadoresAgrupados[$key];
-                    $grupo['registros_count']++;
-                    
-                    // Mantener el límite más alto
-                    if (($autorizador->monto_limite ?? 0) > $grupo['monto_limite_max']) {
-                        $grupo['monto_limite_max'] = $autorizador->monto_limite;
-                    }
-                    
-                    // Combinar permisos (OR lógico)
-                    $grupo['permisos']['centro_costo'] = $grupo['permisos']['centro_costo'] || ($autorizador->puede_autorizar_centro_costo ?? false);
-                    $grupo['permisos']['flujo'] = $grupo['permisos']['flujo'] || ($autorizador->puede_autorizar_flujo ?? false);
-                    $grupo['permisos']['cuenta_contable'] = $grupo['permisos']['cuenta_contable'] || ($autorizador->puede_autorizar_cuenta_contable ?? false);
-                    $grupo['permisos']['metodo_pago'] = $grupo['permisos']['metodo_pago'] || ($autorizador->puede_autorizar_metodo_pago ?? false);
-                    $grupo['permisos']['respaldo'] = $grupo['permisos']['respaldo'] || ($autorizador->puede_autorizar_respaldo ?? false);
-                }
-                
-                // Agregar centro de costo único
-                if (!empty($autorizador->centro_costo_id)) {
-                    $centroId = $autorizador->centro_costo_id;
-                    
-                    // Solo agregar si no existe ya
-                    if (!in_array($centroId, $autorizadoresAgrupados[$key]['centro_ids'])) {
-                        $centro = array_filter($centros ?? [], function($c) use ($centroId) { 
-                            return $c->id == $centroId; 
-                        });
-                        $centro = reset($centro);
-                        
-                        if ($centro) {
-                            $autorizadoresAgrupados[$key]['centros'][] = $centro;
-                            $autorizadoresAgrupados[$key]['centro_ids'][] = $centroId;
-                        }
-                    }
-                }
-            }
-            
-            // Ordenar por nombre para mejor presentación
-            uasort($autorizadoresAgrupados, function($a, $b) {
-                return strcasecmp($a['autorizador']->nombre ?? '', $b['autorizador']->nombre ?? '');
-            });
-            ?>
-            
-            <?php foreach ($autorizadoresAgrupados as $email => $grupo): ?>
-                <?php $autorizador = $grupo['autorizador']; ?>
+            <?php foreach ($autorizadores as $autorizador): ?>
+                <?php
+                $autorizadorId = (int)($autorizador->id ?? 0);
+                $centrosDelAut = $centrosPorAutorizador[$autorizadorId] ?? [];
+                $grupo = [
+                    'autorizador'     => $autorizador,
+                    'centros'         => $centrosDelAut,
+                    'permisos'        => [
+                        'centro_costo'    => $autorizador->puede_autorizar_centro_costo ?? false,
+                        'flujo'           => $autorizador->puede_autorizar_flujo ?? false,
+                        'cuenta_contable' => $autorizador->puede_autorizar_cuenta_contable ?? false,
+                        'metodo_pago'     => $autorizador->puede_autorizar_metodo_pago ?? false,
+                        'respaldo'        => $autorizador->puede_autorizar_respaldo ?? false,
+                    ],
+                    'monto_limite_max' => $autorizador->monto_limite ?? 0,
+                    'registros_count'  => 1,
+                ];
+                ?>
                 <div class="autorizador-group autorizador-item" data-name="<?= strtolower($autorizador->nombre ?? '') ?>" data-email="<?= strtolower($autorizador->email ?? '') ?>">
                     <div class="autorizador-header p-3">
                         <div class="row align-items-center">
@@ -396,7 +341,10 @@ $title = 'Gestión de Autorizadores';
                                     <div>
                                         <div class="fw-bold fs-5"><?= View::e($autorizador->nombre ?? 'Sin nombre') ?></div>
                                         <small class="text-muted"><?= View::e($autorizador->email ?? 'Sin email') ?></small>
-                                        <?php 
+                                        <?php if (!empty($autorizador->cargo)): ?>
+                                            <div><small class="text-secondary"><i class="fas fa-briefcase me-1"></i><?= View::e($autorizador->cargo) ?></small></div>
+                                        <?php endif; ?>
+                                        <?php
                                         // Solo mostrar badge si hay duplicados REALES (mismo autorizador + mismo centro)
                                         $emailKey = strtolower(trim($autorizador->email ?? ''));
                                         $duplicadosReales = $duplicadosPorEmail[$emailKey] ?? 0;
@@ -466,12 +414,15 @@ $title = 'Gestión de Autorizadores';
                                             onclick="consolidarAutorizador('<?= View::e($email) ?>', '<?= View::e($autorizador->nombre) ?>')">
                                         <i class="fas fa-compress-arrows-alt"></i>
                                     </button>
-                                    <a href="<?= url('/admin/autorizadores/' . View::e($autorizador->id ?? '') . '/delete') ?>"
-                                       class="btn btn-outline-danger btn-action"
-                                       title="Eliminar"
-                                       onclick="return confirm('¿Estás seguro de eliminar este autorizador?')">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
+                                    <form method="POST" action="<?= url('/admin/autorizadores/' . View::e($autorizador->id ?? '')) ?>"
+                                          style="display:inline"
+                                          onsubmit="return confirm('¿Estás seguro de eliminar este autorizador?')">
+                                        <?php echo App\Middlewares\CsrfMiddleware::field(); ?>
+                                        <input type="hidden" name="_method" value="DELETE">
+                                        <button type="submit" class="btn btn-outline-danger btn-action" title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
@@ -497,16 +448,23 @@ $title = 'Gestión de Autorizadores';
                                 });
                                 ?>
                                 <?php foreach ($grupo['centros'] as $index => $centro): ?>
+                                    <?php $ordenCentro = (int)($centro->orden ?? 1); ?>
                                     <div class="col-md-6 col-lg-4 mb-2">
                                         <div class="centro-item p-2 border rounded position-relative">
                                             <div class="fw-bold text-primary"><?= View::e($centro->nombre ?? 'Sin nombre') ?></div>
                                             <small class="text-muted">
-                                                <?= View::e($centro->codigo ?? 'Sin código') ?> 
+                                                <?= View::e($centro->codigo ?? 'Sin código') ?>
                                                 <?php if (!empty($centro->descripcion)): ?>
                                                     - <?= View::e($centro->descripcion) ?>
                                                 <?php endif; ?>
                                             </small>
-                                            <span class="badge bg-secondary position-absolute top-0 end-0 m-1" style="font-size: 0.6rem;"><?= $index + 1 ?></span>
+                                            <?php if ($ordenCentro === 1): ?>
+                                                <span class="badge bg-success position-absolute top-0 end-0 m-1" style="font-size:0.6rem;" title="Aprueba primero">1°</span>
+                                            <?php elseif ($ordenCentro === 2): ?>
+                                                <span class="badge bg-warning text-dark position-absolute top-0 end-0 m-1" style="font-size:0.6rem;" title="Aprueba segundo">2°</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-secondary position-absolute top-0 end-0 m-1" style="font-size:0.6rem;"><?= $index + 1 ?></span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>

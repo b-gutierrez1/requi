@@ -42,12 +42,57 @@ class AutorizadorController extends Controller
     {
         $page    = max(1, (int)($_GET['page'] ?? 1));
         $perPage = 20;
-        $total   = PersonaAutorizada::count();
-        $totalPages = (int)ceil($total / $perPage);
-
-        $autorizadores = PersonaAutorizada::paginate($page, $perPage);
 
         $conn = PersonaAutorizada::getConnection();
+
+        // 1) Contar autorizadores únicos
+        $total      = (int)$conn->query(
+            "SELECT COUNT(*) FROM autorizadores WHERE activo = 1"
+        )->fetchColumn();
+        $totalPages = (int)ceil($total / $perPage);
+        $offset     = ($page - 1) * $perPage;
+
+        // 2) Una fila por autorizador (paginado)
+        $stmtAut = $conn->prepare(
+            "SELECT id, nombre, email, cargo, activo
+             FROM autorizadores
+             WHERE activo = 1
+             ORDER BY nombre ASC
+             LIMIT :lim OFFSET :off"
+        );
+        $stmtAut->bindValue(':lim', $perPage, \PDO::PARAM_INT);
+        $stmtAut->bindValue(':off', $offset,  \PDO::PARAM_INT);
+        $stmtAut->execute();
+        $autorizadoresRows = $stmtAut->fetchAll(\PDO::FETCH_ASSOC);
+
+        // 3) Cargar los centros de esos autorizadores en una sola consulta
+        $centrosPorAutorizador = [];
+        if (!empty($autorizadoresRows)) {
+            $ids = array_column($autorizadoresRows, 'id');
+            $ph  = implode(',', array_fill(0, count($ids), '?'));
+            $stmtCentros = $conn->prepare(
+                "SELECT acc.autorizador_id, cc.id, cc.nombre, NULL AS codigo, acc.orden
+                 FROM autorizador_centro_costo acc
+                 JOIN centro_de_costo cc ON cc.id = acc.centro_costo_id
+                 WHERE acc.autorizador_id IN ($ph) AND acc.activo = 1
+                 ORDER BY acc.orden ASC, cc.nombre ASC"
+            );
+            $stmtCentros->execute($ids);
+            foreach ($stmtCentros->fetchAll(\PDO::FETCH_ASSOC) as $c) {
+                $centrosPorAutorizador[(int)$c['autorizador_id']][] = (object)$c;
+            }
+        }
+
+        // Construir objetos PersonaAutorizada (uno por autorizador)
+        $autorizadores = [];
+        foreach ($autorizadoresRows as $row) {
+            $obj = new PersonaAutorizada();
+            foreach ($row as $k => $v) {
+                $obj->setAttribute($k, $v);
+            }
+            $autorizadores[] = $obj;
+        }
+
         $sql = "SELECT
                     acc.autorizador_id,
                     a.email,
@@ -75,14 +120,15 @@ class AutorizadorController extends Controller
         $centros = CentroCosto::all();
 
         View::render('admin/autorizadores/index_agrupado', [
-            'autorizadores'      => $autorizadores,
-            'centros'            => $centros,
-            'duplicadosPorEmail' => $duplicadosPorEmail,
-            'title'              => 'Gestión de Autorizadores',
-            'page'               => $page,
-            'perPage'            => $perPage,
-            'total'              => $total,
-            'totalPages'         => $totalPages,
+            'autorizadores'          => $autorizadores,
+            'centrosPorAutorizador'  => $centrosPorAutorizador,
+            'centros'                => $centros,
+            'duplicadosPorEmail'     => $duplicadosPorEmail,
+            'title'                  => 'Gestión de Autorizadores',
+            'page'                   => $page,
+            'perPage'                => $perPage,
+            'total'                  => $total,
+            'totalPages'             => $totalPages,
         ]);
     }
 
@@ -91,7 +137,7 @@ class AutorizadorController extends Controller
      */
     public function showAutorizador($id)
     {
-        $autorizadorObj = PersonaAutorizada::find($id);
+        $autorizadorObj = $this->findAutorizadorById((int)$id);
 
         if (!$autorizadorObj) {
             Redirect::to('/admin/autorizadores')
@@ -147,7 +193,7 @@ class AutorizadorController extends Controller
      */
     public function editAutorizador($id)
     {
-        $autorizador = PersonaAutorizada::find($id);
+        $autorizador = $this->findAutorizadorById((int)$id);
 
         if (!$autorizador) {
             Redirect::to('/admin/autorizadores')
@@ -193,6 +239,7 @@ class AutorizadorController extends Controller
 
         $nombre = $this->sanitize($_POST['nombre'] ?? '');
         $email  = $this->sanitize($_POST['email'] ?? '');
+        $cargo  = $this->sanitize($_POST['cargo'] ?? '') ?: null;
         $centroIds = array_filter(
             array_map('intval', $_POST['centro_costo_ids'] ?? []),
             fn($id) => $id > 0
@@ -224,16 +271,16 @@ class AutorizadorController extends Controller
             if ($autorizadorRow) {
                 $autorizadorId = $autorizadorRow['id'];
                 // Actualizar nombre por si cambió
-                $pdo->prepare("UPDATE autorizadores SET nombre = ?, activo = 1 WHERE id = ?")
-                    ->execute([$nombre, $autorizadorId]);
+                $pdo->prepare("UPDATE autorizadores SET nombre = ?, cargo = ?, activo = 1 WHERE id = ?")
+                    ->execute([$nombre, $cargo, $autorizadorId]);
             } else {
-                $pdo->prepare("INSERT INTO autorizadores (nombre, email, activo) VALUES (?, ?, 1)")
-                    ->execute([$nombre, $email]);
+                $pdo->prepare("INSERT INTO autorizadores (nombre, email, cargo, activo) VALUES (?, ?, ?, 1)")
+                    ->execute([$nombre, $email, $cargo]);
                 $autorizadorId = (int)$pdo->lastInsertId();
             }
 
             // 2. Insertar relaciones centro de costo (evitar duplicados)
-            $stmtCheck  = $pdo->prepare("SELECT id FROM autorizador_centro_costo WHERE autorizador_id = ? AND centro_costo_id = ?");
+            $stmtCheck  = $pdo->prepare("SELECT id FROM autorizador_centro_costo WHERE autorizador_id = ? AND centro_costo_id = ? AND activo = 1");
             $stmtInsert = $pdo->prepare("INSERT INTO autorizador_centro_costo (autorizador_id, centro_costo_id, activo) VALUES (?, ?, 1)");
             $creados = 0;
 
@@ -272,6 +319,7 @@ class AutorizadorController extends Controller
 
         $nombre = $this->sanitize($_POST['nombre'] ?? '');
         $email  = $this->sanitize($_POST['email'] ?? '');
+        $cargo  = $this->sanitize($_POST['cargo'] ?? '') ?: null;
 
         if (empty($nombre) || empty($email)) {
             Redirect::back()
@@ -279,7 +327,7 @@ class AutorizadorController extends Controller
                 ->send();
         }
 
-        $autorizador = PersonaAutorizada::find($id);
+        $autorizador = $this->findAutorizadorById((int)$id);
         if (!$autorizador) {
             Redirect::to('/admin/autorizadores')
                 ->withError('Autorizador no encontrado')
@@ -289,8 +337,8 @@ class AutorizadorController extends Controller
         $emailAnterior = $autorizador->email;
 
         $pdo  = PersonaAutorizada::getConnection();
-        $stmt = $pdo->prepare("UPDATE autorizadores SET nombre = ?, email = ? WHERE email = ?");
-        $resultado = $stmt->execute([$nombre, $email, $emailAnterior]);
+        $stmt = $pdo->prepare("UPDATE autorizadores SET nombre = ?, email = ?, cargo = ? WHERE email = ?");
+        $resultado = $stmt->execute([$nombre, $email, $cargo, $emailAnterior]);
 
         if ($resultado) {
             Redirect::to('/admin/autorizadores/' . $id . '/edit')
@@ -309,34 +357,42 @@ class AutorizadorController extends Controller
     public function deleteAutorizador($id)
     {
         if (!$this->validateCSRF()) {
-            $this->jsonResponse(['success' => false, 'error' => 'Token inválido'], 403);
-            return;
+            Redirect::to('/admin/autorizadores')
+                ->withError('Token inválido')
+                ->send();
         }
 
-        $autorizador = PersonaAutorizada::find($id);
+        $autorizador = $this->findAutorizadorById((int)$id);
         if (!$autorizador) {
-            $this->jsonResponse(['success' => false, 'error' => 'Autorizador no encontrado'], 404);
-            return;
+            Redirect::to('/admin/autorizadores')
+                ->withError('Autorizador no encontrado')
+                ->send();
         }
 
         $email = $autorizador->email ?? '';
         if ($email !== '') {
             $pendientes = (int)PersonaAutorizada::contarPendientes($email);
             if ($pendientes > 0) {
-                $this->jsonResponse([
-                    'success' => false,
-                    'error'   => "No se puede eliminar: el autorizador tiene {$pendientes} autorización(es) pendiente(s) activa(s). Reasigne o resuelva las autorizaciones antes de eliminar.",
-                ], 422);
-                return;
+                Redirect::to('/admin/autorizadores')
+                    ->withError("No se puede eliminar: el autorizador tiene {$pendientes} autorización(es) pendiente(s). Reasigne o resuelva las autorizaciones antes de eliminar.")
+                    ->send();
             }
         }
 
-        $resultado = PersonaAutorizada::destroy($id);
+        // Desactivar en autorizadores (tabla base) — no se puede DELETE en la vista
+        $pdo  = PersonaAutorizada::getConnection();
+        $stmt = $pdo->prepare("UPDATE autorizadores SET activo = 0 WHERE id = ?");
+        $resultado = $stmt->execute([(int)$id]) && $stmt->rowCount() > 0;
 
-        $this->jsonResponse([
-            'success' => $resultado,
-            'message' => $resultado ? 'Autorizador eliminado' : 'Error al eliminar'
-        ]);
+        if ($resultado) {
+            Redirect::to('/admin/autorizadores')
+                ->withSuccess('Autorizador eliminado correctamente')
+                ->send();
+        } else {
+            Redirect::to('/admin/autorizadores')
+                ->withError('Error al eliminar el autorizador')
+                ->send();
+        }
     }
 
     /**
@@ -344,7 +400,7 @@ class AutorizadorController extends Controller
      */
     public function editCentrosAutorizador($id)
     {
-        $autorizador = PersonaAutorizada::find($id);
+        $autorizador = $this->findAutorizadorById((int)$id);
 
         if (!$autorizador) {
             Redirect::to('/admin/autorizadores')
@@ -356,11 +412,28 @@ class AutorizadorController extends Controller
         $centrosAsignados = PersonaAutorizada::centrosCostoPorEmail($autorizador->email);
         $idsAsignados     = array_column($centrosAsignados, 'centro_id');
 
+        // Cargar el orden actual de cada centro asignado desde la tabla base
+        $ordenesPorCentro = [];
+        if (!empty($autorizador->email)) {
+            $pdo  = PersonaAutorizada::getConnection();
+            $stmt = $pdo->prepare("
+                SELECT acc.centro_costo_id, acc.orden
+                FROM autorizador_centro_costo acc
+                JOIN autorizadores a ON a.id = acc.autorizador_id
+                WHERE a.email = ? AND acc.activo = 1
+            ");
+            $stmt->execute([$autorizador->email]);
+            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+                $ordenesPorCentro[(int)$row['centro_costo_id']] = (int)$row['orden'];
+            }
+        }
+
         View::render('admin/autorizadores/centros', [
-            'autorizador'     => $autorizador,
-            'todosLosCentros' => $todosLosCentros,
-            'idsAsignados'    => $idsAsignados,
-            'title'           => 'Asignar Centros de Costo'
+            'autorizador'      => $autorizador,
+            'todosLosCentros'  => $todosLosCentros,
+            'idsAsignados'     => $idsAsignados,
+            'ordenesPorCentro' => $ordenesPorCentro,
+            'title'            => 'Asignar Centros de Costo'
         ]);
     }
 
@@ -375,41 +448,69 @@ class AutorizadorController extends Controller
                 ->send();
         }
 
-        $autorizador = PersonaAutorizada::find($id);
+        $autorizador = $this->findAutorizadorById((int)$id);
         if (!$autorizador) {
             Redirect::to('/admin/autorizadores')
                 ->withError('Autorizador no encontrado')
                 ->send();
         }
 
-        $centrosSeleccionados = array_filter(
-            array_map('intval', $_POST['centro_costo_ids'] ?? []),
-            fn($id) => $id > 0
-        );
+        // Recibir mapa [centro_costo_id => orden]: orden=0 significa "quitar asignación"
+        $ordenesPosted = $_POST['centro_costo_orden'] ?? [];
+        $centrosConOrden = [];
+        foreach ($ordenesPosted as $centroId => $orden) {
+            $centroId = (int)$centroId;
+            $orden    = (int)$orden;
+            if ($centroId > 0 && $orden > 0) {
+                $centrosConOrden[$centroId] = max(1, min(2, $orden)); // clamp 1-2
+            }
+        }
+        $centrosSeleccionados = array_keys($centrosConOrden);
 
         $centrosActuales = PersonaAutorizada::centrosCostoPorEmail($autorizador->email);
         $idsActuales     = array_map('intval', array_column($centrosActuales, 'centro_id'));
 
         $pdo = PersonaAutorizada::getConnection();
 
+        // Obtener autorizador_id de la tabla base
+        $stmtId = $pdo->prepare("SELECT id FROM autorizadores WHERE email = ? LIMIT 1");
+        $stmtId->execute([$autorizador->email]);
+        $autorizadorId = (int)$stmtId->fetchColumn();
+
+        if (!$autorizadorId) {
+            Redirect::back()->withError('No se encontró el autorizador en la tabla base')->send();
+        }
+
+        // Insertar nuevos con su orden
         $nuevos = array_diff($centrosSeleccionados, $idsActuales);
         if (!empty($nuevos)) {
             $stmtInsert = $pdo->prepare(
-                "INSERT INTO persona_autorizada (centro_costo_id, nombre, email) VALUES (?, ?, ?)"
+                "INSERT IGNORE INTO autorizador_centro_costo (autorizador_id, centro_costo_id, orden, activo) VALUES (?, ?, ?, 1)"
             );
             foreach ($nuevos as $centroId) {
-                $stmtInsert->execute([$centroId, $autorizador->nombre, $autorizador->email]);
+                $stmtInsert->execute([$autorizadorId, $centroId, $centrosConOrden[$centroId] ?? 1]);
             }
         }
 
+        // Actualizar orden de los existentes si cambió
+        $existentes = array_intersect($centrosSeleccionados, $idsActuales);
+        if (!empty($existentes)) {
+            $stmtUpdate = $pdo->prepare(
+                "UPDATE autorizador_centro_costo SET orden = ? WHERE autorizador_id = ? AND centro_costo_id = ?"
+            );
+            foreach ($existentes as $centroId) {
+                $stmtUpdate->execute([$centrosConOrden[$centroId] ?? 1, $autorizadorId, $centroId]);
+            }
+        }
+
+        // Eliminar los que se quitaron
         $removidos = array_diff($idsActuales, $centrosSeleccionados);
         if (!empty($removidos)) {
             $placeholders = implode(',', array_fill(0, count($removidos), '?'));
             $stmtDelete   = $pdo->prepare(
-                "DELETE FROM persona_autorizada WHERE email = ? AND centro_costo_id IN ({$placeholders})"
+                "DELETE FROM autorizador_centro_costo WHERE autorizador_id = ? AND centro_costo_id IN ({$placeholders})"
             );
-            $params = array_merge([$autorizador->email], array_values($removidos));
-            $stmtDelete->execute($params);
+            $stmtDelete->execute(array_merge([$autorizadorId], array_values($removidos)));
         }
 
         Redirect::to('/admin/autorizadores/' . $id . '/centros')
@@ -549,5 +650,65 @@ class AutorizadorController extends Controller
             error_log("Error apiCentrosCostoAutorizador: " . $e->getMessage());
             $this->jsonResponse(['success' => false, 'error' => 'Error al obtener centros de costo'], 500);
         }
+    }
+
+    /**
+     * API: busca el cargo de un usuario por email para pre-llenar el formulario
+     *
+     * GET /admin/api/autorizadores/lookup-cargo?email=...
+     */
+    public function apiLookupCargo()
+    {
+        $email = trim($_GET['email'] ?? '');
+
+        if (empty($email)) {
+            $this->jsonResponse(['cargo' => null]);
+            return;
+        }
+
+        try {
+            $pdo  = PersonaAutorizada::getConnection();
+            $stmt = $pdo->prepare(
+                "SELECT COALESCE(NULLIF(job_title,''), NULLIF(azure_job_title,'')) AS cargo
+                 FROM usuarios WHERE LOWER(email) = LOWER(?) LIMIT 1"
+            );
+            $stmt->execute([$email]);
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            $this->jsonResponse(['cargo' => $row['cargo'] ?? null]);
+
+        } catch (\Exception $e) {
+            error_log("Error apiLookupCargo: " . $e->getMessage());
+            $this->jsonResponse(['cargo' => null]);
+        }
+    }
+
+    // ========================================================================
+    // HELPERS PRIVADOS
+    // ========================================================================
+
+    /**
+     * Busca un autorizador por autorizadores.id (el ID de la tabla base, no de la vista).
+     *
+     * PersonaAutorizada::find() usa persona_autorizada view donde id = autorizador_centro_costo.id,
+     * pero las URLs del controlador pasan autorizadores.id. Este helper resuelve el mismatch.
+     */
+    private function findAutorizadorById(int $id): ?PersonaAutorizada
+    {
+        $pdo  = PersonaAutorizada::getConnection();
+        $stmt = $pdo->prepare("SELECT id, nombre, email, cargo, activo FROM autorizadores WHERE id = ? LIMIT 1");
+        $stmt->execute([$id]);
+        $row  = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            return null;
+        }
+
+        $obj = new PersonaAutorizada();
+        foreach ($row as $k => $v) {
+            $obj->setAttribute($k, $v);
+        }
+
+        return $obj;
     }
 }

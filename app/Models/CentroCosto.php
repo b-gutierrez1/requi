@@ -21,6 +21,7 @@ class CentroCosto extends Model
         'nombre',
         'factura',
         'unidad_negocio_id',
+        'requiere_asignacion_manual',
     ];
 
     protected static $guarded = ['id'];
@@ -212,8 +213,20 @@ class CentroCosto extends Model
     }
 
     /**
+     * Obtiene centros que requieren asignación manual de autorizador en revisión
+     */
+    public static function conAsignacionManual(): array
+    {
+        $table = static::$table;
+        $sql = "SELECT id, nombre FROM {$table} WHERE requiere_asignacion_manual = 1 AND activo = 1 ORDER BY nombre ASC";
+        $stmt = self::getConnection()->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Contar total de centros de costo
-     * 
+     *
      * @return int
      */
     public static function count()

@@ -203,7 +203,7 @@ class AutorizacionService
      * @param string $comentario Comentarios opcionales
      * @return array Resultado
      */
-    public function aprobarRevision($idAmbiguo, $usuarioId, $comentario = '')
+    public function aprobarRevision($idAmbiguo, $usuarioId, $comentario = '', array $asignaciones = [])
     {
         try {
             error_log("=== APROBACIÓN REVISIÓN REFACTORIZADA ===");
@@ -228,7 +228,7 @@ class AutorizacionService
                 $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
                 $flujoEstado = is_object($flujo) ? $flujo->estado : $flujo['estado'];
                 error_log("✅ Flujo encontrado por orden ID: $flujoId, Estado: $flujoEstado");
-                return $this->ejecutarAprobacionRevision($flujo, $usuarioId, $comentario);
+                return $this->ejecutarAprobacionRevision($flujo, $usuarioId, $comentario, $asignaciones);
             }
 
             // ESTRATEGIA 2: Buscar por flujo_id (FALLBACK)
@@ -240,7 +240,7 @@ class AutorizacionService
                 $ordenId = is_object($flujo) ? $flujo->requisicion_id : $flujo['requisicion_id'];
                 $flujoEstado = is_object($flujo) ? $flujo->estado : $flujo['estado'];
                 error_log("✅ Flujo encontrado por flujo ID: $flujoId, Orden: $ordenId, Estado: $flujoEstado");
-                return $this->ejecutarAprobacionRevision($flujo, $usuarioId, $comentario);
+                return $this->ejecutarAprobacionRevision($flujo, $usuarioId, $comentario, $asignaciones);
             }
 
             // No encontrado en ninguna estrategia
@@ -270,7 +270,7 @@ class AutorizacionService
      * @param string $comentario Comentarios opcionales
      * @return array Resultado
      */
-    private function ejecutarAprobacionRevision($flujo, $usuarioId, $comentario = '')
+    private function ejecutarAprobacionRevision($flujo, $usuarioId, $comentario = '', array $asignaciones = [])
     {
         try {
             $flujoId = is_object($flujo) ? $flujo->id : $flujo['id'];
@@ -287,7 +287,7 @@ class AutorizacionService
 
             // Ejecutar aprobación en modelo
             error_log("Llamando AutorizacionFlujo::aprobarRevision($flujoId, $usuarioId, '$comentario')");
-            $resultado = AutorizacionFlujo::aprobarRevision($flujoId, $usuarioId, $comentario);
+            $resultado = AutorizacionFlujo::aprobarRevision($flujoId, $usuarioId, $comentario, $asignaciones);
             
             if ($resultado !== true) {
                 error_log("❌ Error en AutorizacionFlujo::aprobarRevision() - resultado: " . var_export($resultado, true));
@@ -344,7 +344,7 @@ class AutorizacionService
             ];
         }
         
-        return $this->ejecutarAprobacionRevision($flujo, $usuarioId, $comentario);
+        return $this->ejecutarAprobacionRevision($flujo, $usuarioId, $comentario, $asignaciones);
     }
 
     /**
@@ -366,7 +366,7 @@ class AutorizacionService
             ];
         }
         
-        return $this->ejecutarAprobacionRevision($flujo, $usuarioId, $comentario);
+        return $this->ejecutarAprobacionRevision($flujo, $usuarioId, $comentario, $asignaciones);
     }
 
     // ========================================================================
@@ -521,7 +521,7 @@ class AutorizacionService
             }
 
             $resultado = $this->autorizacionCentroRepo->authorize($autorizacionId, $autorizadorEmail, $comentario);
-            
+
             if (!$resultado) {
                 return [
                     'success' => false,
@@ -530,26 +530,57 @@ class AutorizacionService
                 ];
             }
 
+            $centroCostoId = (int)($autorizacion['centro_costo_id'] ?? 0);
+            $nivelAprobado = (int)($autorizacion['nivel'] ?? 1);
+
+            // Auto-omitir otros autorizadores del MISMO nivel y centro (principal+respaldo en paralelo:
+            // solo uno debe aprobar; nunca omitir niveles superiores que aún no les toca).
+            if ($centroCostoId && $ordenId) {
+                $pdo = Model::getConnection();
+                $stmtOmitir = $pdo->prepare("
+                    UPDATE autorizaciones
+                    SET estado = 'omitida',
+                        comentarios = CONCAT(IFNULL(comentarios, ''), ' [Auto-omitida: ya autorizada por otro autorizador del mismo nivel]'),
+                        fecha_respuesta = NOW()
+                    WHERE requisicion_id = ?
+                      AND tipo = 'centro_costo'
+                      AND centro_costo_id = ?
+                      AND nivel = ?
+                      AND estado = 'pendiente'
+                      AND autorizador_email != ?
+                ");
+                $stmtOmitir->execute([$ordenId, $centroCostoId, $nivelAprobado, $autorizadorEmail]);
+                error_log("Auto-omitidas " . $stmtOmitir->rowCount() . " autorizaciones (nivel=$nivelAprobado, centro=$centroCostoId, req=$ordenId)");
+            }
+
+            // Notificar al siguiente nivel si existe (flujo secuencial)
+            if ($centroCostoId && $ordenId) {
+                $this->notificacionService->notificarSiguienteNivelCentroCosto($ordenId, $centroCostoId, $nivelAprobado);
+            }
+
             // Verificar si todas las autorizaciones están completas
-            if ($autorizacion) {
-                $flujoIdReal = $autorizacion['autorizacion_flujo_id'] ?? null;
-                $ordenId = (int)($autorizacion['requisicion_id'] ?? $flujoIdReal ?? 0);
-
-                if ($ordenId) {
-                    $flujo = AutorizacionFlujo::porOrdenCompra($ordenId);
-                    if ($flujo) {
-                        $flujoIdReal = is_object($flujo) ? $flujo->id : $flujo['id'];
-                    }
+            $flujoIdReal = $autorizacion['autorizacion_flujo_id'] ?? null;
+            if ($ordenId) {
+                $flujo = AutorizacionFlujo::porOrdenCompra($ordenId);
+                if ($flujo) {
+                    $flujoIdReal = is_object($flujo) ? $flujo->id : $flujo['id'];
                 }
-
-                if ($flujoIdReal) {
-                    $this->verificarYCompletarFlujo($flujoIdReal);
-                }
+            }
+            if ($flujoIdReal) {
+                $this->verificarYCompletarFlujo($flujoIdReal);
             }
 
             return [
                 'success' => true,
                 'message' => 'Centro de costo autorizado exitosamente'
+            ];
+        } catch (\RuntimeException $e) {
+            // Guard de orden secuencial — aprobación fuera de turno
+            error_log("Guard orden secuencial en autorizarCentroCosto: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error'   => $e->getMessage(),
+                'code'    => 'OUT_OF_ORDER'
             ];
         } catch (\Exception $e) {
             error_log("Error en autorizarCentroCosto: " . $e->getMessage());
@@ -862,17 +893,31 @@ class AutorizacionService
             }
 
             $ordenId = (int)$autorizacion['requisicion_id'];
-            $pendientesAntes = $this->tieneAutorizacionesEspecialesPendientes($ordenId);
 
             // Aprobar la autorización
             $stmt = $pdo->prepare("
-                UPDATE autorizaciones 
-                SET estado = 'aprobada', 
-                    comentarios = ?, 
-                    fecha_respuesta = NOW() 
+                UPDATE autorizaciones
+                SET estado = 'aprobada',
+                    comentarios = ?,
+                    fecha_respuesta = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([$comentario, $autorizacionId]);
+
+            // Auto-omitir otras autorizaciones pendientes del mismo tipo (principal+respaldo)
+            // para que el flujo no quede bloqueado esperando que el respaldo también autorice.
+            $stmtOmitir = $pdo->prepare("
+                UPDATE autorizaciones
+                SET estado = 'omitida',
+                    comentarios = CONCAT(IFNULL(comentarios, ''), ' [Auto-omitida: ya autorizada por otro autorizador]'),
+                    fecha_respuesta = NOW()
+                WHERE requisicion_id = ?
+                  AND tipo = 'forma_pago'
+                  AND estado = 'pendiente'
+                  AND id != ?
+            ");
+            $stmtOmitir->execute([$ordenId, $autorizacionId]);
+            error_log("Auto-omitidas " . $stmtOmitir->rowCount() . " autorizaciones de forma_pago para requisición $ordenId");
 
             // Registrar en historial
             HistorialRequisicion::registrarAprobacion(
@@ -1042,17 +1087,35 @@ class AutorizacionService
             }
 
             $ordenId = (int)$autorizacion['requisicion_id'];
-            $pendientesAntes = $this->tieneAutorizacionesEspecialesPendientes($ordenId);
+            $cuentaContableId = (int)($autorizacion['cuenta_contable_id'] ?? 0);
 
             // Aprobar la autorización
             $stmt = $pdo->prepare("
-                UPDATE autorizaciones 
-                SET estado = 'aprobada', 
-                    comentarios = ?, 
-                    fecha_respuesta = NOW() 
+                UPDATE autorizaciones
+                SET estado = 'aprobada',
+                    comentarios = ?,
+                    fecha_respuesta = NOW()
                 WHERE id = ?
             ");
             $stmt->execute([$comentario, $autorizacionId]);
+
+            // Auto-omitir otras autorizaciones pendientes para la misma cuenta contable
+            // (principal+respaldo: solo uno necesita autorizar)
+            if ($cuentaContableId) {
+                $stmtOmitir = $pdo->prepare("
+                    UPDATE autorizaciones
+                    SET estado = 'omitida',
+                        comentarios = CONCAT(IFNULL(comentarios, ''), ' [Auto-omitida: ya autorizada por otro autorizador]'),
+                        fecha_respuesta = NOW()
+                    WHERE requisicion_id = ?
+                      AND tipo = 'cuenta_contable'
+                      AND cuenta_contable_id = ?
+                      AND estado = 'pendiente'
+                      AND id != ?
+                ");
+                $stmtOmitir->execute([$ordenId, $cuentaContableId, $autorizacionId]);
+                error_log("Auto-omitidas " . $stmtOmitir->rowCount() . " autorizaciones de cuenta_contable (id=$cuentaContableId) para requisición $ordenId");
+            }
 
             // Registrar en historial
             HistorialRequisicion::registrarAprobacion(
@@ -1280,12 +1343,31 @@ class AutorizacionService
     {
         try {
             $pdo = Model::getConnection();
+            // Busca por coincidencia directa (case-insensitive) O cruzando
+            // con los emails alternativos del usuario en la tabla usuarios,
+            // para cubrir casos donde Azure devuelve un dominio distinto
+            // (ej: pgallo@iga.edu vs pgallo@sp.iga.edu)
             $stmt = $pdo->prepare("
-                SELECT COUNT(*) 
-                FROM autorizadores_metodos_pago 
-                WHERE autorizador_email = ?
+                SELECT COUNT(*)
+                FROM autorizadores_metodos_pago amp
+                WHERE amp.activo = 1
+                  AND (
+                      LOWER(amp.autorizador_email) = LOWER(?)
+                   OR amp.autorizador_email IN (
+                       SELECT u.email COLLATE utf8mb4_unicode_ci
+                       FROM usuarios u
+                       WHERE (u.email COLLATE utf8mb4_unicode_ci = ? OR u.azure_email COLLATE utf8mb4_unicode_ci = ?)
+                         AND u.email IS NOT NULL
+                   )
+                   OR amp.autorizador_email IN (
+                       SELECT u.azure_email COLLATE utf8mb4_unicode_ci
+                       FROM usuarios u
+                       WHERE (u.email COLLATE utf8mb4_unicode_ci = ? OR u.azure_email COLLATE utf8mb4_unicode_ci = ?)
+                         AND u.azure_email IS NOT NULL
+                   )
+                  )
             ");
-            $stmt->execute([$email]);
+            $stmt->execute([$email, $email, $email, $email, $email]);
             return $stmt->fetchColumn() > 0;
         } catch (\Exception $e) {
             error_log("Error verificando autorizador de pago: " . $e->getMessage());
@@ -1304,11 +1386,26 @@ class AutorizacionService
         try {
             $pdo = Model::getConnection();
             $stmt = $pdo->prepare("
-                SELECT COUNT(*) 
-                FROM autorizadores_cuentas_contables 
-                WHERE autorizador_email = ?
+                SELECT COUNT(*)
+                FROM autorizadores_cuentas_contables acc
+                WHERE acc.activo = 1
+                  AND (
+                      LOWER(acc.autorizador_email) = LOWER(?)
+                   OR acc.autorizador_email IN (
+                       SELECT u.email COLLATE utf8mb4_unicode_ci
+                       FROM usuarios u
+                       WHERE (u.email COLLATE utf8mb4_unicode_ci = ? OR u.azure_email COLLATE utf8mb4_unicode_ci = ?)
+                         AND u.email IS NOT NULL
+                   )
+                   OR acc.autorizador_email IN (
+                       SELECT u.azure_email COLLATE utf8mb4_unicode_ci
+                       FROM usuarios u
+                       WHERE (u.email COLLATE utf8mb4_unicode_ci = ? OR u.azure_email COLLATE utf8mb4_unicode_ci = ?)
+                         AND u.azure_email IS NOT NULL
+                   )
+                  )
             ");
-            $stmt->execute([$email]);
+            $stmt->execute([$email, $email, $email, $email, $email]);
             return $stmt->fetchColumn() > 0;
         } catch (\Exception $e) {
             error_log("Error verificando autorizador de cuenta: " . $e->getMessage());

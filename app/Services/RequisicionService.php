@@ -222,6 +222,22 @@ class RequisicionService
             $errores[] = 'La moneda es obligatoria';
         }
 
+        // Validar monto mínimo según moneda
+        $minimosMoneda = ['GTQ' => 10000.00, 'USD' => 1311.00];
+        $monedaVal     = $data['moneda'] ?? 'GTQ';
+        $montoTotal    = (float)($data['monto_total'] ?? 0);
+        if (isset($minimosMoneda[$monedaVal]) && $montoTotal < $minimosMoneda[$monedaVal]) {
+            $simbolo   = ($monedaVal === 'USD') ? '$' : 'Q';
+            $errores[] = sprintf(
+                'El monto mínimo para %s es %s%s. El total actual es %s%s.',
+                $monedaVal,
+                $simbolo,
+                number_format($minimosMoneda[$monedaVal], 2),
+                $simbolo,
+                number_format($montoTotal, 2)
+            );
+        }
+
         // Validar especificaciones y datos del proveedor
         if (empty(trim($data['datos_proveedor'] ?? ''))) {
             $errores[] = 'Las especificaciones y datos del proveedor son obligatorias';
@@ -805,6 +821,26 @@ class RequisicionService
             // Procesar datos del formulario
             $datosProcesados = $this->procesarDatosFormulario($data);
 
+            // Validar monto mínimo según moneda
+            $minimosMoneda = ['GTQ' => 10000.00, 'USD' => 1311.00];
+            $monedaVal     = $datosProcesados['moneda'] ?? 'GTQ';
+            $montoTotal    = (float)($datosProcesados['monto_total'] ?? 0);
+            if (isset($minimosMoneda[$monedaVal]) && $montoTotal < $minimosMoneda[$monedaVal]) {
+                $simbolo = ($monedaVal === 'USD') ? '$' : 'Q';
+                return [
+                    'success' => false,
+                    'error'   => sprintf(
+                        'El monto mínimo para %s es %s%s. El total actual es %s%s.',
+                        $monedaVal,
+                        $simbolo,
+                        number_format($minimosMoneda[$monedaVal], 2),
+                        $simbolo,
+                        number_format($montoTotal, 2)
+                    ),
+                    'code' => 'VALIDATION_ERROR'
+                ];
+            }
+
             $conn = Requisicion::getConnection();
             $conn->beginTransaction();
 
@@ -870,30 +906,34 @@ class RequisicionService
     }
 
     /**
-     * Verifica si un usuario puede editar una requisición
+     * Verifica si un usuario puede editar una requisición.
      * Solo permite editar cuando:
      * 1. El usuario es el creador de la requisición
-     * 2. La requisición está en estado "rechazado"
-     * 
+     * 2. El rechazo provino del revisor (rechazado_revision)
+     *    — rechazos de autorizadores de centros/pago/cuenta NO son editables.
+     *
      * @param int $ordenId ID de la orden
      * @param int $usuarioId ID del usuario
      * @return bool
      */
-    public function puedeEditar($ordenId, $usuarioId)
+    public function puedeEditar($ordenId, $usuarioId): bool
     {
         $orden = Requisicion::find($ordenId);
         if (!$orden) {
             return false;
         }
 
-        // Solo el creador puede editar
         if ($orden->usuario_id != $usuarioId) {
             return false;
         }
 
-        // Solo puede editar si está en estado "rechazado"
-        $estadoReal = $orden->getEstadoReal();
-        return $estadoReal === 'rechazado';
+        $flujo = AutorizacionFlujo::porRequisicion($ordenId);
+        if (!$flujo) {
+            // Sin flujo iniciado: es borrador, editable
+            return true;
+        }
+
+        return $flujo['estado'] === AutorizacionFlujo::ESTADO_RECHAZADO_REVISION;
     }
 
     /**

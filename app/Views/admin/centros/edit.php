@@ -76,6 +76,85 @@ $title = 'Editar Centro de Costo';
                             <div class="form-text">Seleccione la unidad de negocio a la que pertenece este centro de costo.</div>
                         </div>
 
+                        <!-- Asignación manual -->
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Comportamiento en Revisión</label>
+                            <div id="toggleCard" class="toggle-option-card <?= ($centro->requiere_asignacion_manual ?? 0) ? 'active' : '' ?>">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="toggle-icon-wrap">
+                                        <i class="fas fa-hand-pointer toggle-icon-on"></i>
+                                        <i class="fas fa-robot toggle-icon-off"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="toggle-title-on">Asignación <strong>manual</strong> activada</div>
+                                        <div class="toggle-title-off">Asignación <strong>automática</strong></div>
+                                        <small class="text-muted toggle-desc">
+                                            <span class="toggle-desc-on">El revisor deberá elegir el autorizador al aprobar.</span>
+                                            <span class="toggle-desc-off">El autorizador se asigna según la configuración del centro.</span>
+                                        </small>
+                                    </div>
+                                    <div class="form-check form-switch m-0">
+                                        <input class="form-check-input toggle-switch" type="checkbox" role="switch"
+                                               id="requiere_asignacion_manual" name="requiere_asignacion_manual" value="1"
+                                               <?= ($centro->requiere_asignacion_manual ?? 0) ? 'checked' : '' ?>>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <style>
+                        .toggle-option-card {
+                            border: 2px solid #dee2e6;
+                            border-radius: 12px;
+                            padding: 16px 20px;
+                            cursor: pointer;
+                            transition: all .25s ease;
+                            background: #f8f9fa;
+                        }
+                        .toggle-option-card.active {
+                            border-color: #fd7e14;
+                            background: #fff8f2;
+                            box-shadow: 0 0 0 3px rgba(253,126,20,.15);
+                        }
+                        .toggle-icon-wrap {
+                            font-size: 1.6rem;
+                            width: 42px;
+                            text-align: center;
+                            flex-shrink: 0;
+                        }
+                        .toggle-icon-on  { display: none; color: #fd7e14; }
+                        .toggle-icon-off { display: inline; color: #adb5bd; }
+                        .toggle-option-card.active .toggle-icon-on  { display: inline; }
+                        .toggle-option-card.active .toggle-icon-off { display: none; }
+
+                        .toggle-title-on, .toggle-title-off { font-size: .95rem; }
+                        .toggle-title-on  { display: none; color: #fd7e14; }
+                        .toggle-title-off { display: block; color: #6c757d; }
+                        .toggle-option-card.active .toggle-title-on  { display: block; }
+                        .toggle-option-card.active .toggle-title-off { display: none; }
+
+                        .toggle-desc-on  { display: none; }
+                        .toggle-desc-off { display: inline; }
+                        .toggle-option-card.active .toggle-desc-on  { display: inline; }
+                        .toggle-option-card.active .toggle-desc-off { display: none; }
+
+                        .toggle-switch { width: 3em; height: 1.6em; cursor: pointer; }
+                        .toggle-switch:checked { background-color: #fd7e14; border-color: #fd7e14; }
+                        </style>
+
+                        <script>
+                        (function() {
+                            const card   = document.getElementById('toggleCard');
+                            const toggle = document.getElementById('requiere_asignacion_manual');
+                            function sync() { card.classList.toggle('active', toggle.checked); }
+                            card.addEventListener('click', function(e) {
+                                if (e.target !== toggle) toggle.checked = !toggle.checked;
+                                sync();
+                            });
+                            toggle.addEventListener('change', sync);
+                        })();
+                        </script>
+
                         <!-- Botones -->
                         <div class="row">
                             <div class="col-md-6">

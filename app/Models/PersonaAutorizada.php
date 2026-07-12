@@ -21,6 +21,7 @@ class PersonaAutorizada extends Model
         'centro_costo_id',
         'nombre',
         'email',
+        'cargo',
     ];
 
     protected static $guarded = ['id'];
@@ -94,8 +95,34 @@ class PersonaAutorizada extends Model
     }
 
     /**
+     * Devuelve todos los autorizadores activos de un centro ordenados por su turno de aprobación.
+     *
+     * A diferencia de principalPorCentro(), retorna todos los autorizadores del centro
+     * con su campo `orden` (1=aprueba primero, 2=aprueba segundo), consultando la tabla
+     * base para acceder a la columna orden que la vista persona_autorizada no expone.
+     *
+     * @param int $centroCostoId
+     * @return array  Cada elemento: ['email', 'nombre', 'orden', 'autorizador_id']
+     */
+    public static function todosPorCentro(int $centroCostoId): array
+    {
+        $sql = "SELECT a.email, a.nombre, a.cargo, acc.orden, acc.autorizador_id
+                FROM autorizador_centro_costo acc
+                JOIN autorizadores a ON a.id = acc.autorizador_id
+                WHERE acc.centro_costo_id = ?
+                  AND acc.activo = 1
+                  AND a.activo = 1
+                ORDER BY acc.orden ASC, a.id ASC";
+
+        $stmt = self::getConnection()->prepare($sql);
+        $stmt->execute([$centroCostoId]);
+
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Busca persona autorizada por email
-     * 
+     *
      * @param string $email
      * @return array|null
      */

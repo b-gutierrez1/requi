@@ -239,21 +239,25 @@ View::startSection('content');
                         </div>
                         <div class="col-md-4 text-end">
                             <div class="d-flex gap-2">
-                                <?php 
-                                // Para autorizaciones especiales, usar el ID de la autorización
-                                // Para revisión y centros de costo, usar el ID de la requisición
-                                $urlId = ($auth['tipo'] === 'forma_pago' || $auth['tipo'] === 'cuenta_contable') 
-                                    ? $auth['id'] 
+                                <?php
+                                // forma_pago/cuenta_contable: usar el ID de la autorizacion especial
+                                // para que show() la detecte como especial y muestre el botón correcto.
+                                // centro_costo: usar requisicion_id para ir a la página de centros.
+                                $tipoFlujo = $auth['tipo_flujo'] ?? $auth['tipo'] ?? '';
+                                $detalleId = in_array($tipoFlujo, ['forma_pago', 'cuenta_contable'])
+                                    ? $auth['id']
                                     : ($auth['requisicion_id'] ?? $auth['id']);
+                                // Rechazar usa el ID de la autorización (auth['id'])
+                                $rechazarId = $auth['id'];
                                 ?>
-                                <a href="<?= url('/autorizaciones/' . $urlId) ?>" 
+                                <a href="<?= url('/autorizaciones/' . $detalleId) ?>"
                                    class="btn btn-sm fw-semibold px-3 rounded-pill" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none;">
                                     <i class="fas fa-eye me-1"></i>
                                     Ver Detalle
                                 </a>
-                                <button type="button" class="btn btn-sm rounded-pill px-3" 
+                                <button type="button" class="btn btn-sm rounded-pill px-3"
                                         style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none;"
-                                        onclick="rechazarAutorizacion(<?php echo $urlId; ?>, '<?php echo $auth['tipo']; ?>')">
+                                        onclick="rechazarAutorizacion(<?php echo $rechazarId; ?>, '<?php echo $auth['tipo']; ?>')">
                                     <i class="fas fa-times me-1"></i>
                                     Rechazar
                                 </button>

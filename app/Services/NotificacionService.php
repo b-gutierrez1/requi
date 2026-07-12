@@ -659,13 +659,16 @@ class NotificacionService
         $montoTotal = is_object($orden) ? $orden->monto_total : $orden['monto_total'];
         $fecha = is_object($orden) ? $orden->fecha : $orden['fecha'];
         $usuarioId = is_object($orden) ? $orden->usuario_id : $orden['usuario_id'];
-        
+        $moneda = is_object($orden) ? ($orden->moneda ?? 'GTQ') : ($orden['moneda'] ?? 'GTQ');
+
+        $simbolo = $moneda === 'USD' ? '$ ' : 'Q ';
+
         $numeroOrden = str_pad($ordenId, 6, '0', STR_PAD_LEFT);
-        
+
         return [
             'numero_orden' => $numeroOrden,
             'proveedor' => $nombreRazon,
-            'monto_total' => 'Q ' . number_format($montoTotal, 2),
+            'monto_total' => $simbolo . number_format($montoTotal, 2),
             'fecha_creacion' => date('d/m/Y', strtotime($fecha)),
             'solicitante_nombre' => $this->getNombreUsuario($usuarioId),
             'year' => date('Y'),
@@ -981,68 +984,72 @@ class NotificacionService
     {
         try {
             error_log("=== notificarAutorizadoresCentros INICIO para orden $ordenId ===");
-            
+
             $orden = Requisicion::find($ordenId);
             if (!$orden) {
                 error_log("notificarAutorizadoresCentros: Orden $ordenId no encontrada");
                 return ['success' => false, 'error' => 'Orden no encontrada'];
             }
 
-            // Obtener centros de costo de las distribuciones
-            $distribuciones = DistribucionGasto::porOrdenCompra($ordenId);
-            error_log("notificarAutorizadoresCentros: Distribuciones encontradas: " . count($distribuciones));
-            
-            $centrosIds = array_unique(array_column($distribuciones, 'centro_costo_id'));
-            error_log("notificarAutorizadoresCentros: Centros de costo: " . json_encode($centrosIds));
+            // Solo notificar a los autorizadores cuyo turno ya llegó (nivel mínimo pendiente por centro).
+            // Los de nivel=2 no reciben notificación aquí; la recibirán cuando nivel=1 apruebe.
+            $pdo = \App\Models\Model::getConnection();
+            $stmt = $pdo->prepare("
+                SELECT a.autorizador_email, a.autorizador_nombre, cc.nombre AS centro_nombre
+                FROM autorizaciones a
+                JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+                WHERE a.requisicion_id = ?
+                  AND a.tipo = 'centro_costo'
+                  AND a.estado = 'pendiente'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM autorizaciones a2
+                      WHERE a2.requisicion_id = a.requisicion_id
+                        AND a2.centro_costo_id = a.centro_costo_id
+                        AND a2.tipo = 'centro_costo'
+                        AND a2.nivel < a.nivel
+                        AND a2.estado = 'pendiente'
+                  )
+                ORDER BY cc.nombre ASC, a.id ASC
+            ");
+            $stmt->execute([$ordenId]);
+            $registros = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            error_log("notificarAutorizadoresCentros: Registros en autorizaciones: " . count($registros));
 
             $data = $this->formatearDatosOrden($orden);
             $resultados = [];
 
-            foreach ($centrosIds as $centroId) {
-                error_log("notificarAutorizadoresCentros: Procesando centro ID: $centroId");
-                
-                $centro = CentroCosto::find($centroId);
-                if (!$centro) {
-                    error_log("notificarAutorizadoresCentros: Centro $centroId no encontrado, saltando");
+            foreach ($registros as $registro) {
+                $email       = $registro['autorizador_email'];
+                $nombre      = $registro['autorizador_nombre'] ?? $email;
+                $centroNombre = $registro['centro_nombre'];
+
+                if (empty($email)) {
                     continue;
                 }
 
-                // Obtener nombre del centro (compatible con objeto o array)
-                $centroNombre = is_object($centro) ? ($centro->nombre ?? '') : ($centro['nombre'] ?? '');
-                error_log("notificarAutorizadoresCentros: Centro: $centroNombre");
+                error_log("notificarAutorizadoresCentros: Enviando correo a {$email} ({$centroNombre})");
 
-                $autorizadores = $this->getAutorizadoresCentro($centroId);
-                error_log("notificarAutorizadoresCentros: Autorizadores encontrados: " . count($autorizadores));
-                
-                if (empty($autorizadores)) {
-                    error_log("notificarAutorizadoresCentros: No hay autorizadores para el centro $centroId ($centroNombre)");
-                    continue;
-                }
-                
-                foreach ($autorizadores as $autorizador) {
-                    error_log("notificarAutorizadoresCentros: Enviando correo a {$autorizador['email']}");
-                    
-                    $data['destinatario_nombre'] = $autorizador['nombre'];
-                    $data['centro_costo'] = $centroNombre;
-                    $data['url_revision'] = $this->obtenerUrlAccion($ordenId, 'autorizar');
-                    $data['accion_requerida'] = "Autorización por Centro de Costo: {$centroNombre}";
-                    $data['mensaje_tipo'] = 'AUTORIZACIÓN DE CENTRO DE COSTO';
+                $data['destinatario_nombre'] = $nombre;
+                $data['centro_costo']        = $centroNombre;
+                $data['url_revision']        = $this->obtenerUrlAccion($ordenId, 'autorizar');
+                $data['accion_requerida']    = "Autorización por Centro de Costo: {$centroNombre}";
+                $data['mensaje_tipo']        = 'AUTORIZACIÓN DE CENTRO DE COSTO';
 
-                    $result = $this->sendEmailSafe(
-                        'sendWithTemplate',
-                        $autorizador['email'],
-                        "🔔 AUTORIZAR: Requisición #{$data['numero_orden']} - Centro: {$centroNombre}",
-                        'pendiente_autorizacion_centro',
-                        $data
-                    );
-                    
-                    error_log("notificarAutorizadoresCentros: Resultado envío: " . json_encode($result));
-                    $resultados[] = $result;
-                }
+                $result = $this->sendEmailSafe(
+                    'sendWithTemplate',
+                    $email,
+                    "🔔 AUTORIZAR: Requisición #{$data['numero_orden']} - Centro: {$centroNombre}",
+                    'pendiente_autorizacion_centro',
+                    $data
+                );
+
+                error_log("notificarAutorizadoresCentros: Resultado envío: " . json_encode($result));
+                $resultados[] = $result;
             }
 
             error_log("=== notificarAutorizadoresCentros FIN - Total correos enviados: " . count($resultados) . " ===");
-            
+
             return [
                 'success' => true,
                 'message' => 'Notificaciones enviadas a autorizadores de centros',
@@ -1051,6 +1058,85 @@ class NotificacionService
         } catch (\Exception $e) {
             error_log("Error notificando autorizadores de centros: " . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Notifica a los autorizadores del siguiente nivel de un centro de costo,
+     * solo si existen y su turno acaba de llegar (el nivel anterior aprobó).
+     *
+     * Se llama desde AutorizacionService::autorizarCentroCosto() después de cada aprobación.
+     *
+     * @param int $ordenId
+     * @param int $centroCostoId
+     * @param int $nivelRecienAprobado
+     */
+    public function notificarSiguienteNivelCentroCosto(int $ordenId, int $centroCostoId, int $nivelRecienAprobado): void
+    {
+        try {
+            $pdo = \App\Models\Model::getConnection();
+
+            // Buscar autorizadores del nivel siguiente que ahora pueden actuar
+            $stmt = $pdo->prepare("
+                SELECT a.autorizador_email, a.autorizador_nombre, cc.nombre AS centro_nombre
+                FROM autorizaciones a
+                JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+                WHERE a.requisicion_id = ?
+                  AND a.centro_costo_id = ?
+                  AND a.tipo = 'centro_costo'
+                  AND a.estado = 'pendiente'
+                  AND a.nivel = ?
+                  AND NOT EXISTS (
+                      SELECT 1 FROM autorizaciones a2
+                      WHERE a2.requisicion_id = a.requisicion_id
+                        AND a2.centro_costo_id = a.centro_costo_id
+                        AND a2.tipo = 'centro_costo'
+                        AND a2.nivel < a.nivel
+                        AND a2.estado = 'pendiente'
+                  )
+            ");
+            $nivelSiguiente = $nivelRecienAprobado + 1;
+            $stmt->execute([$ordenId, $centroCostoId, $nivelSiguiente]);
+            $siguientes = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            if (empty($siguientes)) {
+                return;
+            }
+
+            $orden = \App\Models\Requisicion::find($ordenId);
+            if (!$orden) {
+                return;
+            }
+
+            $data = $this->formatearDatosOrden($orden);
+
+            foreach ($siguientes as $registro) {
+                $email       = $registro['autorizador_email'];
+                $nombre      = $registro['autorizador_nombre'] ?? $email;
+                $centroNombre = $registro['centro_nombre'];
+
+                if (empty($email)) {
+                    continue;
+                }
+
+                $data['destinatario_nombre'] = $nombre;
+                $data['centro_costo']        = $centroNombre;
+                $data['url_revision']        = $this->obtenerUrlAccion($ordenId, 'autorizar');
+                $data['accion_requerida']    = "Autorización por Centro de Costo: {$centroNombre} (Nivel {$nivelSiguiente})";
+                $data['mensaje_tipo']        = "AUTORIZACIÓN DE CENTRO DE COSTO — NIVEL {$nivelSiguiente}";
+
+                $this->sendEmailSafe(
+                    'sendWithTemplate',
+                    $email,
+                    "🔔 AUTORIZAR: Requisición #{$data['numero_orden']} - Centro: {$centroNombre} (Nivel {$nivelSiguiente})",
+                    'pendiente_autorizacion_centro',
+                    $data
+                );
+
+                error_log("notificarSiguienteNivelCentroCosto: enviado a $email (nivel=$nivelSiguiente, centro=$centroCostoId, req=$ordenId)");
+            }
+        } catch (\Exception $e) {
+            error_log("Error en notificarSiguienteNivelCentroCosto: " . $e->getMessage());
         }
     }
 
@@ -1066,11 +1152,11 @@ class NotificacionService
         $baseUrl = Config::get('app.url', 'http://localhost');
         
         $rutas = [
-            'revision' => "/autorizaciones/{$ordenId}",
-            'autorizar' => "/autorizaciones/{$ordenId}",
-            'autorizar-pago' => "/autorizaciones/pago/{$ordenId}",
-            'autorizar-cuenta' => "/autorizaciones/cuenta/{$ordenId}",
-            'detalle' => "/requisiciones/{$ordenId}"
+            'revision'       => "/autorizaciones/{$ordenId}",
+            'autorizar'      => "/autorizaciones/{$ordenId}",
+            'autorizar-pago' => "/autorizaciones/{$ordenId}",
+            'autorizar-cuenta' => "/autorizaciones/{$ordenId}",
+            'detalle'        => "/requisiciones/{$ordenId}"
         ];
         
         return $baseUrl . ($rutas[$accion] ?? "/requisiciones/{$ordenId}");

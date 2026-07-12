@@ -258,6 +258,7 @@ $title = 'Gestión de Centros de Costo';
                         <th width="8%">Estado</th>
                         <th width="10%">Unidad Negocio</th>
                         <th width="8%">Factura</th>
+                        <th width="10%">Asignación</th>
                         <th width="10%" class="text-center">Acciones</th>
                     </tr>
                 </thead>
@@ -307,6 +308,17 @@ $title = 'Gestión de Centros de Costo';
                                     <span class="badge bg-info">
                                         <i class="fas fa-file-invoice me-1"></i><?= View::e($centro->factura ?? 1) ?>
                                     </span>
+                                </td>
+                                <td>
+                                    <?php if ($centro->requiere_asignacion_manual ?? 0): ?>
+                                        <span class="badge rounded-pill" style="background:#fd7e14">
+                                            <i class="fas fa-hand-pointer me-1"></i>Manual
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="badge rounded-pill bg-secondary">
+                                            <i class="fas fa-robot me-1"></i>Auto
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">

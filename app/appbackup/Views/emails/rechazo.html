@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Requisición Rechazada</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .header { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: #ffffff; padding: 30px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+        .content { padding: 30px 20px; }
+        .content h2 { color: #ef4444; font-size: 20px; margin-bottom: 15px; }
+        .content p { margin-bottom: 15px; color: #555; }
+        .badge { display: inline-block; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-danger { background-color: #f8d7da; color: #721c24; }
+        .info-box { background-color: #f8f9fa; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; }
+        .info-box .label { font-weight: 600; color: #ef4444; display: block; margin-bottom: 5px; }
+        .info-box .value { color: #333; }
+        .reason-box { background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 5px; padding: 15px; margin: 20px 0; }
+        .reason-box .label { font-weight: 600; color: #ef4444; margin-bottom: 10px; display: block; }
+        .reason-box .text { color: #555; line-height: 1.6; }
+        .button { display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff !important; text-decoration: none; border-radius: 5px; font-weight: 600; margin: 10px 0; }
+        .button-center { text-align: center; margin: 30px 0; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #6c757d; font-size: 12px; border-top: 1px solid #dee2e6; }
+        .divider { height: 1px; background-color: #dee2e6; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>❌ Requisición Rechazada</h1>
+        </div>
+        
+        <div class="content">
+            <h2>Tu Requisición ha sido Rechazada</h2>
+            
+            <p>Hola <strong>{{destinatario_nombre}}</strong>,</p>
+            
+            <p>Lamentamos informarte que tu requisición ha sido rechazada.</p>
+            
+            <div class="info-box">
+                <span class="label">Número de Requisición:</span>
+                <span class="value">#{{numero_orden}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Rechazado por:</span>
+                <span class="value">{{rechazador_nombre}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Fecha de Rechazo:</span>
+                <span class="value">{{fecha_rechazo}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Estado:</span>
+                <span class="badge badge-danger">Rechazada</span>
+            </div>
+            
+            <div class="reason-box">
+                <span class="label">Motivo del Rechazo:</span>
+                <p class="text">{{motivo_rechazo}}</p>
+            </div>
+            
+            <p>Por favor revisa los comentarios y realiza las correcciones necesarias. Puedes crear una nueva requisición con las modificaciones sugeridas.</p>
+            
+            <div class="button-center">
+                <a href="{{url_detalle}}" class="button">Ver Detalle de la Requisición</a>
+            </div>
+            
+            <p style="font-size: 14px; color: #6c757d;">Si tienes dudas sobre el rechazo, por favor contacta al revisor/autorizador.</p>
+        </div>
+        
+        <div class="footer">
+            <p>Este es un mensaje automático del Sistema de Requisiciones</p>
+            <p>Por favor no responda a este correo</p>
+            <div class="divider"></div>
+            <p>&copy; {{year}} Sistema de Requisiciones. Todos los derechos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>

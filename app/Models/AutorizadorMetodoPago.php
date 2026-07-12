@@ -55,8 +55,8 @@ class AutorizadorMetodoPago extends Model
      */
     public static function requiereAutorizacionEspecial($formaPago)
     {
-        $sql = "SELECT COUNT(*) as total 
-                FROM " . static::$table . " 
+        $sql = "SELECT COUNT(*) as total
+                FROM " . static::$table . "
                 WHERE metodo_pago = ?";
         
         $stmt = self::getConnection()->prepare($sql);

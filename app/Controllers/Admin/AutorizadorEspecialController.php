@@ -88,6 +88,7 @@ class AutorizadorEspecialController extends Controller
                             autorizador_email,
                             metodo_pago,
                             descripcion as observaciones,
+                            activo,
                             fecha_actualizacion
                         FROM autorizadores_metodos_pago
                         WHERE autorizador_email IS NOT NULL AND autorizador_email != ''
@@ -137,7 +138,7 @@ class AutorizadorEspecialController extends Controller
                     $row['autorizador_id'] = $autorizadorId ?? null;
                     $row['nombre'] = $row['autorizador_nombre'] ?? null;
                     $row['email']  = $row['autorizador_email'] ?? null;
-                    $row['activo'] = true;
+                    // activo viene del SELECT, no sobreescribir
 
                     $autorizadores_metodo_pago[] = (object)$row;
                 }
@@ -180,7 +181,8 @@ class AutorizadorEspecialController extends Controller
                             acc.autorizador_email,
                             GROUP_CONCAT(DISTINCT cc.codigo ORDER BY cc.codigo SEPARATOR ', ') as cuentas_codigos,
                             GROUP_CONCAT(DISTINCT acc.descripcion SEPARATOR ' | ') as observaciones,
-                            COUNT(DISTINCT acc.cuenta_contable_id) as cantidad_cuentas
+                            COUNT(DISTINCT acc.cuenta_contable_id) as cantidad_cuentas,
+                            MAX(acc.activo) as activo
                         FROM autorizadores_cuentas_contables acc
                         INNER JOIN cuenta_contable cc ON acc.cuenta_contable_id = cc.id
                         WHERE acc.autorizador_email IS NOT NULL AND acc.autorizador_email != ''
@@ -242,7 +244,7 @@ class AutorizadorEspecialController extends Controller
                     $row['id']          = $row['registro_id'] ?? null;
                     $row['email']       = $row['autorizador_email'] ?? null;
                     $row['nombre']      = $row['autorizador_nombre'] ?? null;
-                    $row['activo']      = true;
+                    // activo viene del SELECT (MAX), no sobreescribir
                     $row['fecha_inicio'] = date('Y-01-01');
                     $row['fecha_fin']   = null;
 
@@ -747,14 +749,16 @@ class AutorizadorEspecialController extends Controller
                 return;
             }
 
-            $sqlExiste = "SELECT id FROM autorizadores_metodos_pago
-                         WHERE autorizador_email = ? AND metodo_pago = ?";
+            $sqlExiste = "SELECT id, autorizador_email FROM autorizadores_metodos_pago
+                         WHERE metodo_pago = ? AND activo = 1";
             $stmtExiste = Model::getConnection()->prepare($sqlExiste);
-            $stmtExiste->execute([$autorizadorEmail, $metodoPago]);
+            $stmtExiste->execute([$metodoPago]);
+            $existente = $stmtExiste->fetch(\PDO::FETCH_ASSOC);
 
-            if ($stmtExiste->fetch()) {
+            if ($existente) {
+                $descripcionMetodo = $descripciones[$metodoPago] ?? $metodoPago;
                 Redirect::back()
-                    ->withError("Ya existe un autorizador para el método de pago '$metodoPago' con este email")
+                    ->withError("El método de pago '{$descripcionMetodo}' ya tiene un autorizador activo ({$existente['autorizador_email']}). Desactívelo primero antes de asignar uno nuevo.")
                     ->withInput()
                     ->send();
                 return;
@@ -777,8 +781,8 @@ class AutorizadorEspecialController extends Controller
             $pdo->beginTransaction();
 
             $sqlInsert = "INSERT INTO autorizadores_metodos_pago
-                         (metodo_pago, descripcion, autorizador_email, notificacion, actualizado_por)
-                         VALUES (?, ?, ?, ?, ?)";
+                         (metodo_pago, descripcion, autorizador_email, activo, notificacion, actualizado_por)
+                         VALUES (?, ?, ?, ?, ?, ?)";
 
             $notificacion  = "La requisición con forma de pago {$descripcion} requiere su autorización antes de continuar con el flujo normal.";
             $actualizadoPor = Session::get('user.email') ?? 'sistema';
@@ -788,6 +792,7 @@ class AutorizadorEspecialController extends Controller
                 $metodoPago,
                 $descripcion,
                 $autorizadorEmail,
+                1, // activo por defecto al crear
                 $notificacion,
                 $actualizadoPor
             ]);
@@ -830,7 +835,52 @@ class AutorizadorEspecialController extends Controller
         $this->editMetodoPagoByEmail($email);
     }
 
-    public function updateMetodoPago($id) { $this->storeMetodoPago(); }
+    public function updateMetodoPago($id)
+    {
+        try {
+            if (!$this->validateCSRF()) {
+                Redirect::back()->withError('Token de seguridad inválido')->send();
+                return;
+            }
+
+            $metodoPago = trim($_POST['metodo_pago'] ?? '');
+            $activo     = isset($_POST['activo']) ? 1 : 0;
+
+            if (empty($metodoPago)) {
+                Redirect::back()->withError('Debe seleccionar un método de pago')->withInput()->send();
+                return;
+            }
+
+            // Verificar que no exista otro registro con el mismo metodo_pago (excepto este)
+            $stmtCheck = Model::getConnection()->prepare(
+                "SELECT id FROM autorizadores_metodos_pago WHERE metodo_pago = ? AND id != ? AND activo = 1"
+            );
+            $stmtCheck->execute([$metodoPago, $id]);
+            if ($stmtCheck->fetch()) {
+                Redirect::back()->withError("El método de pago '{$metodoPago}' ya tiene otro autorizador activo asignado.")->withInput()->send();
+                return;
+            }
+
+            $stmt = Model::getConnection()->prepare(
+                "UPDATE autorizadores_metodos_pago
+                 SET metodo_pago = ?, activo = ?, fecha_actualizacion = NOW()
+                 WHERE id = ?"
+            );
+            $result = $stmt->execute([$metodoPago, $activo, $id]);
+
+            if ($result) {
+                Redirect::to('/admin/autorizadores/metodos-pago')
+                    ->withSuccess('Autorizador actualizado exitosamente')
+                    ->send();
+            } else {
+                Redirect::back()->withError('Error al actualizar el autorizador')->withInput()->send();
+            }
+
+        } catch (\Exception $e) {
+            error_log("Error en updateMetodoPago: " . $e->getMessage());
+            Redirect::back()->withError('Error al actualizar: ' . $e->getMessage())->withInput()->send();
+        }
+    }
 
     public function showMetodoPagoByEmail($email)
     {
@@ -913,7 +963,7 @@ class AutorizadorEspecialController extends Controller
 
             $sql = "UPDATE autorizadores_metodos_pago
                     SET metodo_pago = ?, activo = ?, fecha_actualizacion = NOW()
-                    WHERE email = ?";
+                    WHERE autorizador_email = ?";
 
             $stmt = Model::getConnection()->prepare($sql);
             $result = $stmt->execute([$metodo_pago, $activo, $email]);
@@ -1020,7 +1070,12 @@ class AutorizadorEspecialController extends Controller
     public function createCuentaContable()
     {
         try {
-            $sql = "SELECT DISTINCT nombre, email FROM persona_autorizada ORDER BY nombre ASC";
+            $sql = "SELECT COALESCE(nombre, azure_display_name) AS nombre,
+                           COALESCE(email, azure_email) AS email
+                    FROM usuarios
+                    WHERE COALESCE(nombre, azure_display_name) IS NOT NULL
+                      AND COALESCE(email, azure_email) IS NOT NULL
+                    ORDER BY COALESCE(nombre, azure_display_name) ASC";
             $stmt = Model::getConnection()->prepare($sql);
             $stmt->execute();
             $autorizadores = $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -1737,7 +1792,7 @@ class AutorizadorEspecialController extends Controller
             'email'                => $email,
             'nombre'               => $nombre,
             'cargo'                => $persona['cargo'] ?? null,
-            'activo'               => isset($persona['activo']) ? ((int)$persona['activo'] === 1) : true,
+            'activo'               => isset($ultimo['activo']) ? ((int)$ultimo['activo'] === 1) : true,
             'fecha_inicio'         => $persona['fecha_inicio'] ?? null,
             'fecha_fin'            => $persona['fecha_fin'] ?? null,
             'metodos_autorizados'  => $metodos,

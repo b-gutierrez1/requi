@@ -659,11 +659,15 @@ class RequisicionController extends Controller
             }
             
             // Enviar archivo para descarga
-            $nombreOriginal = $archivo->nombre_original;
-            $tipoMime = $archivo->tipo_mime ?: 'application/octet-stream';
-            
+            $tipoMime       = $archivo->tipo_mime ?: 'application/octet-stream';
+            $nombreDescarga = generarNombreDescarga(
+                (int)$archivo->requisicion_id,
+                $requisicion->proveedor_nombre ?? '',
+                $archivo->nombre_original ?? 'documento'
+            );
+
             header('Content-Type: ' . $tipoMime);
-            header('Content-Disposition: attachment; filename="' . $nombreOriginal . '"');
+            header('Content-Disposition: attachment; filename="' . $nombreDescarga . '"');
             header('Content-Length: ' . filesize($rutaArchivo));
             header('Cache-Control: no-cache, must-revalidate');
             header('Pragma: no-cache');
@@ -704,10 +708,16 @@ class RequisicionController extends Controller
             }
             
             // Enviar archivo para visualización
-            $tipoMime = $archivo->tipo_mime ?: 'application/octet-stream';
-            
+            $tipoMime    = $archivo->tipo_mime ?: 'application/octet-stream';
+            $requisicion = \App\Models\Requisicion::find($archivo->requisicion_id);
+            $nombreDescarga = generarNombreDescarga(
+                (int)$archivo->requisicion_id,
+                $requisicion->proveedor_nombre ?? '',
+                $archivo->nombre_original ?? 'documento'
+            );
+
             header('Content-Type: ' . $tipoMime);
-            header('Content-Disposition: inline; filename="' . $archivo->nombre_original . '"');
+            header('Content-Disposition: inline; filename="' . $nombreDescarga . '"');
             header('Content-Length: ' . filesize($rutaArchivo));
             
             readfile($rutaArchivo);
@@ -748,12 +758,84 @@ class RequisicionController extends Controller
                 ->send();
         }
 
+        // Obtener director de la unidad requirente
+        $directorUnidad = '';
+        try {
+            $pdo = Requisicion::getConnection();
+            $unidadId = $orden->unidad_requirente ?? null;
+            $stmt = $pdo->prepare("
+                SELECT pa.nombre
+                FROM persona_autorizada pa
+                INNER JOIN unidad_requirente ur ON ur.centro_costo_id = pa.centro_costo_id
+                WHERE ur.id = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$unidadId]);
+            $directorUnidad = $stmt->fetchColumn() ?: '';
+        } catch (\Exception $e) {
+            error_log("Error obteniendo director unidad requirente: " . $e->getMessage());
+        }
+
+        // Obtener autorizaciones aprobadas para mostrar en el impreso
+        $autorizacionesAprobadas = [];
+        try {
+            $pdo = Requisicion::getConnection();
+            $stmt = $pdo->prepare("
+                SELECT a.tipo,
+                       MIN(a.fecha_respuesta) as fecha_respuesta,
+                       COALESCE(MIN(a.autorizador_nombre), MIN(a.autorizador_email)) as nombre,
+                       MIN(a.autorizador_email) as autorizador_email
+                FROM autorizaciones a
+                WHERE a.requisicion_id = ?
+                  AND TRIM(a.estado) NOT IN ('pendiente', 'rechazada', 'omitida', 'cancelada', '')
+                GROUP BY a.tipo, a.autorizador_email
+                ORDER BY MIN(a.fecha_respuesta) ASC
+            ");
+            $stmt->execute([$id]);
+            $autorizacionesAprobadas = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            // Enriquecer con nombre real cuando solo hay email
+            foreach ($autorizacionesAprobadas as &$row) {
+                if (!empty($row['nombre']) && strpos($row['nombre'], '@') !== false) {
+                    try {
+                        $stmtNombre = $pdo->prepare(
+                            "SELECT azure_display_name FROM usuarios
+                             WHERE LOWER(azure_email) = LOWER(?) LIMIT 1"
+                        );
+                        $stmtNombre->execute([$row['nombre']]);
+                        $displayName = $stmtNombre->fetchColumn();
+                        if ($displayName) {
+                            $row['nombre'] = $displayName;
+                        }
+                    } catch (\Exception $ex) {
+                        // mantener email si falla
+                    }
+                }
+            }
+            unset($row);
+
+            // Enriquecer con cargo desde autorizadores
+            $stmtCargo = $pdo->prepare(
+                "SELECT cargo FROM autorizadores WHERE LOWER(email) = LOWER(?) LIMIT 1"
+            );
+            foreach ($autorizacionesAprobadas as &$row) {
+                $stmtCargo->execute([$row['autorizador_email'] ?? '']);
+                $row['cargo'] = $stmtCargo->fetchColumn() ?: '';
+            }
+            unset($row);
+
+        } catch (\Exception $e) {
+            error_log("Error obteniendo autorizaciones para impresión: " . $e->getMessage());
+        }
+
         View::render('requisiciones/print', [
             'requisicion' => $requisicion,
             'orden' => $orden,
             'items' => $requisicion['items'],
             'distribucion' => $requisicion['distribuciones'],
             'flujo' => $requisicion['flujo'],
+            'director_unidad' => $directorUnidad,
+            'autorizaciones_aprobadas' => $autorizacionesAprobadas,
         ], null); // Sin layout
     }
 
@@ -985,13 +1067,13 @@ class RequisicionController extends Controller
         // Aplicar filtro de fechas
         if (!empty($filtros['fecha_desde'])) {
             $requisiciones = array_filter($requisiciones, function($req) use ($filtros) {
-                return $req['fecha'] >= $filtros['fecha_desde'];
+                return ($req->fecha_solicitud ?? '') >= $filtros['fecha_desde'];
             });
         }
 
         if (!empty($filtros['fecha_hasta'])) {
             $requisiciones = array_filter($requisiciones, function($req) use ($filtros) {
-                return $req['fecha'] <= $filtros['fecha_hasta'];
+                return ($req->fecha_solicitud ?? '') <= $filtros['fecha_hasta'];
             });
         }
 
@@ -999,8 +1081,8 @@ class RequisicionController extends Controller
         if (!empty($filtros['busqueda'])) {
             $termino = strtolower($filtros['busqueda']);
             $requisiciones = array_filter($requisiciones, function($req) use ($termino) {
-                return str_contains(strtolower($req['nombre_razon_social']), $termino) ||
-                       str_contains(strtolower($req['justificacion']), $termino);
+                return str_contains(strtolower($req->proveedor_nombre ?? ''), $termino) ||
+                       str_contains(strtolower($req->justificacion ?? ''), $termino);
             });
         }
 

@@ -278,6 +278,22 @@ $title = 'Nuevo Autorizador';
                             </div>
                         </div>
 
+                        <!-- Puesto / Cargo -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="cargo" class="form-label">Puesto / Cargo</label>
+                                    <input type="text" class="form-control" id="cargo" name="cargo"
+                                           placeholder="Ej: Gerente de Finanzas"
+                                           value="<?= View::e(Session::old('cargo') ?? '') ?>">
+                                    <div class="form-text text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Opcional.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Centros de Costo con checkboxes -->
                         <div class="centros-section">
                             <h6 class="mb-3">

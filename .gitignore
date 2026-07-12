@@ -254,3 +254,9 @@ requi-mvc
 # 2. Verificar que /vendor/ NO esté incluido
 # 3. Revisar archivos con datos sensibles
 # 4. Confirmar que solo se versiona código fuente
+
+# Artefactos temporales
+nul
+bash.exe.stackdump
+tmp_describe.php
+.memsearch/

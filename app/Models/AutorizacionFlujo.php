@@ -176,7 +176,7 @@ class AutorizacionFlujo extends Model
      * @param string $comentario
      * @return bool
      */
-    public static function aprobarRevision($id, $usuarioId, $comentario = '')
+    public static function aprobarRevision($id, $usuarioId, $comentario = '', array $asignaciones = [])
     {
         $pdo = self::getConnection();
         try {
@@ -195,10 +195,11 @@ class AutorizacionFlujo extends Model
             $requiereEspecialPago   = $flujoArray['requiere_autorizacion_especial_pago'];
             $requiereEspecialCuenta = $flujoArray['requiere_autorizacion_especial_cuenta'];
 
-            if ($requiereEspecialCuenta) {
-                $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA;
-            } elseif ($requiereEspecialPago) {
+            // Flujo secuencial: pago → cuenta → centros
+            if ($requiereEspecialPago) {
                 $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_PAGO;
+            } elseif ($requiereEspecialCuenta) {
+                $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA;
             } else {
                 $nuevoEstado = self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS;
             }
@@ -220,8 +221,7 @@ class AutorizacionFlujo extends Model
                 'revisor_fecha'      => date('Y-m-d H:i:s'),
             ]);
 
-            // crearAutorizacionesEspeciales lanza excepción si no hay autorizadores
-            self::crearAutorizacionesEspeciales($id, $flujoArray);
+            self::crearAutorizacionesEspeciales($id, $flujoArray, $asignaciones);
 
             $pdo->commit();
 
@@ -346,7 +346,6 @@ class AutorizacionFlujo extends Model
                 return true;
             }
 
-            $requierePago   = $flujo['requiere_autorizacion_especial_pago'];
             $requiereCuenta = $flujo['requiere_autorizacion_especial_cuenta'];
 
             // Contar autorizaciones especiales pendientes dentro de la misma transacción
@@ -370,16 +369,19 @@ class AutorizacionFlujo extends Model
 
             $updated = false;
 
-            if ($estado === self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA) {
-                if (!$cuentasPendientes) {
-                    $nuevoEstado = ($requierePago && $pagosPendientes)
-                        ? self::ESTADO_PENDIENTE_AUTORIZACION_PAGO
+            // Flujo secuencial: pago → cuenta → centros
+            if ($estado === self::ESTADO_PENDIENTE_AUTORIZACION_PAGO) {
+                if (!$pagosPendientes) {
+                    // Pago listo: ¿siguiente es cuenta o centros?
+                    $nuevoEstado = ($requiereCuenta && $cuentasPendientes)
+                        ? self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA
                         : self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS;
                     self::updateById($id, ['estado' => $nuevoEstado]);
                     $updated = true;
                 }
-            } elseif ($estado === self::ESTADO_PENDIENTE_AUTORIZACION_PAGO) {
-                if (!$pagosPendientes) {
+            } elseif ($estado === self::ESTADO_PENDIENTE_AUTORIZACION_CUENTA) {
+                if (!$cuentasPendientes) {
+                    // Cuenta lista: siempre va a centros
                     self::updateById($id, ['estado' => self::ESTADO_PENDIENTE_AUTORIZACION_CENTROS]);
                     $updated = true;
                 }
@@ -667,20 +669,21 @@ class AutorizacionFlujo extends Model
     }
 
     /**
-     * Crea autorizaciones especiales después de aprobar la revisión
-     * 
-     * @param int $flujoId ID del flujo
-     * @param array $flujo Datos del flujo
-     * @return void
+     * Crea autorizaciones especiales después de aprobar la revisión.
+     *
+     * Fix A: los registros de centro se crean SIEMPRE aquí, aunque haya especiales
+     * pendientes, para que el modal pueda guardar la asignación manual inmediatamente.
+     * Los guards en AutorizacionService evitan duplicación posterior.
+     *
+     * @param int   $flujoId
+     * @param array $flujo
+     * @param array $asignaciones  Mapa [centro_costo_id => email] para centros manuales.
      */
-    private static function crearAutorizacionesEspeciales($flujoId, $flujo)
+    private static function crearAutorizacionesEspeciales($flujoId, $flujo, array $asignaciones = [])
     {
-        // NOTA: este método se ejecuta siempre dentro de la transacción de aprobarRevision().
-        // NO debe abrir/cerrar su propia transacción para evitar doble-begin en PDO.
         error_log("=== CREANDO AUTORIZACIONES ESPECIALES ===");
         error_log("Flujo ID: $flujoId");
 
-        // Asegurar compatibilidad objeto/array
         $requiereEspecialPago   = is_object($flujo) ? $flujo->requiere_autorizacion_especial_pago   : $flujo['requiere_autorizacion_especial_pago'];
         $requiereEspecialCuenta = is_object($flujo) ? $flujo->requiere_autorizacion_especial_cuenta : $flujo['requiere_autorizacion_especial_cuenta'];
         $ordenCompraId          = is_object($flujo) ? $flujo->requisicion_id                        : $flujo['requisicion_id'];
@@ -690,33 +693,18 @@ class AutorizacionFlujo extends Model
 
         $pdo = self::getConnection();
 
-        // 1. Autorización especial por método de pago
         if ($requiereEspecialPago) {
             self::crearAutorizacionEspecialPago($flujoId, $ordenCompraId, $pdo);
         }
 
-        // 2. Autorización especial por cuenta contable
         if ($requiereEspecialCuenta) {
             self::crearAutorizacionEspecialCuentas($flujoId, $ordenCompraId, $pdo);
         }
 
-        // Solo crear autorizaciones por centro cuando no hay especiales pendientes
-        $stmt = $pdo->prepare("
-            SELECT COUNT(*)
-            FROM autorizaciones
-            WHERE requisicion_id = ?
-              AND tipo IN ('forma_pago', 'cuenta_contable')
-              AND estado = 'pendiente'
-        ");
-        $stmt->execute([$ordenCompraId]);
-        $pendientesEspeciales = (int)$stmt->fetchColumn();
+        // Fix A: crear registros de centro siempre, usando asignaciones del revisor si las hay.
+        self::centrosRepo()->createFromDistribucion((int) $ordenCompraId, $asignaciones);
 
-        if ($pendientesEspeciales === 0) {
-            self::centrosRepo()->createFromDistribucion((int) $ordenCompraId);
-        }
-
-        error_log("✅ Autorizaciones especiales creadas exitosamente");
-        // Cualquier excepción aquí se propaga hacia aprobarRevision(), que hace rollBack().
+        error_log("✅ Autorizaciones especiales y de centro creadas exitosamente");
     }
 
     /**
@@ -736,9 +724,10 @@ class AutorizacionFlujo extends Model
 
         // Buscar autorizadores principales para esa forma de pago
         $stmt = $pdo->prepare("
-            SELECT autorizador_email 
-            FROM autorizadores_metodos_pago 
+            SELECT autorizador_email
+            FROM autorizadores_metodos_pago
             WHERE metodo_pago = ?
+              AND activo = 1
         ");
         $stmt->execute([$orden['forma_pago']]);
         $autorizadoresPrincipales = $stmt->fetchAll(\PDO::FETCH_COLUMN);
@@ -764,10 +753,22 @@ class AutorizacionFlujo extends Model
         $todosAutorizadores = array_unique($todosAutorizadores); // Eliminar duplicados
 
         if (empty($todosAutorizadores)) {
-            throw new \Exception(
-                "No hay autorizadores configurados para la forma de pago: '{$orden['forma_pago']}'. " .
-                "Configure al menos un autorizador antes de enviar requisiciones con este método de pago."
+            // Verificar si hay autorizadores configurados pero inactivos
+            $stmtInactivos = $pdo->prepare(
+                "SELECT COUNT(*) FROM autorizadores_metodos_pago WHERE metodo_pago = ? AND activo = 0"
             );
+            $stmtInactivos->execute([$orden['forma_pago']]);
+            $hayInactivos = (int)$stmtInactivos->fetchColumn() > 0;
+
+            if ($hayInactivos) {
+                throw new \Exception(
+                    "El autorizador especial asignado actualmente se encuentra inactivo. " .
+                    "Favor de validar la configuración antes de continuar."
+                );
+            }
+
+            // Sin autorizadores configurados del todo — no aplica autorización especial
+            return;
         }
 
         // Crear autorizaciones en la nueva tabla 'autorizaciones'
@@ -799,7 +800,7 @@ class AutorizacionFlujo extends Model
     {
         // Obtener cuentas contables que requieren autorización especial para esta orden
         $stmt = $pdo->prepare("
-            SELECT DISTINCT 
+            SELECT DISTINCT
                 dg.cuenta_contable_id,
                 cc.descripcion as cuenta_nombre,
                 acc.autorizador_email
@@ -807,15 +808,30 @@ class AutorizacionFlujo extends Model
             JOIN cuenta_contable cc ON dg.cuenta_contable_id = cc.id
             JOIN autorizadores_cuentas_contables acc ON cc.id = acc.cuenta_contable_id
             WHERE dg.requisicion_id = ?
+              AND acc.activo = 1
         ");
         $stmt->execute([$ordenCompraId]);
         $cuentasEspeciales = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         if (empty($cuentasEspeciales)) {
-            throw new \Exception(
-                "No hay autorizadores configurados para las cuentas contables de la requisición #{$ordenCompraId}. " .
-                "Configure autorizadores para cada cuenta contable que requiera autorización especial."
-            );
+            // Verificar si hay autorizadores configurados pero inactivos
+            $stmtInactivos = $pdo->prepare("
+                SELECT COUNT(*) FROM distribucion_gasto dg
+                JOIN autorizadores_cuentas_contables acc ON dg.cuenta_contable_id = acc.cuenta_contable_id
+                WHERE dg.requisicion_id = ? AND acc.activo = 0
+            ");
+            $stmtInactivos->execute([$ordenCompraId]);
+            $hayInactivos = (int)$stmtInactivos->fetchColumn() > 0;
+
+            if ($hayInactivos) {
+                throw new \Exception(
+                    "El autorizador especial asignado actualmente se encuentra inactivo. " .
+                    "Favor de validar la configuración antes de continuar."
+                );
+            }
+
+            // Sin autorizadores configurados del todo — no aplica autorización especial
+            return;
         }
 
         // Agrupar por cuenta contable y obtener todos los autorizadores (principales + respaldo)

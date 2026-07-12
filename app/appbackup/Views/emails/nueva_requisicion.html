@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Requisición Creada</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; padding: 30px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+        .content { padding: 30px 20px; }
+        .content h2 { color: #667eea; font-size: 20px; margin-bottom: 15px; }
+        .content p { margin-bottom: 15px; color: #555; }
+        .badge { display: inline-block; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-info { background-color: #d1ecf1; color: #0c5460; }
+        .info-box { background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0; }
+        .info-box .label { font-weight: 600; color: #667eea; display: block; margin-bottom: 5px; }
+        .info-box .value { color: #333; }
+        .button { display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff !important; text-decoration: none; border-radius: 5px; font-weight: 600; margin: 10px 0; }
+        .button-center { text-align: center; margin: 30px 0; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #6c757d; font-size: 12px; border-top: 1px solid #dee2e6; }
+        .divider { height: 1px; background-color: #dee2e6; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🆕 Nueva Requisición</h1>
+        </div>
+        
+        <div class="content">
+            <h2>Nueva Requisición Pendiente de Revisión</h2>
+            
+            <p>Hola <strong>{{destinatario_nombre}}</strong>,</p>
+            
+            <p>Se ha creado una nueva requisición que requiere tu revisión.</p>
+            
+            <div class="info-box">
+                <span class="label">Número de Requisición:</span>
+                <span class="value">#{{numero_orden}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Solicitante:</span>
+                <span class="value">{{solicitante_nombre}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Proveedor:</span>
+                <span class="value">{{proveedor}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Monto Total:</span>
+                <span class="value">{{monto_total}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Fecha de Creación:</span>
+                <span class="value">{{fecha_creacion}}</span>
+            </div>
+            
+            <div class="info-box">
+                <span class="label">Estado:</span>
+                <span class="badge badge-info">Pendiente Revisión</span>
+            </div>
+            
+            <div class="button-center">
+                <a href="{{url_revision}}" class="button">Ver y Revisar Requisición</a>
+            </div>
+            
+            <p style="font-size: 14px; color: #6c757d;">Por favor revisa esta requisición lo antes posible para continuar con el proceso de autorización.</p>
+        </div>
+        
+        <div class="footer">
+            <p>Este es un mensaje automático del Sistema de Requisiciones</p>
+            <p>Por favor no responda a este correo</p>
+            <div class="divider"></div>
+            <p>&copy; {{year}} Sistema de Requisiciones. Todos los derechos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>

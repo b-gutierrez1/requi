@@ -99,44 +99,73 @@ View::startSection('content');
     /* Overlay de carga */
     .loading-overlay {
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(15, 23, 42, 0.55);
+        backdrop-filter: blur(4px);
         display: none;
         justify-content: center;
         align-items: center;
         z-index: 9999;
     }
 
-    .loading-spinner {
-        text-align: center;
+    .loading-card {
         background: #fff;
-        padding: 2rem 3rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        padding: 2.5rem 3rem;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+        text-align: center;
+        min-width: 240px;
+        animation: fadeInScale 0.2s ease;
     }
 
-    .spinner {
-        border: 4px solid #e9ecef;
-        border-top: 4px solid #3b82f6;
+    @keyframes fadeInScale {
+        from { opacity: 0; transform: scale(0.92); }
+        to   { opacity: 1; transform: scale(1); }
+    }
+
+    .loading-logo {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #1e40af;
+        letter-spacing: 2px;
+        margin-bottom: 1.25rem;
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    .loading-dots {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 1.25rem;
+    }
+
+    .loading-dots span {
+        width: 10px; height: 10px;
         border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        animation: spin 0.8s linear infinite;
-        margin: 0 auto 1rem;
+        background: #3b82f6;
+        animation: bounce 1.2s ease-in-out infinite;
     }
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; background: #6366f1; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; background: #8b5cf6; }
 
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+    @keyframes bounce {
+        0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+        40%            { transform: scale(1);   opacity: 1; }
     }
 
     .loading-text {
-        color: #374151;
-        font-size: 0.95rem;
+        color: #64748b;
+        font-size: 0.9rem;
+        font-weight: 500;
         margin: 0;
+        letter-spacing: 0.3px;
+    }
+
+    /* spinner legacy (botón) */
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
     
     /* Animaciones de validación */
@@ -548,6 +577,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                 <input type="hidden" id="total_general" name="total_general" value="0">
                 <input type="hidden" id="moneda_simbolo" value="Q">
             </div>
+            <div id="monto-minimo-aviso" style="display:none; margin-top:6px; padding:6px 12px; border-radius:6px; font-size:0.85rem;"></div>
         </div>
         
         <!-- DISTRIBUCIÓN DE GASTO -->
@@ -772,8 +802,11 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
 
 <!-- Overlay de carga -->
 <div id="loadingOverlay" class="loading-overlay">
-    <div class="loading-spinner">
-        <div class="spinner"></div>
+    <div class="loading-card">
+        <div class="loading-logo">IGA</div>
+        <div class="loading-dots">
+            <span></span><span></span><span></span>
+        </div>
         <p class="loading-text" id="loadingText">Enviando requisición...</p>
     </div>
 </div>
@@ -915,6 +948,7 @@ window.calcularTotalGeneral = function() {
     if (hiddenTotal) {
         hiddenTotal.value = total.toFixed(2);
     }
+    actualizarAvisoMontoMinimo(total);
     
     // Call other functions if they exist
     if (typeof actualizarFacturas === 'function') {
@@ -941,6 +975,42 @@ function agregarItem() {
     contadorItems++;
     attachItemEventListeners(newRow);
 }
+
+function actualizarAvisoMontoMinimo(total) {
+    const aviso   = document.getElementById('monto-minimo-aviso');
+    if (!aviso) return;
+    const moneda  = document.getElementById('moneda')?.value || 'GTQ';
+    const minimos = { GTQ: 10000, USD: 1311 };
+    const minimo  = minimos[moneda];
+    if (minimo === undefined) { aviso.style.display = 'none'; return; }
+    const simbolo = moneda === 'USD' ? '$' : 'Q';
+    const fmtMin  = minimo.toLocaleString('es-GT', { minimumFractionDigits: 2 });
+    const fmtAct  = total.toLocaleString('es-GT', { minimumFractionDigits: 2 });
+    if (total < minimo) {
+        aviso.style.display = 'block';
+        aviso.style.background = '#fff3cd';
+        aviso.style.border = '1px solid #ffc107';
+        aviso.style.color = '#856404';
+        aviso.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i> Monto mínimo requerido: <strong>${simbolo}${fmtMin}</strong>. Actual: ${simbolo}${fmtAct}.`;
+    } else {
+        aviso.style.display = 'block';
+        aviso.style.background = '#d1e7dd';
+        aviso.style.border = '1px solid #198754';
+        aviso.style.color = '#0a3622';
+        aviso.innerHTML = `<i class="fas fa-check-circle me-1"></i> Monto válido (mínimo ${simbolo}${fmtMin}).`;
+    }
+}
+
+// Actualizar aviso cuando cambia la moneda
+document.addEventListener('DOMContentLoaded', function () {
+    const monedaSelect = document.getElementById('moneda');
+    if (monedaSelect) {
+        monedaSelect.addEventListener('change', function () {
+            const total = parseFloat(document.getElementById('total_general')?.value) || 0;
+            actualizarAvisoMontoMinimo(total);
+        });
+    }
+});
 
 function eliminarItem(btn) {
     if (document.querySelectorAll('.item-row').length > 1) {
@@ -2514,9 +2584,24 @@ document.addEventListener('DOMContentLoaded', function() {
             };
         }
         
+        // 5. Validar monto mínimo según moneda
+        const montoMinimos = { GTQ: 10000, USD: 1311 };
+        const monedaActual = document.getElementById('moneda')?.value || 'GTQ';
+        const totalActual  = parseFloat(document.getElementById('total_general')?.value) || 0;
+        const minimoReq    = montoMinimos[monedaActual];
+        if (minimoReq !== undefined && totalActual < minimoReq) {
+            const simbolo = monedaActual === 'USD' ? '$' : 'Q';
+            const fmtMin  = minimoReq.toLocaleString('es-GT', { minimumFractionDigits: 2 });
+            const fmtAct  = totalActual.toLocaleString('es-GT', { minimumFractionDigits: 2 });
+            return {
+                valid: false,
+                message: `El monto mínimo para ${monedaActual} es ${simbolo}${fmtMin}. El total actual es ${simbolo}${fmtAct}.`
+            };
+        }
+
         return { valid: true };
     }
-    
+
     // Función removida: El usuario debe seleccionar manualmente las cuentas contables
     
     // Función para mostrar errores de validación

@@ -279,6 +279,7 @@ $title = 'Asignar Centros de Costo';
 
     <form method="POST" action="<?= url('/admin/autorizadores/' . ($autorizador->id ?? '') . '/centros') ?>" id="centrosForm">
         <?php echo App\Middlewares\CsrfMiddleware::field(); ?>
+        <input type="hidden" name="_method" value="PUT">
 
         <!-- Buscador y toolbar -->
         <div class="search-container">
@@ -301,7 +302,7 @@ $title = 'Asignar Centros de Costo';
             </div>
             <div class="mt-2">
                 <span class="counter">
-                    <span id="selectedCount"><?= count($idsAsignados ?? []) ?></span> de
+                    <span id="selectedCount"><?= count(array_filter($ordenesPorCentro ?? [], fn($o) => $o > 0)) ?></span> de
                     <span id="totalCount"><?= count($todosLosCentros ?? []) ?></span> centros seleccionados
                 </span>
             </div>
@@ -313,24 +314,29 @@ $title = 'Asignar Centros de Costo';
                 <?php if (!empty($todosLosCentros)): ?>
                     <?php foreach ($todosLosCentros as $centro): ?>
                         <?php
-                            $centroId = is_object($centro) ? $centro->id : $centro['id'];
+                            $centroId     = is_object($centro) ? $centro->id    : $centro['id'];
                             $centroNombre = is_object($centro) ? ($centro->nombre ?? 'Sin nombre') : ($centro['nombre'] ?? 'Sin nombre');
                             $centroCodigo = is_object($centro) ? ($centro->codigo ?? '') : ($centro['codigo'] ?? '');
-                            $isChecked = in_array((int)$centroId, array_map('intval', $idsAsignados ?? []));
+                            $ordenActual  = (int)($ordenesPorCentro[(int)$centroId] ?? 0);
+                            $isAsignado   = $ordenActual > 0;
                         ?>
                         <div class="col-lg-6 centro-col" data-nombre="<?= strtolower(View::e($centroNombre)) ?>" data-codigo="<?= strtolower(View::e($centroCodigo)) ?>">
-                            <label class="centro-item <?= $isChecked ? 'checked' : '' ?>">
-                                <input type="checkbox"
-                                       name="centro_costo_ids[]"
-                                       value="<?= View::e($centroId) ?>"
-                                       <?= $isChecked ? 'checked' : '' ?>>
-                                <div class="centro-info">
+                            <div class="centro-item <?= $isAsignado ? 'checked' : '' ?>">
+                                <div class="centro-info flex-grow-1">
                                     <div class="centro-nombre"><?= View::e($centroNombre) ?></div>
                                     <?php if ($centroCodigo): ?>
                                         <div class="centro-codigo"><?= View::e($centroCodigo) ?></div>
                                     <?php endif; ?>
                                 </div>
-                            </label>
+                                <select name="centro_costo_orden[<?= View::e($centroId) ?>]"
+                                        class="form-select form-select-sm orden-select ms-2"
+                                        style="width:auto;min-width:180px;"
+                                        data-centro-id="<?= View::e($centroId) ?>">
+                                    <option value="0" <?= $ordenActual === 0 ? 'selected' : '' ?>>— Sin asignar —</option>
+                                    <option value="1" <?= $ordenActual === 1 ? 'selected' : '' ?>>Orden 1 · Aprueba primero</option>
+                                    <option value="2" <?= $ordenActual === 2 ? 'selected' : '' ?>>Orden 2 · Aprueba segundo</option>
+                                </select>
+                            </div>
                         </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -361,16 +367,22 @@ $title = 'Asignar Centros de Costo';
     const centrosCols = document.querySelectorAll('.centro-col');
     const noResults = document.getElementById('noResults');
     const selectedCountEl = document.getElementById('selectedCount');
-    const checkboxes = document.querySelectorAll('input[name="centro_costo_ids[]"]');
+    const selects = document.querySelectorAll('select.orden-select');
 
     function updateCount() {
-        const checked = document.querySelectorAll('input[name="centro_costo_ids[]"]:checked').length;
-        selectedCountEl.textContent = checked;
+        const assigned = document.querySelectorAll('select.orden-select').length
+            - document.querySelectorAll('select.orden-select [value="0"]:checked').length;
+        // cuenta selects cuyo valor != "0"
+        let count = 0;
+        document.querySelectorAll('select.orden-select').forEach(function(s) {
+            if (s.value !== '0') count++;
+        });
+        selectedCountEl.textContent = count;
     }
 
-    function updateItemStyle(checkbox) {
-        const item = checkbox.closest('.centro-item');
-        if (checkbox.checked) {
+    function updateItemStyle(select) {
+        const item = select.closest('.centro-item');
+        if (select.value !== '0') {
             item.classList.add('checked');
         } else {
             item.classList.remove('checked');
@@ -396,36 +408,36 @@ $title = 'Asignar Centros de Costo';
         noResults.style.display = visibleCount === 0 ? 'block' : 'none';
     });
 
-    // Checkbox change
-    checkboxes.forEach(function(cb) {
-        cb.addEventListener('change', function() {
+    // Select change
+    selects.forEach(function(sel) {
+        sel.addEventListener('change', function() {
             updateItemStyle(this);
             updateCount();
         });
     });
 
-    // Select all (only visible)
+    // Select all visible → orden 1
     document.getElementById('btnSelectAll').addEventListener('click', function() {
         centrosCols.forEach(function(col) {
             if (col.style.display !== 'none') {
-                const cb = col.querySelector('input[type="checkbox"]');
-                if (cb && !cb.checked) {
-                    cb.checked = true;
-                    updateItemStyle(cb);
+                const sel = col.querySelector('select.orden-select');
+                if (sel && sel.value === '0') {
+                    sel.value = '1';
+                    updateItemStyle(sel);
                 }
             }
         });
         updateCount();
     });
 
-    // Deselect all (only visible)
+    // Deselect all visible
     document.getElementById('btnDeselectAll').addEventListener('click', function() {
         centrosCols.forEach(function(col) {
             if (col.style.display !== 'none') {
-                const cb = col.querySelector('input[type="checkbox"]');
-                if (cb && cb.checked) {
-                    cb.checked = false;
-                    updateItemStyle(cb);
+                const sel = col.querySelector('select.orden-select');
+                if (sel && sel.value !== '0') {
+                    sel.value = '0';
+                    updateItemStyle(sel);
                 }
             }
         });

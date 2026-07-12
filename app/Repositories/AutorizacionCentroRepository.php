@@ -49,11 +49,14 @@ class AutorizacionCentroRepository
 
     /**
      * Obtiene autorizaciones pendientes para un autorizador (por email).
+     *
+     * Solo devuelve autorizaciones cuyo turno ya llegó: no existe ninguna autorización
+     * del mismo centro/requisición con nivel inferior todavía pendiente.
      */
     public function getPendingByEmail(string $email): array
     {
         $sql = "
-            SELECT 
+            SELECT
                 a.*,
                 cc.nombre AS centro_nombre,
                 r.numero_requisicion,
@@ -68,10 +71,20 @@ class AutorizacionCentroRepository
                 END AS porcentaje
             FROM autorizaciones a
             INNER JOIN requisiciones r ON a.requisicion_id = r.id
+            INNER JOIN autorizacion_flujo af ON af.requisicion_id = a.requisicion_id
             LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
             WHERE a.autorizador_email = ?
               AND a.tipo = 'centro_costo'
               AND a.estado = 'pendiente'
+              AND af.estado NOT IN ('rechazado', 'cancelado')
+              AND NOT EXISTS (
+                  SELECT 1 FROM autorizaciones a2
+                  WHERE a2.requisicion_id = a.requisicion_id
+                    AND a2.centro_costo_id = a.centro_costo_id
+                    AND a2.tipo = 'centro_costo'
+                    AND a2.nivel < a.nivel
+                    AND a2.estado = 'pendiente'
+              )
             ORDER BY r.fecha_solicitud DESC, a.id ASC
         ";
 
@@ -88,10 +101,12 @@ class AutorizacionCentroRepository
     {
         $sql = "
             SELECT COUNT(*) AS total
-            FROM autorizaciones
-            WHERE autorizador_email = ?
-              AND tipo = 'centro_costo'
-              AND estado = 'pendiente'
+            FROM autorizaciones a
+            INNER JOIN autorizacion_flujo af ON af.requisicion_id = a.requisicion_id
+            WHERE a.autorizador_email = ?
+              AND a.tipo = 'centro_costo'
+              AND a.estado = 'pendiente'
+              AND af.estado NOT IN ('rechazado', 'cancelado')
         ";
 
         $stmt = $this->pdo->prepare($sql);
@@ -152,9 +167,29 @@ class AutorizacionCentroRepository
 
     /**
      * Marca una autorización como aprobada.
+     *
+     * @throws \RuntimeException si hay una autorización de nivel anterior todavía pendiente
+     *                           para el mismo centro/requisición (aprobación fuera de orden).
      */
     public function authorize(int $id, string $autorizadorEmail, string $comentario = ''): bool
     {
+        // Guard de orden: bloquea aprobaciones fuera de turno desde backend.
+        $sqlGuard = "
+            SELECT COUNT(*)
+            FROM autorizaciones a2
+            INNER JOIN autorizaciones a1 ON a1.id = ?
+            WHERE a2.requisicion_id = a1.requisicion_id
+              AND a2.centro_costo_id = a1.centro_costo_id
+              AND a2.tipo = 'centro_costo'
+              AND a2.nivel < a1.nivel
+              AND a2.estado = 'pendiente'
+        ";
+        $stmtGuard = $this->pdo->prepare($sqlGuard);
+        $stmtGuard->execute([$id]);
+        if ((int)$stmtGuard->fetchColumn() > 0) {
+            throw new \RuntimeException('El autorizador de nivel anterior aún no ha aprobado este centro de costo.');
+        }
+
         $sql = "
             UPDATE autorizaciones
             SET estado = 'aprobada',
@@ -330,103 +365,125 @@ class AutorizacionCentroRepository
 
     /**
      * Crea autorizaciones de centro de costo a partir de la distribución de gastos.
+     *
+     * Soporta múltiples autorizadores secuenciales por centro: el campo `nivel` en
+     * autorizaciones se popula con `acc.orden` de autorizador_centro_costo, de modo
+     * que nivel=1 aprueba primero y nivel=2 no puede actuar hasta que nivel=1 apruebe.
+     * Cada autorizador en la secuencia trae su propio respaldo activo (mismo nivel).
+     *
+     * @param int   $requisicionId
+     * @param array $asignaciones  Mapa [centro_costo_id => autorizador_email] para asignación
+     *                             manual por el revisor. Cuando se usa, se inserta un único
+     *                             registro con nivel=1 (sin secuencia).
      */
-    public function createFromDistribucion(int $requisicionId): void
+    public function createFromDistribucion(int $requisicionId, array $asignaciones = []): void
     {
-        // Obtener centros de costo de la distribución actual
-        $sqlDistribucion = "SELECT DISTINCT centro_costo_id FROM distribucion_gasto WHERE requisicion_id = ?";
-        $stmtDist = $this->pdo->prepare($sqlDistribucion);
+        // Centros de costo presentes en la distribución
+        $stmtDist = $this->pdo->prepare(
+            "SELECT DISTINCT centro_costo_id FROM distribucion_gasto WHERE requisicion_id = ?"
+        );
         $stmtDist->execute([$requisicionId]);
-        $centrosDistribucion = $stmtDist->fetchAll(PDO::FETCH_COLUMN);
-        
-        // Verificar si ya existen autorizaciones para esta requisición
-        $sqlCheck = "
-            SELECT centro_costo_id 
-            FROM autorizaciones 
-            WHERE requisicion_id = ? AND tipo = 'centro_costo'
-        ";
-        $stmtCheck = $this->pdo->prepare($sqlCheck);
+        $centrosDistribucion = array_map('intval', $stmtDist->fetchAll(PDO::FETCH_COLUMN));
+
+        // Autorizaciones ya existentes: comparar pares (centro_costo_id, autorizador_email)
+        $stmtCheck = $this->pdo->prepare(
+            "SELECT DISTINCT centro_costo_id
+             FROM autorizaciones
+             WHERE requisicion_id = ? AND tipo = 'centro_costo'"
+        );
         $stmtCheck->execute([$requisicionId]);
-        $centrosExistentes = $stmtCheck->fetchAll(PDO::FETCH_COLUMN);
-        
-        // Si hay autorizaciones existentes, verificar que coincidan con la distribución
+        $centrosExistentes = array_map('intval', $stmtCheck->fetchAll(PDO::FETCH_COLUMN));
+
         if (!empty($centrosExistentes)) {
-            sort($centrosDistribucion);
-            sort($centrosExistentes);
-            
-            if ($centrosDistribucion == $centrosExistentes) {
-                error_log("AutorizacionCentroRepository: Autorizaciones ya existen y coinciden para requisición $requisicionId");
-                return; // Ya existen autorizaciones válidas
-            } else {
-                // Los centros no coinciden, eliminar las autorizaciones antiguas y recrear
-                error_log("AutorizacionCentroRepository: Centros no coinciden, recreando autorizaciones para requisición $requisicionId");
-                error_log("Distribución: " . json_encode($centrosDistribucion) . " vs Existentes: " . json_encode($centrosExistentes));
-                
-                $sqlDelete = "DELETE FROM autorizaciones WHERE requisicion_id = ? AND tipo = 'centro_costo'";
-                $stmtDelete = $this->pdo->prepare($sqlDelete);
-                $stmtDelete->execute([$requisicionId]);
+            $distSorted = $centrosDistribucion;
+            $existSorted = $centrosExistentes;
+            sort($distSorted);
+            sort($existSorted);
+
+            if ($distSorted === $existSorted) {
+                error_log("AutorizacionCentroRepository: autorizaciones ya existen para requisición $requisicionId");
+                return;
             }
+
+            error_log("AutorizacionCentroRepository: centros no coinciden, recreando para requisición $requisicionId");
+            $this->pdo->prepare(
+                "DELETE FROM autorizaciones WHERE requisicion_id = ? AND tipo = 'centro_costo'"
+            )->execute([$requisicionId]);
         }
 
-        $sqlCentros = "
-            SELECT 
-                dg.centro_costo_id,
-                SUM(dg.porcentaje) AS porcentaje_total
-            FROM distribucion_gasto dg
-            WHERE dg.requisicion_id = ?
-            GROUP BY dg.centro_costo_id
-        ";
-
-        $stmtCentros = $this->pdo->prepare($sqlCentros);
+        // Porcentaje por centro
+        $stmtCentros = $this->pdo->prepare("
+            SELECT centro_costo_id, SUM(porcentaje) AS porcentaje_total
+            FROM distribucion_gasto
+            WHERE requisicion_id = ?
+            GROUP BY centro_costo_id
+        ");
         $stmtCentros->execute([$requisicionId]);
         $centros = $stmtCentros->fetchAll(PDO::FETCH_ASSOC);
 
+        $sqlInsert = "
+            INSERT INTO autorizaciones
+                (requisicion_id, tipo, centro_costo_id, autorizador_email, autorizador_nombre,
+                 estado, nivel, metadata, created_at)
+            VALUES (?, 'centro_costo', ?, ?, ?, 'pendiente', ?, ?, NOW())
+        ";
+        $stmtInsert = $this->pdo->prepare($sqlInsert);
+
         foreach ($centros as $centro) {
             $centroCostoId = (int)$centro['centro_costo_id'];
-            $porcentaje = (float)$centro['porcentaje_total'];
+            $porcentaje    = (float)$centro['porcentaje_total'];
 
-            $autorizadores = [];
-
-            $principal = PersonaAutorizada::principalPorCentro($centroCostoId);
-            if ($principal && !empty($principal['email'])) {
-                $autorizadores[] = [
-                    'email' => $principal['email'],
-                    'nombre' => $principal['nombre'] ?? null,
-                    'es_respaldo' => false,
-                    'motivo' => null,
-                ];
-            }
-
-            $respaldo = AutorizadorRespaldo::activoPorCentro($centroCostoId);
-            if ($respaldo && !empty($respaldo['autorizador_respaldo_email'])) {
-                $autorizadores[] = [
-                    'email' => $respaldo['autorizador_respaldo_email'],
-                    'nombre' => $respaldo['nombre_respaldo'] ?? null,
-                    'es_respaldo' => true,
-                    'motivo' => $respaldo['motivo'] ?? null,
-                ];
-            }
-
-            foreach ($autorizadores as $autorizador) {
+            // Asignación manual del revisor: nivel=1, sin secuencia
+            if (!empty($asignaciones[$centroCostoId])) {
+                $emailManual = $asignaciones[$centroCostoId];
                 $metadata = json_encode([
-                    'es_respaldo' => $autorizador['es_respaldo'],
-                    'motivo_respaldo' => $autorizador['motivo'],
-                    'porcentaje' => $porcentaje,
+                    'es_respaldo'       => false,
+                    'motivo_respaldo'   => null,
+                    'porcentaje'        => $porcentaje,
+                    'asignacion_manual' => true,
                 ]);
+                $stmtInsert->execute([$requisicionId, $centroCostoId, $emailManual, null, 1, $metadata]);
+                continue;
+            }
 
-                $sqlInsert = "
-                    INSERT INTO autorizaciones
-                    (requisicion_id, tipo, centro_costo_id, autorizador_email, autorizador_nombre, estado, metadata, created_at)
-                    VALUES (?, 'centro_costo', ?, ?, ?, 'pendiente', ?, NOW())
-                ";
+            // Autorizadores configurados para este centro, ordenados por acc.orden
+            $autorizadoresOrdenados = PersonaAutorizada::todosPorCentro($centroCostoId);
 
-                $stmtInsert = $this->pdo->prepare($sqlInsert);
+            foreach ($autorizadoresOrdenados as $autorizador) {
+                $nivel = (int)$autorizador['orden'];
+
+                $metadata = json_encode([
+                    'es_respaldo'     => false,
+                    'motivo_respaldo' => null,
+                    'porcentaje'      => $porcentaje,
+                    'orden'           => $nivel,
+                ]);
                 $stmtInsert->execute([
                     $requisicionId,
                     $centroCostoId,
                     $autorizador['email'],
                     $autorizador['nombre'],
+                    $nivel,
                     $metadata,
+                ]);
+            }
+
+            // El respaldo es por centro (reemplaza al autorizador de nivel=1)
+            $respaldo = AutorizadorRespaldo::activoPorCentro($centroCostoId);
+            if ($respaldo && !empty($respaldo['autorizador_respaldo_email'])) {
+                $metadataRespaldo = json_encode([
+                    'es_respaldo'     => true,
+                    'motivo_respaldo' => $respaldo['motivo'] ?? null,
+                    'porcentaje'      => $porcentaje,
+                    'orden'           => 1,
+                ]);
+                $stmtInsert->execute([
+                    $requisicionId,
+                    $centroCostoId,
+                    $respaldo['autorizador_respaldo_email'],
+                    null,
+                    1,
+                    $metadataRespaldo,
                 ]);
             }
         }

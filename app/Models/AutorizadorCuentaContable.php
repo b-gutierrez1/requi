@@ -71,8 +71,8 @@ class AutorizadorCuentaContable extends Model
      */
     public static function requiereAutorizacionEspecial($cuentaContableId)
     {
-        $sql = "SELECT COUNT(*) as total 
-                FROM " . static::$table . " 
+        $sql = "SELECT COUNT(*) as total
+                FROM " . static::$table . "
                 WHERE cuenta_contable_id = ?";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -336,13 +336,14 @@ class AutorizadorCuentaContable extends Model
      */
     public static function existeDuplicado($cuentaContableId, $email, $excluirId = null)
     {
-        $sql = "SELECT COUNT(*) as total 
-                FROM " . static::$table . " 
-                WHERE cuenta_contable_id = ? 
-                AND autorizador_email = ?";
-        
+        $sql = "SELECT COUNT(*) as total
+                FROM " . static::$table . "
+                WHERE cuenta_contable_id = ?
+                AND autorizador_email = ?
+                AND activo = 1";
+
         $params = [$cuentaContableId, $email];
-        
+
         if ($excluirId) {
             $sql .= " AND id != ?";
             $params[] = $excluirId;

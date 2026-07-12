@@ -72,9 +72,10 @@ class CentroCostoController extends Controller
         }
 
         $data = [
-            'nombre' => $this->sanitize($_POST['nombre']),
-            'factura' => intval($_POST['factura'] ?? 1),
-            'unidad_negocio_id' => !empty($_POST['unidad_negocio_id']) ? intval($_POST['unidad_negocio_id']) : null
+            'nombre'                    => $this->sanitize($_POST['nombre']),
+            'factura'                   => intval($_POST['factura'] ?? 1),
+            'unidad_negocio_id'         => !empty($_POST['unidad_negocio_id']) ? intval($_POST['unidad_negocio_id']) : null,
+            'requiere_asignacion_manual' => isset($_POST['requiere_asignacion_manual']) ? 1 : 0,
         ];
 
         $id = CentroCosto::create($data);
@@ -146,9 +147,10 @@ class CentroCostoController extends Controller
         }
 
         $data = [
-            'nombre' => $this->sanitize($_POST['nombre']),
-            'factura' => intval($_POST['factura'] ?? 1),
-            'unidad_negocio_id' => !empty($_POST['unidad_negocio_id']) ? intval($_POST['unidad_negocio_id']) : null
+            'nombre'                    => $this->sanitize($_POST['nombre']),
+            'factura'                   => intval($_POST['factura'] ?? 1),
+            'unidad_negocio_id'         => !empty($_POST['unidad_negocio_id']) ? intval($_POST['unidad_negocio_id']) : null,
+            'requiere_asignacion_manual' => isset($_POST['requiere_asignacion_manual']) ? 1 : 0,
         ];
 
         $resultado = CentroCosto::updateById($id, $data);

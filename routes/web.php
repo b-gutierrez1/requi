@@ -176,6 +176,7 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
         $router->get('/api/{id}/progreso', [AutorizacionController::class, 'apiProgreso']);
         $router->get('/api/pendientes', [AutorizacionController::class, 'apiPendientes']);
         $router->post('/api/autorizar-multiple', [AutorizacionController::class, 'apiAutorizarMultiple']);
+        $router->get('/api/centros/{id}/autorizadores', [AutorizacionController::class, 'apiAutorizadoresCentro']);
     });
     
     // ------------------------------------------------------------------------
@@ -221,6 +222,7 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
         $router->get('/autorizadores/{id}/edit', [AutorizadorController::class, 'editAutorizador']);
         $router->get('/autorizadores/{id}/centros', [AutorizadorController::class, 'editCentrosAutorizador']);
         $router->get('/api/autorizadores/centros-costo', [AutorizadorController::class, 'apiCentrosCostoAutorizador']);
+        $router->get('/api/autorizadores/lookup-cargo', [AutorizadorController::class, 'apiLookupCargo']);
         $router->get('/api/usuarios/buscar', [AdminController::class, 'apiBuscarUsuarios']);
 
         // Autorizadores Especiales (deben ir ANTES de las rutas con parámetros)

@@ -627,6 +627,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                 Total: <span id="totalGeneral"><?php $moneda = $requisicion['orden']->moneda ?? 'GTQ'; echo ($moneda === 'USD' ? '$' : ($moneda === 'EUR' ? '€' : 'Q')) . ' ' . number_format($requisicion['orden']->monto_total ?? 0, 2); ?></span>
                 <input type="hidden" id="total_general" name="total_general" value="<?php echo $requisicion['orden']->monto_total ?? 0; ?>">
             </div>
+            <div id="monto-minimo-aviso" style="display:none; margin-top:6px; padding:6px 12px; border-radius:6px; font-size:0.85rem;"></div>
         </div>
 
         <!-- DISTRIBUCIÓN DE GASTO -->
@@ -1040,7 +1041,33 @@ function calcularTotalGeneral() {
     document.getElementById('total_general').value = total.toFixed(2);
     actualizarFacturas();
     calcularDistribucionPorcentajes();
+    actualizarAvisoMontoMinimo(total);
     return total;
+}
+
+function actualizarAvisoMontoMinimo(total) {
+    const aviso   = document.getElementById('monto-minimo-aviso');
+    if (!aviso) return;
+    const moneda  = document.getElementById('moneda')?.value || 'GTQ';
+    const minimos = { GTQ: 10000, USD: 1311 };
+    const minimo  = minimos[moneda];
+    if (minimo === undefined) { aviso.style.display = 'none'; return; }
+    const simbolo = moneda === 'USD' ? '$' : 'Q';
+    const fmtMin  = minimo.toLocaleString('es-GT', { minimumFractionDigits: 2 });
+    const fmtAct  = total.toLocaleString('es-GT', { minimumFractionDigits: 2 });
+    if (total < minimo) {
+        aviso.style.display = 'block';
+        aviso.style.background = '#fff3cd';
+        aviso.style.border = '1px solid #ffc107';
+        aviso.style.color = '#856404';
+        aviso.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i> Monto mínimo requerido: <strong>${simbolo}${fmtMin}</strong>. Actual: ${simbolo}${fmtAct}.`;
+    } else {
+        aviso.style.display = 'block';
+        aviso.style.background = '#d1e7dd';
+        aviso.style.border = '1px solid #198754';
+        aviso.style.color = '#0a3622';
+        aviso.innerHTML = `<i class="fas fa-check-circle me-1"></i> Monto válido (mínimo ${simbolo}${fmtMin}).`;
+    }
 }
 
 // Función global para agregar distribución (sobrescribe cualquier otra implementación)
@@ -2568,9 +2595,24 @@ document.addEventListener('DOMContentLoaded', function() {
             };
         }
         
+        // 5. Validar monto mínimo según moneda
+        const montoMinimos = { GTQ: 10000, USD: 1311 };
+        const monedaActual = document.getElementById('moneda')?.value || 'GTQ';
+        const totalActual  = parseFloat(document.getElementById('total_general')?.value) || 0;
+        const minimoReq    = montoMinimos[monedaActual];
+        if (minimoReq !== undefined && totalActual < minimoReq) {
+            const simbolo = monedaActual === 'USD' ? '$' : 'Q';
+            const fmtMin  = minimoReq.toLocaleString('es-GT', { minimumFractionDigits: 2 });
+            const fmtAct  = totalActual.toLocaleString('es-GT', { minimumFractionDigits: 2 });
+            return {
+                valid: false,
+                message: `El monto mínimo para ${monedaActual} es ${simbolo}${fmtMin}. El total actual es ${simbolo}${fmtAct}.`
+            };
+        }
+
         return { valid: true };
     }
-    
+
     // Función removida: El usuario debe seleccionar manualmente las cuentas contables
     
     // Función para mostrar errores de validación

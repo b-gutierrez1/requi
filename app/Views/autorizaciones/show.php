@@ -56,9 +56,10 @@ if (!empty($distribucion)) {
     }
 }
 $centrosAutorizaciones = $autorizaciones_centro ?? [];
-$puedeRevisar = $puede_revisar ?? false;
-$ordenIdVista = $orden_id ?? getValue($orden, 'id');
-$montoTotal = getValue($orden, 'monto_total', 0);
+$puedeRevisar  = $puede_revisar ?? false;
+$ordenIdVista  = $orden_id ?? getValue($orden, 'id');
+$montoTotal    = getValue($orden, 'monto_total', 0);
+$centrosManuales = $centros_manuales ?? [];
 
 View::startSection('content');
 ?>
@@ -413,20 +414,24 @@ View::startSection('content');
                                         </strong>
                                     </td>
                                     <td class="text-center">
-                                        <?php $estadoCentro = $centro['estado'] ?? 'pendiente'; ?>
-                                        <?php 
+                                        <?php
+                                        $estadoCentro = $centro['estado'] ?? 'pendiente';
+                                        // Si el flujo ya fue rechazado/cancelado, forzar estado visual
+                                        if (in_array($flujoEstado, ['rechazado', 'cancelado']) && $estadoCentro === 'pendiente') {
+                                            $estadoCentro = 'rechazado';
+                                        }
                                         // Verificar si el usuario actual es el autorizador de este centro
                                         $autorizadorCentro = $centro['autorizador_email'] ?? '';
                                         $usuarioActual = $usuario['email'] ?? ($currentUser['email'] ?? '');
-                                        $puedeAutorizar = ($autorizadorCentro === $usuarioActual && !empty($usuarioActual));
+                                        $puedeAutorizar = ($autorizadorCentro === $usuarioActual && !empty($usuarioActual) && !in_array($flujoEstado, ['rechazado', 'cancelado']));
                                         ?>
                                         <?php if ($estadoCentro === 'pendiente'): ?>
                                             <?php if ($puedeAutorizar): ?>
-                                            <button class="btn btn-sm btn-success btn-authorize me-1" 
+                                            <button class="btn btn-sm btn-success btn-authorize me-1"
                                                     onclick="autorizarCentro(<?php echo $centro['id']; ?>)">
                                                 <i class="fas fa-check me-1"></i>Autorizar
                                             </button>
-                                            <button class="btn btn-sm btn-danger" 
+                                            <button class="btn btn-sm btn-danger"
                                                     onclick="rechazarCentro(<?php echo $centro['id']; ?>)">
                                                 <i class="fas fa-times me-1"></i>Rechazar
                                             </button>
@@ -648,9 +653,14 @@ View::startSection('content');
     </div>
 </div>
 
+<?php
+View::endSection();
+
+View::startSection('modals');
+?>
 <!-- Modal Rechazar -->
 <div class="modal fade" id="modalRechazar" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title">
@@ -679,9 +689,7 @@ View::startSection('content');
         </div>
     </div>
 </div>
-
-<?php
-View::endSection();
+<?php View::endSection();
 
 View::startSection('scripts');
 ?>
@@ -887,75 +895,162 @@ function rechazarEspecial(authId, tipo) {
     });
 }
 
-// Manejar formulario de aprobación de revisión con efectos
+// ── Modal pre-aprobación ─────────────────────────────────────────────────────
+const centrosManuales = <?= json_encode(array_values($centrosManuales)) ?>;
+
 document.addEventListener('DOMContentLoaded', function() {
     const formRevision = document.getElementById('formAprobarRevision');
-    if (formRevision) {
-        formRevision.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const button = this.querySelector('button[type="submit"]');
-            const alertContainer = this.closest('.alert');
-            
-            // Iniciar animación
-            if (window.AuthEffects) {
-                window.AuthEffects.animateButton(button, 'authorizing');
-                if (alertContainer) window.AuthEffects.animateCard(alertContainer, 'authorizing');
-            }
-            
-            // Enviar formulario
-            fetch(this.action, {
-                method: 'POST',
-                body: new FormData(this)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Efectos de celebración para revisión
-                    if (window.AuthEffects) {
-                        window.AuthEffects.animateButton(button, 'authorized');
-                        if (alertContainer) window.AuthEffects.animateCard(alertContainer, 'authorized');
-                        
-                        // Celebración especial para revisión
-                        window.AuthEffects.celebrate(
-                            '¡Revisión aprobada exitosamente!',
-                            'revision'
-                        );
-                    }
-                    
-                    // Recargar después de los efectos
-                    setTimeout(() => {
-                        location.reload();
-                    }, 2000);
-                } else {
-                    // Restaurar estado en caso de error
-                    if (window.AuthEffects && button) {
-                        button.disabled = false;
-                        button.innerHTML = button.dataset.originalText || '<i class="fas fa-check me-2"></i>Aprobar revisión';
-                        button.classList.remove('authorizing');
-                    }
-                    if (alertContainer) alertContainer.classList.remove('authorizing');
-                    
-                    alert('Error: ' + (data.error || 'Error al procesar la solicitud'));
+    if (!formRevision) return;
+
+    formRevision.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        if (centrosManuales.length > 0) {
+            // Hay centros manuales: abrir modal de asignación primero
+            abrirModalAsignacion();
+        } else {
+            // Sin centros manuales: aprobar directamente
+            enviarAprobacion(new FormData(formRevision));
+        }
+    });
+});
+
+function abrirModalAsignacion() {
+    const modal = new bootstrap.Modal(document.getElementById('modalAsignacionRevisor'));
+    const container = document.getElementById('asignacionCentrosContainer');
+    container.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div> Cargando autorizadores...</div>';
+    modal.show();
+
+    // Cargar autorizadores para cada centro manual en paralelo
+    const promises = centrosManuales.map(centro =>
+        fetch(`<?= url('/autorizaciones/api/centros/') ?>${centro.id}/autorizadores`)
+            .then(r => r.json())
+            .then(data => ({ centro, autorizadores: data.autorizadores || [] }))
+    );
+
+    Promise.all(promises).then(resultados => {
+        container.innerHTML = resultados.map(({ centro, autorizadores }) => {
+            const options = autorizadores.map(a =>
+                `<option value="${a.email}">${a.nombre} &lt;${a.email}&gt;</option>`
+            ).join('');
+            return `
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">
+                        <i class="fas fa-building me-1 text-warning"></i>${centro.nombre}
+                    </label>
+                    <select class="form-select select-autorizador" name="asignaciones[${centro.id}]" required>
+                        <option value="">-- Selecciona el autorizador --</option>
+                        ${options}
+                    </select>
+                </div>`;
+        }).join('');
+    }).catch(() => {
+        container.innerHTML = '<div class="alert alert-danger">Error cargando autorizadores. Intenta de nuevo.</div>';
+    });
+}
+
+function confirmarAprobacionModal() {
+    const selects = document.querySelectorAll('#asignacionCentrosContainer .select-autorizador');
+    for (const sel of selects) {
+        if (!sel.value) {
+            sel.classList.add('is-invalid');
+            sel.focus();
+            return;
+        }
+        sel.classList.remove('is-invalid');
+    }
+
+    const formRevision  = document.getElementById('formAprobarRevision');
+    const formData      = new FormData(formRevision);
+
+    // Agregar asignaciones del modal al FormData
+    selects.forEach(sel => {
+        formData.append(sel.name, sel.value);
+    });
+
+    // Agregar comentario del modal si existe
+    const comentarioModal = document.getElementById('comentarioRevisionModal');
+    if (comentarioModal && comentarioModal.value.trim()) {
+        formData.set('comentario', comentarioModal.value.trim());
+    }
+
+    // Cerrar modal y enviar
+    bootstrap.Modal.getInstance(document.getElementById('modalAsignacionRevisor')).hide();
+    enviarAprobacion(formData);
+}
+
+function enviarAprobacion(formData) {
+    const formRevision  = document.getElementById('formAprobarRevision');
+    const button        = formRevision.querySelector('button[type="submit"]');
+    const alertContainer = formRevision.closest('.alert');
+
+    if (window.AuthEffects) {
+        window.AuthEffects.animateButton(button, 'authorizing');
+        if (alertContainer) window.AuthEffects.animateCard(alertContainer, 'authorizing');
+    }
+
+    fetch(formRevision.action, { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                if (window.AuthEffects) {
+                    window.AuthEffects.animateButton(button, 'authorized');
+                    if (alertContainer) window.AuthEffects.animateCard(alertContainer, 'authorized');
+                    window.AuthEffects.celebrate('¡Revisión aprobada exitosamente!', 'revision');
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                
-                // Restaurar estado en caso de error
+                setTimeout(() => location.reload(), 2000);
+            } else {
                 if (window.AuthEffects && button) {
                     button.disabled = false;
                     button.innerHTML = button.dataset.originalText || '<i class="fas fa-check me-2"></i>Aprobar revisión';
                     button.classList.remove('authorizing');
                 }
                 if (alertContainer) alertContainer.classList.remove('authorizing');
-                
-                alert('Error de conexión');
-            });
+                alert('Error: ' + (data.error || 'Error al procesar la solicitud'));
+            }
+        })
+        .catch(() => {
+            if (window.AuthEffects && button) {
+                button.disabled = false;
+                button.innerHTML = button.dataset.originalText || '<i class="fas fa-check me-2"></i>Aprobar revisión';
+                button.classList.remove('authorizing');
+            }
+            if (alertContainer) alertContainer.classList.remove('authorizing');
+            alert('Error de conexión');
         });
-    }
-});
+}
 </script>
+
+<!-- Modal: Asignación manual de autorizadores al aprobar revisión -->
+<div class="modal fade" id="modalAsignacionRevisor" tabindex="-1" aria-labelledby="modalAsignacionRevisorLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="modalAsignacionRevisorLabel">
+                    <i class="fas fa-user-check me-2"></i>Asignar autorizadores antes de aprobar
+                </h5>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Los siguientes centros de costo requieren que selecciones manualmente quién los autorizará en esta requisición.
+                </p>
+                <div id="asignacionCentrosContainer"></div>
+                <div class="mb-3 mt-3">
+                    <label for="comentarioRevisionModal" class="form-label">Comentario <span class="text-muted">(opcional)</span></label>
+                    <textarea class="form-control" id="comentarioRevisionModal" rows="2" placeholder="Comentario para el historial..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancelar
+                </button>
+                <button type="button" class="btn btn-success" onclick="confirmarAprobacionModal()">
+                    <i class="fas fa-check me-1"></i>Confirmar aprobación
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Enhanced Modal para mostrar detalle completo de la requisición -->
 <div class="modal fade modern-modal" id="modalDetalleRequisicion" tabindex="-1" aria-labelledby="modalDetalleRequisicionLabel" aria-hidden="true">
@@ -2255,7 +2350,7 @@ function rechazarRequisicionDetalle(requisicionId) {
     // Crear modal dinámico para el motivo del rechazo
     const modalHtml = `
         <div class="modal fade" id="rechazarDetalleModal" tabindex="-1">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header bg-danger text-white">
                         <h5 class="modal-title">

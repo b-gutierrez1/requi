@@ -194,6 +194,21 @@ $title = 'Editar Autorizador';
                         </div>
                     </div>
 
+                    <!-- Puesto / Cargo -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="cargo" class="form-label">Puesto / Cargo</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="cargo"
+                                       name="cargo"
+                                       placeholder="Opcional"
+                                       value="<?= View::e($autorizador->cargo ?? '') ?>">
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Botones -->
                     <div class="row mt-4">
                         <div class="col-12 d-flex justify-content-center gap-3 flex-wrap">

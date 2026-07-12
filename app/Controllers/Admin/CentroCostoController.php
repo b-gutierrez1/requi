@@ -73,6 +73,7 @@ class CentroCostoController extends Controller
 
         $data = [
             'nombre'                    => $this->sanitize($_POST['nombre']),
+            'codigo'                    => !empty($_POST['codigo']) ? $this->sanitize($_POST['codigo']) : null,
             'factura'                   => intval($_POST['factura'] ?? 1),
             'unidad_negocio_id'         => !empty($_POST['unidad_negocio_id']) ? intval($_POST['unidad_negocio_id']) : null,
             'requiere_asignacion_manual' => isset($_POST['requiere_asignacion_manual']) ? 1 : 0,
@@ -152,6 +153,11 @@ class CentroCostoController extends Controller
             'unidad_negocio_id'         => !empty($_POST['unidad_negocio_id']) ? intval($_POST['unidad_negocio_id']) : null,
             'requiere_asignacion_manual' => isset($_POST['requiere_asignacion_manual']) ? 1 : 0,
         ];
+
+        // Solo actualizar codigo si viene en el POST (evita borrar el valor existente)
+        if (isset($_POST['codigo'])) {
+            $data['codigo'] = !empty($_POST['codigo']) ? $this->sanitize($_POST['codigo']) : null;
+        }
 
         $resultado = CentroCosto::updateById($id, $data);
 

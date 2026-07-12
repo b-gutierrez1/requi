@@ -876,9 +876,9 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                     </thead>
                     <tbody>
                         <tr>
-                            <td rowspan="4">
+                            <td rowspan="5">
                                 <div class="form-control" style="background: #f8f9fa; border: 1px solid #dee2e6; min-height: 38px; display: flex; align-items: center;">
-                                    <?php 
+                                    <?php
                                     $formaPago = getData($orden, 'forma_pago', '');
                                     $formasPago = [
                                         'contado' => 'Contado',
@@ -891,7 +891,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                     ?>
                                 </div>
                             </td>
-                            <td rowspan="4">
+                            <td rowspan="5">
                                 <div class="form-control" style="background: #f8f9fa; border: 1px solid #dee2e6; min-height: 38px; display: flex; align-items: center;">
                                     <?php echo (getData($orden, 'anticipo', 0) == 1) ? 'Sí' : 'No'; ?>
                                 </div>
@@ -902,6 +902,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                 $factura1 = ['porcentaje' => 0, 'monto' => 0];
                                 $factura2 = ['porcentaje' => 0, 'monto' => 0];
                                 $factura3 = ['porcentaje' => 0, 'monto' => 0];
+                                $factura4 = ['porcentaje' => 0, 'monto' => 0];
                                 if (!empty($distribucion)) {
                                     foreach ($distribucion as $dist) {
                                         $facturaNum = getData($dist, 'factura', 1);
@@ -924,6 +925,9 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                         } elseif ($facturaNum == 3) {
                                             $factura3['porcentaje'] += $porcentaje;
                                             $factura3['monto'] += $monto;
+                                        } elseif ($facturaNum == 4) {
+                                            $factura4['porcentaje'] += $porcentaje;
+                                            $factura4['monto'] += $monto;
                                         }
                                     }
                                 }
@@ -947,13 +951,20 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                             <td><strong><?php echo View::money($factura3['monto'], $moneda); ?></strong></td>
                         </tr>
                         <tr>
+                            <td><strong>Factura 4</strong></td>
+                            <td>
+                                <?php echo formatearPorcentaje($factura4['porcentaje'], 2); ?>
+                            </td>
+                            <td><strong><?php echo View::money($factura4['monto'], $moneda); ?></strong></td>
+                        </tr>
+                        <tr>
                             <td><strong>TOTAL</strong></td>
                             <td><strong><?php 
-                                $totalPorcentaje = $factura1['porcentaje'] + $factura2['porcentaje'] + $factura3['porcentaje'];
+                                $totalPorcentaje = $factura1['porcentaje'] + $factura2['porcentaje'] + $factura3['porcentaje'] + $factura4['porcentaje'];
                                 $totalAproximado = aproximarPorcentaje($totalPorcentaje);
                                 echo number_format($totalAproximado, 2);
                             ?></strong></td>
-                            <td><strong><?php echo View::money($factura1['monto'] + $factura2['monto'] + $factura3['monto'], $moneda); ?></strong></td>
+                            <td><strong><?php echo View::money($factura1['monto'] + $factura2['monto'] + $factura3['monto'] + $factura4['monto'], $moneda); ?></strong></td>
                         </tr>
                     </tbody>
                 </table>

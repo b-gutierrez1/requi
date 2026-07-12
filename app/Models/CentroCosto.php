@@ -19,6 +19,7 @@ class CentroCosto extends Model
 
     protected static $fillable = [
         'nombre',
+        'codigo',
         'factura',
         'unidad_negocio_id',
         'requiere_asignacion_manual',

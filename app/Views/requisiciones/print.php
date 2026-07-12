@@ -27,10 +27,10 @@ $formaPagoLabel = $labelFormaPago[$orden->forma_pago ?? ''] ?? ($orden->forma_pa
 $itemRows = max(15, count($items));
 $distRows = max(14, count($distribucion));
 
-$facturas = [1 => ['pct' => 0, 'monto' => 0], 2 => ['pct' => 0, 'monto' => 0], 3 => ['pct' => 0, 'monto' => 0]];
+$facturas = [1 => ['pct' => 0, 'monto' => 0], 2 => ['pct' => 0, 'monto' => 0], 3 => ['pct' => 0, 'monto' => 0], 4 => ['pct' => 0, 'monto' => 0]];
 foreach ($distribucion as $d) {
     $fk = (int)($d['factura'] ?? 1);
-    if ($fk < 1 || $fk > 3) $fk = 1;
+    if ($fk < 1 || $fk > 4) $fk = 1;
     $facturas[$fk]['pct']   += (float)($d['porcentaje'] ?? 0);
     $facturas[$fk]['monto'] += (float)($d['monto'] ?? 0);
 }
@@ -462,7 +462,7 @@ $border = '#c0c0c0';
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ([1,2,3] as $fk): ?>
+                        <?php foreach ([1,2,3,4] as $fk): ?>
                         <tr>
                             <td><?= $fk ?></td>
                             <td><?= $facturas[$fk]['pct'] > 0 ? number_format($facturas[$fk]['pct'], 0) : '0' ?></td>

@@ -704,7 +704,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                     </thead>
                     <tbody>
                         <tr>
-                            <td rowspan="4">
+                            <td rowspan="5">
                                 <select class="form-select" id="forma_pago" name="forma_pago" required>
                                     <option value="">Seleccione...</option>
                                     <option value="contado">Contado</option>
@@ -714,7 +714,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                     <option value="credito">Crédito</option>
                                 </select>
                             </td>
-                            <td rowspan="4">
+                            <td rowspan="5">
                                 <select class="form-select" id="anticipo" name="anticipo" required>
                                     <option value="0">No</option>
                                     <option value="1">Sí</option>
@@ -733,6 +733,11 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                             <td><strong>Factura 3</strong></td>
                             <td><span class="porcentaje-factura" id="porcentaje-factura-3">0.00%</span></td>
                             <td><span class="monto-factura" id="monto-factura-3">Q 0.00</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Factura 4</strong></td>
+                            <td><span class="porcentaje-factura" id="porcentaje-factura-4">0.00%</span></td>
+                            <td><span class="monto-factura" id="monto-factura-4">Q 0.00</span></td>
                         </tr>
                         <tr>
                             <td><strong>TOTAL</strong></td>
@@ -854,11 +859,14 @@ function formatearMonto(monto) {
 
 // Función para actualizar facturas - Definida al inicio para estar disponible
 function actualizarFacturas() {
-    // Inicializar totales por factura
-    let factura1 = { porcentaje: 0, monto: 0 };
-    let factura2 = { porcentaje: 0, monto: 0 };
-    let factura3 = { porcentaje: 0, monto: 0 };
-    
+    // Inicializar totales por factura (1 a 4)
+    const facturas = {
+        1: { porcentaje: 0, monto: 0 },
+        2: { porcentaje: 0, monto: 0 },
+        3: { porcentaje: 0, monto: 0 },
+        4: { porcentaje: 0, monto: 0 }
+    };
+
     // Recorrer todas las filas de distribución para sumar por factura
     document.querySelectorAll('.distribucion-row').forEach(row => {
         const porcentajeInput = row.querySelector('input[name*="[porcentaje]"]');
@@ -886,43 +894,26 @@ function actualizarFacturas() {
                 }
             }
             
-            switch(numeroFactura) {
-                case 1:
-                    factura1.porcentaje += porcentaje;
-                    factura1.monto += cantidad;
-                    break;
-                case 2:
-                    factura2.porcentaje += porcentaje;
-                    factura2.monto += cantidad;
-                    break;
-                case 3:
-                    factura3.porcentaje += porcentaje;
-                    factura3.monto += cantidad;
-                    break;
+            if (facturas[numeroFactura]) {
+                facturas[numeroFactura].porcentaje += porcentaje;
+                facturas[numeroFactura].monto += cantidad;
             }
         }
     });
-    
+
     // Actualizar la tabla de facturas
-    const porcentaje1El = document.getElementById('porcentaje-factura-1');
-    const monto1El = document.getElementById('monto-factura-1');
-    const porcentaje2El = document.getElementById('porcentaje-factura-2');
-    const monto2El = document.getElementById('monto-factura-2');
-    const porcentaje3El = document.getElementById('porcentaje-factura-3');
-    const monto3El = document.getElementById('monto-factura-3');
-    
-    if (porcentaje1El) porcentaje1El.textContent = formatearPorcentaje(factura1.porcentaje, 5);
-    if (monto1El) monto1El.textContent = formatearMonto(factura1.monto);
-    
-    if (porcentaje2El) porcentaje2El.textContent = formatearPorcentaje(factura2.porcentaje, 5);
-    if (monto2El) monto2El.textContent = formatearMonto(factura2.monto);
-    
-    if (porcentaje3El) porcentaje3El.textContent = formatearPorcentaje(factura3.porcentaje, 5);
-    if (monto3El) monto3El.textContent = formatearMonto(factura3.monto);
-    
-    // Actualizar totales
-    const totalPorcentaje = factura1.porcentaje + factura2.porcentaje + factura3.porcentaje;
-    const totalMonto = factura1.monto + factura2.monto + factura3.monto;
+    let totalPorcentaje = 0;
+    let totalMonto = 0;
+    for (let i = 1; i <= 4; i++) {
+        const porcentajeEl = document.getElementById('porcentaje-factura-' + i);
+        const montoEl = document.getElementById('monto-factura-' + i);
+
+        if (porcentajeEl) porcentajeEl.textContent = formatearPorcentaje(facturas[i].porcentaje, 5);
+        if (montoEl) montoEl.textContent = formatearMonto(facturas[i].monto);
+
+        totalPorcentaje += facturas[i].porcentaje;
+        totalMonto += facturas[i].monto;
+    }
     
     const totalPorcentajeEl = document.getElementById('totalPorcentajeFacturas');
     const totalMontoEl = document.getElementById('totalMontoFacturas');

@@ -47,6 +47,14 @@ $title = 'Editar Centro de Costo';
                             <div class="form-text">Nombre descriptivo del centro de costo</div>
                         </div>
 
+                        <!-- Código -->
+                        <div class="mb-3">
+                            <label for="codigo" class="form-label">Código</label>
+                            <input type="text" class="form-control" id="codigo" name="codigo" maxlength="10"
+                                   value="<?= View::e($centro->codigo ?? '') ?>">
+                            <div class="form-text">Código corto del centro de costo (ej. PA01, CR01). Opcional.</div>
+                        </div>
+
                         <!-- Factura -->
                         <div class="mb-3">
                             <label for="factura" class="form-label">Factura Asignada *</label>
@@ -54,6 +62,7 @@ $title = 'Editar Centro de Costo';
                                 <option value="1" <?= ($centro->factura ?? 1) == 1 ? 'selected' : '' ?>>Factura 1</option>
                                 <option value="2" <?= ($centro->factura ?? 1) == 2 ? 'selected' : '' ?>>Factura 2</option>
                                 <option value="3" <?= ($centro->factura ?? 1) == 3 ? 'selected' : '' ?>>Factura 3</option>
+                                <option value="4" <?= ($centro->factura ?? 1) == 4 ? 'selected' : '' ?>>Factura 4</option>
                             </select>
                             <div class="form-text">
                                 <i class="fas fa-info-circle me-1"></i>

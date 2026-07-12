@@ -1360,12 +1360,12 @@ class RequisicionService
                 $cuentaContableId = (!empty($dist['cuenta_contable_id']) && $dist['cuenta_contable_id'] !== '' && $dist['cuenta_contable_id'] !== '0') ? $dist['cuenta_contable_id'] : null;
                 $centroCostoId = (!empty($dist['centro_costo_id']) && $dist['centro_costo_id'] !== '' && $dist['centro_costo_id'] !== '0') ? $dist['centro_costo_id'] : null;
                 
-                // Procesar número de factura - asegurar que sea un entero válido (1, 2, o 3)
+                // Procesar número de factura - asegurar que sea un entero válido (1, 2, 3 o 4)
                 $facturaTipo = 1; // Default a factura 1
                 if (!empty($dist['factura']) && is_numeric($dist['factura'])) {
                     $facturaTipo = intval($dist['factura']);
-                    // Asegurar que esté en el rango válido (1-3)
-                    if ($facturaTipo < 1 || $facturaTipo > 3) {
+                    // Asegurar que esté en el rango válido (1-4)
+                    if ($facturaTipo < 1 || $facturaTipo > 4) {
                         $facturaTipo = 1;
                     }
                 }
@@ -1512,12 +1512,11 @@ class RequisicionService
             error_log("ordenId: $ordenId, montoTotal: $montoTotal, formaPago: $formaPago");
             error_log("Distribución recibida: " . json_encode($distribucion));
             
-            // Agrupar por tipo de factura
-            $facturas = [
-                1 => ['porcentaje' => 0, 'monto' => 0],
-                2 => ['porcentaje' => 0, 'monto' => 0],
-                3 => ['porcentaje' => 0, 'monto' => 0]
-            ];
+            // Agrupar por tipo de factura (rango válido 1-4)
+            $facturas = [];
+            for ($tipo = 1; $tipo <= 4; $tipo++) {
+                $facturas[$tipo] = ['porcentaje' => 0, 'monto' => 0];
+            }
 
             // Sumar las cantidades por factura
             foreach ($distribucion as $index => $dist) {

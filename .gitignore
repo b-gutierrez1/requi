@@ -260,3 +260,6 @@ nul
 bash.exe.stackdump
 tmp_describe.php
 .memsearch/
+
+# Backups de BD (datos sensibles - nunca subir)
+backups/

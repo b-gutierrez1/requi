@@ -269,7 +269,8 @@ $badge = EstadoHelper::getBadge($estadoReal);
                     $facturas = [
                         1 => ['porcentaje' => 0, 'monto' => 0],
                         2 => ['porcentaje' => 0, 'monto' => 0],
-                        3 => ['porcentaje' => 0, 'monto' => 0]
+                        3 => ['porcentaje' => 0, 'monto' => 0],
+                        4 => ['porcentaje' => 0, 'monto' => 0]
                     ];
                     
                     foreach ($distribucion as $dist) {
@@ -286,6 +287,9 @@ $badge = EstadoHelper::getBadge($estadoReal);
                         } elseif (preg_match('/Factura\s*3/i', $factura)) {
                             $facturas[3]['porcentaje'] += $porcentaje;
                             $facturas[3]['monto'] += $monto;
+                        } elseif (preg_match('/Factura\s*4/i', $factura)) {
+                            $facturas[4]['porcentaje'] += $porcentaje;
+                            $facturas[4]['monto'] += $monto;
                         }
                     }
                     
@@ -302,10 +306,10 @@ $badge = EstadoHelper::getBadge($estadoReal);
                     ?>
                     
                     <tr>
-                        <td rowspan="4" class="align-middle">
+                        <td rowspan="5" class="align-middle">
                             <strong><?= htmlspecialchars($formasPago[$formaPago] ?? $formaPago ?: 'N/A') ?></strong>
                         </td>
-                        <td rowspan="4" class="align-middle text-center">
+                        <td rowspan="5" class="align-middle text-center">
                             <strong><?= $anticipoTexto ?></strong>
                         </td>
                         <td><strong>Factura 1</strong></td>
@@ -322,10 +326,15 @@ $badge = EstadoHelper::getBadge($estadoReal);
                         <td class="text-end"><?= number_format($facturas[3]['porcentaje'], 2) ?>%</td>
                         <td class="text-end"><strong>Q <?= number_format($facturas[3]['monto'], 2) ?></strong></td>
                     </tr>
+                    <tr>
+                        <td><strong>Factura 4</strong></td>
+                        <td class="text-end"><?= number_format($facturas[4]['porcentaje'], 2) ?>%</td>
+                        <td class="text-end"><strong>Q <?= number_format($facturas[4]['monto'], 2) ?></strong></td>
+                    </tr>
                     <tr class="table-active">
                         <td><strong>TOTAL</strong></td>
-                        <td class="text-end"><strong><?= number_format($facturas[1]['porcentaje'] + $facturas[2]['porcentaje'] + $facturas[3]['porcentaje'], 2) ?>%</strong></td>
-                        <td class="text-end"><strong>Q <?= number_format($facturas[1]['monto'] + $facturas[2]['monto'] + $facturas[3]['monto'], 2) ?></strong></td>
+                        <td class="text-end"><strong><?= number_format($facturas[1]['porcentaje'] + $facturas[2]['porcentaje'] + $facturas[3]['porcentaje'] + $facturas[4]['porcentaje'], 2) ?>%</strong></td>
+                        <td class="text-end"><strong>Q <?= number_format($facturas[1]['monto'] + $facturas[2]['monto'] + $facturas[3]['monto'] + $facturas[4]['monto'], 2) ?></strong></td>
                     </tr>
                 </tbody>
             </table>

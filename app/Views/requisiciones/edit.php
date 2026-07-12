@@ -654,8 +654,8 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                     <tbody id="distribucionBody">
                         <?php
                             $totalPctInit    = 0;
-                            $facturasPctInit = [1 => 0.0, 2 => 0.0, 3 => 0.0];
-                            $facturasMtoInit = [1 => 0.0, 2 => 0.0, 3 => 0.0];
+                            $facturasPctInit = [1 => 0.0, 2 => 0.0, 3 => 0.0, 4 => 0.0];
+                            $facturasMtoInit = [1 => 0.0, 2 => 0.0, 3 => 0.0, 4 => 0.0];
                             $simInit = ($requisicion['orden']->moneda ?? 'GTQ') === 'USD' ? '$' : (($requisicion['orden']->moneda ?? 'GTQ') === 'EUR' ? '€' : 'Q');
                         ?>
                         <?php if (!empty($requisicion['distribucion'])): ?>
@@ -743,7 +743,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                     </td>
                                 </tr>
                                 <?php
-                                    $fnIdx = max(1, min(3, $facturaNumero));
+                                    $fnIdx = max(1, min(4, $facturaNumero));
                                     $totalPctInit               += floatval($dist['porcentaje'] ?? 0);
                                     $facturasPctInit[$fnIdx]    += floatval($dist['porcentaje'] ?? 0);
                                     $facturasMtoInit[$fnIdx]    += floatval($dist['cantidad']   ?? 0);
@@ -867,7 +867,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                     </thead>
                     <tbody>
                         <tr>
-                            <td rowspan="4">
+                            <td rowspan="5">
                                 <select class="form-select" id="forma_pago" name="forma_pago" required>
                                     <option value="">Seleccione...</option>
                                     <option value="contado" <?php echo ($requisicion['orden']->forma_pago ?? '') === 'contado' ? 'selected' : ''; ?>>Contado</option>
@@ -877,7 +877,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                     <option value="credito" <?php echo ($requisicion['orden']->forma_pago ?? '') === 'credito' ? 'selected' : ''; ?>>Crédito</option>
                                 </select>
                             </td>
-                            <td rowspan="4">
+                            <td rowspan="5">
                                 <select class="form-select" id="anticipo" name="anticipo" required>
                                     <option value="0" <?php echo ($requisicion['orden']->anticipo ?? 0) == 0 ? 'selected' : ''; ?>>No</option>
                                     <option value="1" <?php echo ($requisicion['orden']->anticipo ?? 0) == 1 ? 'selected' : ''; ?>>Sí</option>
@@ -896,6 +896,11 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                             <td><strong>Factura 3</strong></td>
                             <td><span class="porcentaje-factura" id="porcentaje-factura-3"><?php echo number_format($facturasPctInit[3], 2); ?>%</span></td>
                             <td><span class="monto-factura" id="monto-factura-3"><?php echo $simInit . ' ' . number_format($facturasMtoInit[3], 2); ?></span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Factura 4</strong></td>
+                            <td><span class="porcentaje-factura" id="porcentaje-factura-4"><?php echo number_format($facturasPctInit[4], 2); ?>%</span></td>
+                            <td><span class="monto-factura" id="monto-factura-4"><?php echo $simInit . ' ' . number_format($facturasMtoInit[4], 2); ?></span></td>
                         </tr>
                         <tr>
                             <td><strong>TOTAL</strong></td>
@@ -1248,10 +1253,13 @@ function formatearPorcentaje(porcentaje, decimales = 2) {
 }
 
 function actualizarFacturas() {
-    // Inicializar totales por factura
-    let factura1 = { porcentaje: 0, monto: 0 };
-    let factura2 = { porcentaje: 0, monto: 0 };
-    let factura3 = { porcentaje: 0, monto: 0 };
+    // Inicializar totales por factura (1 a 4)
+    const facturas = {
+        1: { porcentaje: 0, monto: 0 },
+        2: { porcentaje: 0, monto: 0 },
+        3: { porcentaje: 0, monto: 0 },
+        4: { porcentaje: 0, monto: 0 }
+    };
 
     // Recorrer todas las filas de distribución para sumar por factura
     const filas = document.querySelectorAll('.distribucion-row');
@@ -1277,7 +1285,7 @@ function actualizarFacturas() {
                 const selectedOption = centroCostoSelect.options[centroCostoSelect.selectedIndex];
                 if (selectedOption && selectedOption.value) {
                     const numCC = parseInt(selectedOption.dataset.factura);
-                    if (!isNaN(numCC) && numCC >= 1 && numCC <= 3) {
+                    if (!isNaN(numCC) && numCC >= 1 && numCC <= 4) {
                         numeroFactura = numCC;
                         fuente = 'dataset.factura=' + selectedOption.dataset.factura;
                     }
@@ -1287,7 +1295,7 @@ function actualizarFacturas() {
             // Fuente 2: campo hidden (puede estar más actualizado si el change handler ya corrió)
             if (facturaHidden && facturaHidden.value) {
                 const numHidden = parseInt(facturaHidden.value);
-                if (!isNaN(numHidden) && numHidden >= 1 && numHidden <= 3) {
+                if (!isNaN(numHidden) && numHidden >= 1 && numHidden <= 4) {
                     // Si el hidden tiene un valor diferente al dataset, preferir el hidden
                     // (fue actualizado explícitamente por actualizarFacturaDesdeCentro)
                     if (numHidden !== numeroFactura) {
@@ -1300,51 +1308,28 @@ function actualizarFacturas() {
 
             console.log('[actualizarFacturas] Fila', idx, '→ factura:', numeroFactura, '(' + fuente + ')', 'pct:', porcentaje, 'monto:', cantidad);
 
-            switch(numeroFactura) {
-                case 1:
-                    factura1.porcentaje += porcentaje;
-                    factura1.monto += cantidad;
-                    break;
-                case 2:
-                    factura2.porcentaje += porcentaje;
-                    factura2.monto += cantidad;
-                    break;
-                case 3:
-                    factura3.porcentaje += porcentaje;
-                    factura3.monto += cantidad;
-                    break;
+            if (facturas[numeroFactura]) {
+                facturas[numeroFactura].porcentaje += porcentaje;
+                facturas[numeroFactura].monto += cantidad;
             }
         }
     });
 
-    console.log('[actualizarFacturas] Resultado → F1:', factura1, 'F2:', factura2, 'F3:', factura3);
+    console.log('[actualizarFacturas] Resultado → F1:', facturas[1], 'F2:', facturas[2], 'F3:', facturas[3], 'F4:', facturas[4]);
 
-    // Actualizar la tabla de facturas
-    const porcentaje1El = document.getElementById('porcentaje-factura-1');
-    const monto1El = document.getElementById('monto-factura-1');
-    const porcentaje2El = document.getElementById('porcentaje-factura-2');
-    const monto2El = document.getElementById('monto-factura-2');
-    const porcentaje3El = document.getElementById('porcentaje-factura-3');
-    const monto3El = document.getElementById('monto-factura-3');
+    // Actualizar la tabla de facturas y acumular totales
+    let totalPorcentaje = 0;
+    let totalMonto = 0;
+    for (let i = 1; i <= 4; i++) {
+        const porcentajeEl = document.getElementById('porcentaje-factura-' + i);
+        const montoEl = document.getElementById('monto-factura-' + i);
 
-    console.log('[actualizarFacturas] Elementos DOM encontrados:', {
-        p1: !!porcentaje1El, m1: !!monto1El,
-        p2: !!porcentaje2El, m2: !!monto2El,
-        p3: !!porcentaje3El, m3: !!monto3El
-    });
+        if (porcentajeEl) porcentajeEl.textContent = formatearPorcentaje(facturas[i].porcentaje, 2);
+        if (montoEl) montoEl.textContent = formatearMonto(facturas[i].monto);
 
-    if (porcentaje1El) porcentaje1El.textContent = formatearPorcentaje(factura1.porcentaje, 2);
-    if (monto1El) monto1El.textContent = formatearMonto(factura1.monto);
-
-    if (porcentaje2El) porcentaje2El.textContent = formatearPorcentaje(factura2.porcentaje, 2);
-    if (monto2El) monto2El.textContent = formatearMonto(factura2.monto);
-
-    if (porcentaje3El) porcentaje3El.textContent = formatearPorcentaje(factura3.porcentaje, 2);
-    if (monto3El) monto3El.textContent = formatearMonto(factura3.monto);
-
-    // Actualizar totales
-    const totalPorcentaje = factura1.porcentaje + factura2.porcentaje + factura3.porcentaje;
-    const totalMonto = factura1.monto + factura2.monto + factura3.monto;
+        totalPorcentaje += facturas[i].porcentaje;
+        totalMonto += facturas[i].monto;
+    }
 
     const totalPorcentajeEl = document.getElementById('totalPorcentajeFacturas');
     const totalMontoEl = document.getElementById('totalMontoFacturas');
@@ -2661,7 +2646,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Función independiente que fuerza la actualización de la tabla de facturas
     function forzarActualizacionFacturas() {
-        var totales = {1: {pct: 0, monto: 0}, 2: {pct: 0, monto: 0}, 3: {pct: 0, monto: 0}};
+        var totales = {1: {pct: 0, monto: 0}, 2: {pct: 0, monto: 0}, 3: {pct: 0, monto: 0}, 4: {pct: 0, monto: 0}};
 
         document.querySelectorAll('.distribucion-row').forEach(function(row) {
             var pctInput = row.querySelector('.dist-porcentaje');
@@ -2677,7 +2662,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var facNum = 1;
             if (opt && opt.value && opt.dataset && opt.dataset.factura) {
                 var parsed = parseInt(opt.dataset.factura, 10);
-                if (parsed >= 1 && parsed <= 3) facNum = parsed;
+                if (parsed >= 1 && parsed <= 4) facNum = parsed;
             }
 
             totales[facNum].pct += pct;
@@ -2692,15 +2677,15 @@ document.addEventListener('DOMContentLoaded', function() {
             else if (monedaSel.value === 'EUR') simbolo = '€';
         }
 
-        for (var i = 1; i <= 3; i++) {
+        for (var i = 1; i <= 4; i++) {
             var pEl = document.getElementById('porcentaje-factura-' + i);
             var mEl = document.getElementById('monto-factura-' + i);
             if (pEl) pEl.textContent = totales[i].pct.toFixed(2) + '%';
             if (mEl) mEl.textContent = simbolo + ' ' + totales[i].monto.toFixed(2);
         }
 
-        var totalPct = totales[1].pct + totales[2].pct + totales[3].pct;
-        var totalMonto = totales[1].monto + totales[2].monto + totales[3].monto;
+        var totalPct = totales[1].pct + totales[2].pct + totales[3].pct + totales[4].pct;
+        var totalMonto = totales[1].monto + totales[2].monto + totales[3].monto + totales[4].monto;
         var tpEl = document.getElementById('totalPorcentajeFacturas');
         var tmEl = document.getElementById('totalMontoFacturas');
         if (tpEl) tpEl.textContent = (totalPct >= 99.9 && totalPct <= 100.1 ? 100 : totalPct).toFixed(2);

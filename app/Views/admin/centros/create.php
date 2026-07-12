@@ -45,6 +45,13 @@ $title = 'Nuevo Centro de Costo';
                             <div class="form-text">Nombre descriptivo del centro de costo</div>
                         </div>
 
+                        <!-- Código -->
+                        <div class="mb-3">
+                            <label for="codigo" class="form-label">Código</label>
+                            <input type="text" class="form-control" id="codigo" name="codigo" maxlength="10">
+                            <div class="form-text">Código corto del centro de costo (ej. PA01, CR01). Opcional.</div>
+                        </div>
+
                         <!-- Factura -->
                         <div class="mb-3">
                             <label for="factura" class="form-label">Factura Asignada *</label>
@@ -53,6 +60,7 @@ $title = 'Nuevo Centro de Costo';
                                 <option value="1">Factura 1</option>
                                 <option value="2">Factura 2</option>
                                 <option value="3">Factura 3</option>
+                                <option value="4">Factura 4</option>
                             </select>
                             <div class="form-text">
                                 <i class="fas fa-info-circle me-1"></i>

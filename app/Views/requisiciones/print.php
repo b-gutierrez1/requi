@@ -406,7 +406,6 @@ $border = '#c0c0c0';
             <tr>
                 <th>Cuenta Contable</th>
                 <th>Centro de Costo</th>
-                <th>Ubicación</th>
                 <th>Unidad de Negocio</th>
                 <th style="width:36px">%</th>
                 <th style="width:62px">Cantidad</th>
@@ -426,7 +425,6 @@ $border = '#c0c0c0';
             <tr>
                 <td><?= View::e($cuentaLabel) ?></td>
                 <td><?= $d ? View::e($d['centro_nombre'] ?? '') : '' ?></td>
-                <td><?= $d ? View::e($d['ubicacion_nombre'] ?? '') : '' ?></td>
                 <td><?= $d ? View::e($d['unidad_negocio_nombre'] ?? '') : '' ?></td>
                 <td class="tc"><?= $d ? number_format((float)$d['porcentaje'], 2) : '' ?></td>
                 <td class="tr"><?= $d ? number_format((float)$d['cantidad'], 2) : '' ?></td>
@@ -434,7 +432,7 @@ $border = '#c0c0c0';
             </tr>
             <?php endfor; ?>
             <tr class="tr-total">
-                <td colspan="4" style="text-align:right; padding-right:6px;">Total</td>
+                <td colspan="3" style="text-align:right; padding-right:6px;">Total</td>
                 <td class="tc"><?= number_format($totalDistPct, 2) ?>%</td>
                 <td class="tr"><?= number_format($totalDistMonto, 2) ?></td>
                 <td></td>

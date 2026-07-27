@@ -170,7 +170,6 @@ return [
         'historial_requisicion' => 'historial_requisicion',
         'recordatorios' => 'recordatorios',
         'facturas' => 'facturas',
-        'ubicacion' => 'ubicacion',
         'unidad_de_negocio' => 'unidad_de_negocio',
         'unidad_requirente' => 'unidad_requirente',
     ],

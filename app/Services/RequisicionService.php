@@ -399,7 +399,6 @@ class RequisicionService
                     'requisicion_id' => $ordenId,
                     'centro_costo_id' => $dist['centro_costo_id'],
                     'cuenta_contable_id' => $dist['cuenta_contable_id'],
-                    'ubicacion_id' => $dist['ubicacion_id'] ?? null,
                     'unidad_negocio_id' => $dist['unidad_negocio_id'] ?? null,
                     'porcentaje' => $dist['porcentaje'],
                     'cantidad' => $dist['cantidad']
@@ -1353,7 +1352,6 @@ class RequisicionService
                 }
                 
                 // Limpiar IDs vacíos
-                $ubicacionId = (!empty($dist['ubicacion_id']) && $dist['ubicacion_id'] !== '') ? $dist['ubicacion_id'] : null;
                 $unidadNegocioId = (!empty($dist['unidad_negocio_id']) && $dist['unidad_negocio_id'] !== '') ? $dist['unidad_negocio_id'] : null;
                 
                 // Limpiar y validar IDs de cuenta y centro
@@ -1373,7 +1371,6 @@ class RequisicionService
                 $distribucion[] = [
                     'cuenta_contable_id' => $cuentaContableId,
                     'centro_costo_id' => $centroCostoId,
-                    'ubicacion_id' => $ubicacionId,
                     'unidad_negocio_id' => $unidadNegocioId,
                     'porcentaje' => $porcentaje,
                     'cantidad' => $cantidad,
@@ -1464,14 +1461,12 @@ class RequisicionService
                 }
                 
                 // Limpiar valores vacíos y convertir a null
-                $ubicacionId = (!empty($dist['ubicacion_id']) && $dist['ubicacion_id'] !== '') ? $dist['ubicacion_id'] : null;
                 $unidadNegocioId = (!empty($dist['unidad_negocio_id']) && $dist['unidad_negocio_id'] !== '') ? $dist['unidad_negocio_id'] : null;
                 
                 $distribucionGasto = new DistribucionGasto([
                     'requisicion_id' => $ordenId,
                     'centro_costo_id' => $dist['centro_costo_id'],
                     'cuenta_contable_id' => $dist['cuenta_contable_id'],
-                    'ubicacion_id' => $ubicacionId,
                     'unidad_negocio_id' => $unidadNegocioId,
                     'porcentaje' => $dist['porcentaje'],
                     'cantidad' => $dist['cantidad'],

@@ -3,7 +3,7 @@
  * Modelo DistribucionGasto
  * 
  * Representa la distribución de gastos de una requisición entre
- * diferentes centros de costo, cuentas contables y ubicaciones.
+ * diferentes centros de costo y cuentas contables.
  * 
  * @package RequisicionesMVC\Models
  * @version 2.0
@@ -21,7 +21,6 @@ class DistribucionGasto extends Model
         'requisicion_id',
         'cuenta_contable_id',
         'centro_costo_id',
-        'ubicacion_id',
         'unidad_negocio_id',
         'porcentaje',
         'cantidad',
@@ -42,7 +41,7 @@ class DistribucionGasto extends Model
         foreach ($this->attributes as $key => $value) {
             if ($this->isFillable($key)) {
                 // Convertir strings vacíos a null para campos de ID
-                if (in_array($key, ['cuenta_contable_id', 'centro_costo_id', 'ubicacion_id', 'unidad_negocio_id']) && ($value === '' || $value === '0')) {
+                if (in_array($key, ['cuenta_contable_id', 'centro_costo_id', 'unidad_negocio_id']) && ($value === '' || $value === '0')) {
                     $fillable[$key] = null;
                 } else {
                     $fillable[$key] = $value;
@@ -96,24 +95,6 @@ class DistribucionGasto extends Model
     }
 
     /**
-     * Obtiene la ubicación asociada
-     * 
-     * @return array|null
-     */
-    public function ubicacion()
-    {
-        if (!isset($this->attributes['ubicacion_id'])) {
-            return null;
-        }
-
-        $sql = "SELECT * FROM ubicacion WHERE id = ? LIMIT 1";
-        $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$this->attributes['ubicacion_id']]);
-        
-        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
-    }
-
-    /**
      * Obtiene la unidad de negocio asociada
      * 
      * @return array|null
@@ -156,14 +137,12 @@ class DistribucionGasto extends Model
                        cc.nombre as centro_nombre,
                        cu.codigo as cuenta_contable_codigo,
                        cu.descripcion as cuenta_nombre,
-                       u.nombre as ubicacion_nombre,
                        COALESCE(un.nombre, un_cc.nombre) as unidad_negocio_nombre,
                        COALESCE(dg.unidad_negocio_id, cc.unidad_negocio_id) as unidad_negocio_id,
                        (dg.porcentaje * r.monto_total / 100) as monto
                    FROM " . static::$table . " dg
                    LEFT JOIN centro_de_costo cc ON dg.centro_costo_id = cc.id
                    LEFT JOIN cuenta_contable cu ON dg.cuenta_contable_id = cu.id
-                   LEFT JOIN ubicacion u ON dg.ubicacion_id = u.id
                    LEFT JOIN unidad_de_negocio un ON dg.unidad_negocio_id = un.id
                    LEFT JOIN unidad_de_negocio un_cc ON cc.unidad_negocio_id = un_cc.id
                    LEFT JOIN requisiciones r ON dg.requisicion_id = r.id
@@ -234,11 +213,6 @@ class DistribucionGasto extends Model
         // Validar centro de costo
         if (!isset($data['centro_costo_id']) || empty($data['centro_costo_id'])) {
             $errores[] = 'El centro de costo es requerido';
-        }
-
-        // Validar ubicación
-        if (!isset($data['ubicacion_id']) || empty($data['ubicacion_id'])) {
-            $errores[] = 'La ubicación es requerida';
         }
 
         // Validar porcentaje

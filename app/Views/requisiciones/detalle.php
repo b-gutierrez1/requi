@@ -357,7 +357,6 @@ View::startSection('content');
                     <tr>
                         <th>Cuenta Contable</th>
                         <th>Centro de Costo</th>
-                        <th>Ubicación</th>
                         <th>Unidad de Negocio</th>
                         <th class="text-center">Porcentaje</th>
                         <th class="text-end">Cantidad</th>
@@ -369,7 +368,6 @@ View::startSection('content');
                     <tr>
                         <td><?php echo View::e($dist['cuenta_contable'] ?? ''); ?></td>
                         <td><?php echo View::e($dist['centro_costo'] ?? ''); ?></td>
-                        <td><?php echo View::e($dist['ubicacion'] ?? 'N/A'); ?></td>
                         <td><?php echo View::e($dist['unidad_negocio'] ?? 'N/A'); ?></td>
                         <td class="text-center"><?php echo number_format($dist['porcentaje'] ?? 0, 2); ?>%</td>
                         <td class="text-end"><?php echo View::money($dist['cantidad'] ?? 0, $moneda); ?></td>

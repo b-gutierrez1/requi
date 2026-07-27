@@ -752,7 +752,6 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                         <tr>
                             <th>Cuenta Contable</th>
                             <th>Centro de Costo</th>
-                            <th>Ubicación</th>
                             <th>Unidad de Negocio</th>
                             <th>Porcentaje</th>
                             <th>Cantidad</th>
@@ -795,22 +794,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                         ?>
                             </td>
                                     <td>
-                                        <?php 
-                                        $ubicacionId = getData($dist, 'ubicacion_id');
-                                        $ubicacionNombre = getData($dist, 'ubicacion_nombre', '');
-                                        if (empty($ubicacionNombre) && !empty($ubicaciones) && $ubicacionId) {
-                                            foreach ($ubicaciones as $ubicacion) {
-                                                if ($ubicacion['id'] == $ubicacionId) {
-                                                    $ubicacionNombre = $ubicacion['nombre'] ?? $ubicacion['descripcion'] ?? 'Sin nombre';
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        echo View::e($ubicacionNombre ?: 'N/A');
-                                        ?>
-                                    </td>
-                                    <td>
-                                        <?php 
+                                        <?php
                                         $unidadId = getData($dist, 'unidad_negocio_id');
                                         $unidadNombre = getData($dist, 'unidad_negocio_nombre', '');
                                         if (empty($unidadNombre) && !empty($unidades_negocio) && $unidadId) {
@@ -846,7 +830,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="8" class="text-center text-muted">
+                                <td colspan="7" class="text-center text-muted">
                                     <em>No hay distribución registrada</em>
                                 </td>
                             </tr>

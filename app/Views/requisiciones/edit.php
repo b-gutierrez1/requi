@@ -643,7 +643,6 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                             <tr>
                             <th>Cuenta Contable</th>
                             <th>Centro de Costo</th>
-                            <th>Ubicación</th>
                             <th>Unidad de Negocio</th>
                             <th>Porcentaje</th>
                             <th>Cantidad</th>
@@ -694,19 +693,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                         </select>
                                     </td>
                                     <td>
-                                        <select class="form-select" name="distribucion[<?php echo $index; ?>][ubicacion_id]" required>
-                                            <option value="">Seleccione...</option>
-                                            <?php if (!empty($ubicaciones)): ?>
-                                                <?php foreach ($ubicaciones as $ubicacion): ?>
-                                                    <option value="<?= $ubicacion['id'] ?>" <?php echo ($ubicacion['id'] == ($dist['ubicacion_id'] ?? '')) ? 'selected' : ''; ?>>
-                                                        <?= View::e($ubicacion['nombre'] ?? $ubicacion['descripcion'] ?? 'Sin nombre') ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            <?php endif; ?>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <input type="text" class="form-control" name="distribucion[<?php echo $index; ?>][unidad_negocio_display]" 
+                                        <input type="text" class="form-control" name="distribucion[<?php echo $index; ?>][unidad_negocio_display]"
                                                value="<?php echo View::e($dist['unidad_negocio_nombre'] ?? ''); ?>" 
                                                readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
                                         <input type="hidden" name="distribucion[<?php echo $index; ?>][unidad_negocio_id]" value="<?php echo $dist['unidad_negocio_id'] ?? ''; ?>">
@@ -776,18 +763,6 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                                         data-unidad-negocio-nombre="<?= View::e($centro['unidad_negocio_nombre'] ?? 'UNIDAD DE NEGOCIO GENERAL') ?>"
                                                         data-factura="<?= $centro['factura'] ?? 1 ?>">
                                                     <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                        <?php endif; ?>
-                                    </select>
-                                </td>
-                                <td>
-                                    <select class="form-select" name="distribucion[0][ubicacion_id]" required>
-                                        <option value="">Seleccione...</option>
-                                        <?php if (!empty($ubicaciones)): ?>
-                                            <?php foreach ($ubicaciones as $ubicacion): ?>
-                                                <option value="<?= $ubicacion['id'] ?>">
-                                                    <?= View::e($ubicacion['nombre'] ?? $ubicacion['descripcion'] ?? 'Sin nombre') ?>
                                             </option>
                                         <?php endforeach; ?>
                                         <?php endif; ?>
@@ -1106,18 +1081,6 @@ window.agregarDistribucion = function() {
                                 data-unidad-negocio-nombre="<?= View::e($centro['unidad_negocio_nombre'] ?? 'UNIDAD DE NEGOCIO GENERAL') ?>"
                                 data-factura="<?= $centro['factura'] ?? 1 ?>">
                             <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
-                        </option>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </select>
-        </td>
-        <td>
-            <select class="form-select" name="distribucion[${contadorDistribucion}][ubicacion_id]" required>
-                <option value="">Seleccione...</option>
-                <?php if (!empty($ubicaciones)): ?>
-                    <?php foreach ($ubicaciones as $ubicacion): ?>
-                        <option value="<?= $ubicacion['id'] ?>">
-                            <?= View::e($ubicacion['nombre'] ?? $ubicacion['descripcion'] ?? 'Sin nombre') ?>
                         </option>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -1990,18 +1953,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                     data-factura="<?= $centro['factura'] ?? 1 ?>">
                                 <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
                         </option>
-                <?php endforeach; ?>
-                <?php endif; ?>
-            </select>
-        </td>
-        <td>
-                <select class="form-select" name="distribucion[${contadorDistribucion}][ubicacion_id]" required>
-                <option value="">Seleccione...</option>
-                    <?php if (!empty($ubicaciones)): ?>
-                        <?php foreach ($ubicaciones as $ubicacion): ?>
-                            <option value="<?= $ubicacion['id'] ?>">
-                                <?= View::e($ubicacion['nombre'] ?? $ubicacion['descripcion'] ?? 'Sin nombre') ?>
-                    </option>
                 <?php endforeach; ?>
                 <?php endif; ?>
             </select>

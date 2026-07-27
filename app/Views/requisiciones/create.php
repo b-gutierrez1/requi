@@ -593,7 +593,6 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                         <tr>
                             <th>Cuenta Contable</th>
                             <th>Centro de Costo</th>
-                            <th>Ubicación</th>
                             <th>Unidad de Negocio</th>
                             <th>Porcentaje</th>
                             <th>Cantidad</th>
@@ -627,16 +626,6 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                                     data-unidad-negocio-nombre="<?= View::e($centro['unidad_negocio_nombre'] ?? 'UNIDAD DE NEGOCIO GENERAL') ?>"
                                                     data-factura="<?= $centro['factura'] ?? 1 ?>">
                                                 <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </select></td>
-                            <td><select class="form-select" name="distribucion[0][ubicacion_id]" required>
-                                    <option value="">Seleccione...</option>
-                                    <?php if (!empty($ubicaciones)): ?>
-                                        <?php foreach ($ubicaciones as $ubicacion): ?>
-                                            <option value="<?= $ubicacion['id'] ?>">
-                                                <?= View::e($ubicacion['nombre'] ?? $ubicacion['descripcion'] ?? 'Sin nombre') ?>
                                             </option>
                                         <?php endforeach; ?>
                                     <?php endif; ?>
@@ -1054,18 +1043,6 @@ window.agregarDistribucion = function() {
                                 data-unidad-negocio-nombre="<?= View::e($centro['unidad_negocio_nombre'] ?? 'UNIDAD DE NEGOCIO GENERAL') ?>"
                                 data-factura="<?= $centro['factura'] ?? 1 ?>">
                             <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
-                        </option>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </select>
-        </td>
-        <td>
-            <select class="form-select" name="distribucion[${contadorDistribucion}][ubicacion_id]" required>
-                <option value="">Seleccione...</option>
-                <?php if (!empty($ubicaciones)): ?>
-                    <?php foreach ($ubicaciones as $ubicacion): ?>
-                        <option value="<?= $ubicacion['id'] ?>">
-                            <?= View::e($ubicacion['nombre'] ?? $ubicacion['descripcion'] ?? 'Sin nombre') ?>
                         </option>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -1913,18 +1890,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 </select>
             </td>
             <td>
-                <select class="form-select" name="distribucion[${contadorDistribucion}][ubicacion_id]" required>
-                    <option value="">Seleccione...</option>
-                    <?php if (!empty($ubicaciones)): ?>
-                        <?php foreach ($ubicaciones as $ubicacion): ?>
-                            <option value="<?= $ubicacion['id'] ?>">
-                                <?= View::e($ubicacion['nombre'] ?? $ubicacion['descripcion'] ?? 'Sin nombre') ?>
-                            </option>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </select>
-            </td>
-            <td>
                 <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
                 <input type="hidden" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" value="">
             </td>
@@ -2537,41 +2502,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return {
                 valid: false,
                 message: `Los porcentajes deben sumar 100%. Actualmente suman ${totalPorcentaje.toFixed(2)}%`
-            };
-        }
-        
-        // 7. Validar ubicaciones en distribuciones
-        const distribucionesValidar = {};
-        for (let [key, value] of formData.entries()) {
-            const matchUbicacion = key.match(/^distribucion\[(\d+)\]\[ubicacion_id\]$/);
-            const matchCentroValidar = key.match(/^distribucion\[(\d+)\]\[centro_costo_id\]$/);
-            
-            if (matchUbicacion) {
-                const idx = matchUbicacion[1];
-                if (!distribucionesValidar[idx]) distribucionesValidar[idx] = {};
-                distribucionesValidar[idx].ubicacion_id = value;
-            }
-            
-            if (matchCentroValidar && value && value !== '') {
-                const idx = matchCentroValidar[1];
-                if (!distribucionesValidar[idx]) distribucionesValidar[idx] = {};
-                distribucionesValidar[idx].tiene_centro = true;
-            }
-        }
-        
-        // Verificar ubicaciones en distribuciones activas
-        const distribucionesSinUbicacion = [];
-        for (const [idx, dist] of Object.entries(distribucionesValidar)) {
-            if (dist.tiene_centro && (!dist.ubicacion_id || dist.ubicacion_id === '')) {
-                distribucionesSinUbicacion.push(parseInt(idx) + 1);
-            }
-        }
-        
-        if (distribucionesSinUbicacion.length > 0) {
-            const filas = distribucionesSinUbicacion.join(', ');
-            return {
-                valid: false,
-                message: `Debe seleccionar una ubicación para ${distribucionesSinUbicacion.length > 1 ? 'las filas' : 'la fila'} ${filas} de la distribución`
             };
         }
         

@@ -22,7 +22,6 @@ use App\Models\Requisicion;
 use App\Models\AutorizacionFlujo;
 use App\Models\CentroCosto;
 use App\Models\CuentaContable;
-use App\Models\Ubicacion;
 use App\Models\UnidadNegocio;
 
 class RequisicionController extends Controller
@@ -201,7 +200,6 @@ class RequisicionController extends Controller
             'autorizaciones' => $autorizacionesPendientes,
             'centros_costo' => $catalogos['centros_costo'] ?? [],
             'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
-            'ubicaciones' => $catalogos['ubicaciones'] ?? [],
             'unidades_negocio' => $catalogos['unidades_negocio'] ?? [],
             'unidades_requirentes' => \App\Models\UnidadRequirente::activas(),
             'title' => 'Requisición #' . $id,
@@ -226,7 +224,6 @@ class RequisicionController extends Controller
         View::render('requisiciones/create', [
             'centros_costo' => $catalogos['centros_costo'] ?? [],
             'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
-            'ubicaciones' => $catalogos['ubicaciones'] ?? [],
             'unidades_negocio' => $catalogos['unidades_negocio'] ?? [],
             'unidades_requirentes' => \App\Models\UnidadRequirente::activas(),
             'title' => 'Nueva Requisición'
@@ -501,7 +498,6 @@ class RequisicionController extends Controller
             'requisicion' => $requisicion,
             'centros_costo' => $catalogos['centros_costo'] ?? [],
             'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
-            'ubicaciones' => $catalogos['ubicaciones'] ?? [],
             'unidades_negocio' => $catalogos['unidades_negocio'] ?? [],
             'unidades_requirentes' => \App\Models\UnidadRequirente::activas(),
             'title' => 'Editar Requisición #' . $id
@@ -1011,7 +1007,6 @@ class RequisicionController extends Controller
         return [
             'centros_costo' => CentroCosto::activos(),
             'cuentas_contables' => CuentaContable::activas(),
-            'ubicaciones' => Ubicacion::activas(),
             'unidades_negocio' => UnidadNegocio::activas(),
             'formas_pago' => [
                 'efectivo' => 'Efectivo',

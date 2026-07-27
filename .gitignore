@@ -263,3 +263,8 @@ tmp_describe.php
 
 # Backups de BD (datos sensibles - nunca subir)
 backups/
+
+# Scripts de migracion de estructura SI se versionan (excepcion a *.sql)
+!scripts/migrations/*.sql
+# ...salvo el de cuentas contables: contiene numeros de cuenta bancaria del IGA
+scripts/migrations/*cuentas_inserts.sql

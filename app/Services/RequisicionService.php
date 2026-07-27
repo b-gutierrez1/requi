@@ -223,7 +223,7 @@ class RequisicionService
         }
 
         // Validar monto mínimo según moneda
-        $minimosMoneda = ['GTQ' => 10000.00, 'USD' => 1311.00];
+        $minimosMoneda = ['GTQ' => 1000.00, 'USD' => 131.10];
         $monedaVal     = $data['moneda'] ?? 'GTQ';
         $montoTotal    = (float)($data['monto_total'] ?? 0);
         if (isset($minimosMoneda[$monedaVal]) && $montoTotal < $minimosMoneda[$monedaVal]) {
@@ -822,7 +822,7 @@ class RequisicionService
             $datosProcesados = $this->procesarDatosFormulario($data);
 
             // Validar monto mínimo según moneda
-            $minimosMoneda = ['GTQ' => 10000.00, 'USD' => 1311.00];
+            $minimosMoneda = ['GTQ' => 1000.00, 'USD' => 131.10];
             $monedaVal     = $datosProcesados['moneda'] ?? 'GTQ';
             $montoTotal    = (float)($datosProcesados['monto_total'] ?? 0);
             if (isset($minimosMoneda[$monedaVal]) && $montoTotal < $minimosMoneda[$monedaVal]) {

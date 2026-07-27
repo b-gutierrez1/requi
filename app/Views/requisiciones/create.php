@@ -971,7 +971,7 @@ function actualizarAvisoMontoMinimo(total) {
     const aviso   = document.getElementById('monto-minimo-aviso');
     if (!aviso) return;
     const moneda  = document.getElementById('moneda')?.value || 'GTQ';
-    const minimos = { GTQ: 10000, USD: 1311 };
+    const minimos = { GTQ: 1000, USD: 131.10 };
     const minimo  = minimos[moneda];
     if (minimo === undefined) { aviso.style.display = 'none'; return; }
     const simbolo = moneda === 'USD' ? '$' : 'Q';
@@ -2576,7 +2576,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // 5. Validar monto mínimo según moneda
-        const montoMinimos = { GTQ: 10000, USD: 1311 };
+        const montoMinimos = { GTQ: 1000, USD: 131.10 };
         const monedaActual = document.getElementById('moneda')?.value || 'GTQ';
         const totalActual  = parseFloat(document.getElementById('total_general')?.value) || 0;
         const minimoReq    = montoMinimos[monedaActual];

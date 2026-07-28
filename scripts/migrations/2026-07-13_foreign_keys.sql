@@ -1,43 +1,30 @@
 -- ============================================================================
--- Relaciones reales (FOREIGN KEYS) — 2026-07-13
+-- Relaciones reales (FOREIGN KEYS) — 2026-07-13, aplicado 2026-07-28
 --
 -- Antes de esto la BD solo tenia 3 FKs; el resto de relaciones eran logicas
 -- (por convencion de nombre), sin proteccion de integridad. Eso permitio que
--- quedaran filas huerfanas.
+-- quedaran filas huerfanas: 14 facturas apuntaban a requisiciones borradas
+-- 47-58 mientras requisiciones.AUTO_INCREMENT estaba en 47, asi que la
+-- siguiente requisicion habria heredado facturas fantasma.
 --
--- BUG QUE ESTO CORRIGE: habia 14 facturas apuntando a requisiciones 47-58 que
--- ya no existen, y requisiciones.AUTO_INCREMENT esta en 47 — la proxima
--- requisicion creada habria heredado facturas fantasma de marzo.
+-- En el entorno local ese historico se limpio (ver
+-- backups/bd_prueba_antes_limpiar_requisiciones_20260728.sql). En PRODUCCION,
+-- donde si hay datos vivos, hay que limpiar los huerfanos ANTES de correr
+-- este script o los ALTER fallaran con errno 150. Consulta para detectarlos:
 --
--- Backup previo: backups/bd_prueba_pre_fks_20260713.sql
--- Los huerfanos se copian a tablas zz_*_huerfanos_20260713 antes de borrarlos.
+--   SELECT f.* FROM facturas f
+--   LEFT JOIN requisiciones r ON r.id = f.requisicion_id WHERE r.id IS NULL;
+--
+--   SELECT acc.* FROM autorizador_centro_costo acc
+--   LEFT JOIN autorizadores a ON a.id = acc.autorizador_id WHERE a.id IS NULL;
+--
+-- Respaldar esas filas antes de borrarlas.
 -- ============================================================================
 
 USE bd_prueba;
 
 -- ---------------------------------------------------------------------------
--- 1. Respaldo y limpieza de huerfanos (unico paso destructivo, reversible)
--- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS zz_facturas_huerfanas_20260713 AS
-SELECT f.* FROM facturas f
-LEFT JOIN requisiciones r ON r.id = f.requisicion_id
-WHERE r.id IS NULL;
-
-CREATE TABLE IF NOT EXISTS zz_acc_huerfanos_20260713 AS
-SELECT acc.* FROM autorizador_centro_costo acc
-LEFT JOIN autorizadores a ON a.id = acc.autorizador_id
-WHERE a.id IS NULL;
-
-DELETE f FROM facturas f
-LEFT JOIN requisiciones r ON r.id = f.requisicion_id
-WHERE r.id IS NULL;
-
-DELETE acc FROM autorizador_centro_costo acc
-LEFT JOIN autorizadores a ON a.id = acc.autorizador_id
-WHERE a.id IS NULL;
-
--- ---------------------------------------------------------------------------
--- 2. Hijos de una requisicion: CASCADE
+-- 1. Hijos de una requisicion: CASCADE
 --    Si se borra la requisicion, se va todo su detalle con ella.
 -- ---------------------------------------------------------------------------
 ALTER TABLE detalle_items
@@ -73,7 +60,7 @@ ALTER TABLE aprobaciones
   REFERENCES requisiciones(id) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- ---------------------------------------------------------------------------
--- 3. Referencias a catalogos: RESTRICT
+-- 2. Referencias a catalogos: RESTRICT
 --    Un catalogo en uso no se puede borrar; hay que darlo de baja (activo=0).
 -- ---------------------------------------------------------------------------
 ALTER TABLE centro_de_costo
@@ -98,17 +85,14 @@ ALTER TABLE unidad_requirente
   ADD CONSTRAINT fk_unidad_req_centro FOREIGN KEY (centro_costo_id)
   REFERENCES centro_de_costo(id) ON DELETE RESTRICT ON UPDATE CASCADE;
 
-ALTER TABLE persona_autorizada
-  ADD CONSTRAINT fk_persona_aut_centro FOREIGN KEY (centro_costo_id)
-  REFERENCES centro_de_costo(id) ON DELETE RESTRICT ON UPDATE CASCADE;
+-- persona_autorizada es una VISTA, no una tabla: no admite FK.
 
 ALTER TABLE requisiciones
   ADD CONSTRAINT fk_requisiciones_usuario FOREIGN KEY (usuario_id)
   REFERENCES usuarios(id) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- ---------------------------------------------------------------------------
--- 4. Configuracion de autorizadores: CASCADE
---    Si se borra un autorizador, sus asignaciones dejan de tener sentido.
+-- 3. Configuracion de autorizadores
 -- ---------------------------------------------------------------------------
 ALTER TABLE autorizador_centro_costo
   ADD CONSTRAINT fk_acc_autorizador FOREIGN KEY (autorizador_id)
@@ -127,4 +111,4 @@ ALTER TABLE autorizador_cuenta_exclusiones
   REFERENCES centro_de_costo(id) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- Nota: distribucion_gasto.ubicacion_id NO recibe FK — la entidad ubicacion
--- se esta retirando del sistema (se conserva solo el historico).
+-- se esta retirando del sistema (se conserva solo la columna y su historico).

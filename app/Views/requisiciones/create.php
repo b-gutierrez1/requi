@@ -617,6 +617,11 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                     <div class="cuenta-contable-suggestions"></div>
                                 </div>
                             </td>
+                            <!-- Nota: la etiqueta "Centro de Costo" muestra la unidad_negocio (grupo) y "Unidad de Negocio" el centro_costo (detalle): el formato oficial usa estos terminos al reves que la BD. -->
+                            <td>
+                                <input type="text" class="form-control" name="distribucion[0][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
+                                <input type="hidden" name="distribucion[0][unidad_negocio_id]" value="">
+                            </td>
                             <td><select class="form-select" name="distribucion[0][centro_costo_id]" required>
                                     <option value="">Seleccione...</option>
                                     <?php if (!empty($centros_costo)): ?>
@@ -630,10 +635,6 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                         <?php endforeach; ?>
                                     <?php endif; ?>
                                 </select></td>
-                            <td>
-                                <input type="text" class="form-control" name="distribucion[0][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
-                                <input type="hidden" name="distribucion[0][unidad_negocio_id]" value="">
-                            </td>
                             <td><input type="number" class="form-control dist-porcentaje" name="distribucion[0][porcentaje]" min="0" max="100" step="0.00001" value="100" required></td>
                             <td><input type="number" class="form-control dist-cantidad" name="distribucion[0][cantidad]" readonly></td>
                             <td>
@@ -1034,6 +1035,10 @@ window.agregarDistribucion = function() {
             </div>
         </td>
         <td>
+            <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
+            <input type="hidden" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" value="">
+        </td>
+        <td>
             <select class="form-select" name="distribucion[${contadorDistribucion}][centro_costo_id]" required>
                 <option value="">Seleccione...</option>
                 <?php if (!empty($centros_costo)): ?>
@@ -1047,10 +1052,6 @@ window.agregarDistribucion = function() {
                     <?php endforeach; ?>
                 <?php endif; ?>
             </select>
-        </td>
-        <td>
-            <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
-            <input type="hidden" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" value="">
         </td>
         <td><input type="number" class="form-control dist-porcentaje" name="distribucion[${contadorDistribucion}][porcentaje]" min="0" max="100" step="0.00001" required></td>
         <td><input type="number" class="form-control dist-cantidad" name="distribucion[${contadorDistribucion}][cantidad]" readonly></td>
@@ -1875,6 +1876,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </td>
             <td>
+                <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
+                <input type="hidden" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" value="">
+            </td>
+            <td>
                 <select class="form-select" name="distribucion[${contadorDistribucion}][centro_costo_id]" required>
                     <option value="">Seleccione...</option>
                     <?php if (!empty($centros_costo)): ?>
@@ -1888,10 +1893,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </select>
-            </td>
-            <td>
-                <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
-                <input type="hidden" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" value="">
             </td>
             <td><input type="number" class="form-control dist-porcentaje" name="distribucion[${contadorDistribucion}][porcentaje]" min="0" max="100" step="0.00001" required></td>
             <td><input type="number" class="form-control dist-cantidad" name="distribucion[${contadorDistribucion}][cantidad]" readonly></td>

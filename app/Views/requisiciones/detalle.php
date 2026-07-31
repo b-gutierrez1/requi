@@ -351,6 +351,7 @@ View::startSection('content');
             DISTRIBUCIÓN DE GASTO
         </div>
         
+        <!-- Nota: "Centro de Costo" muestra la unidad_negocio (grupo) y "Unidad de Negocio" el centro_costo (detalle): el formato oficial usa estos terminos al reves que la BD. -->
         <div class="table-responsive">
             <table class="table table-bordered">
                 <thead class="table-dark-custom">
@@ -367,8 +368,8 @@ View::startSection('content');
                     <?php foreach ($distribucion as $dist): ?>
                     <tr>
                         <td><?php echo View::e($dist['cuenta_contable'] ?? ''); ?></td>
-                        <td><?php echo View::e($dist['centro_costo'] ?? ''); ?></td>
                         <td><?php echo View::e($dist['unidad_negocio'] ?? 'N/A'); ?></td>
+                        <td><?php echo View::e($dist['centro_costo'] ?? ''); ?></td>
                         <td class="text-center"><?php echo number_format($dist['porcentaje'] ?? 0, 2); ?>%</td>
                         <td class="text-end"><?php echo View::money($dist['cantidad'] ?? 0, $moneda); ?></td>
                         <td class="text-center"><?php echo View::e($dist['factura'] ?? 'N/A'); ?></td>

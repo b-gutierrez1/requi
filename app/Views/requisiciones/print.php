@@ -401,6 +401,7 @@ $border = '#c0c0c0';
 
     <!-- ═══ DISTRIBUCION ═══ -->
     <div class="sec-hdr" style="margin-top:5px;">Distribución del Gasto</div>
+    <!-- Nota: "Centro de Costo" muestra la unidad_negocio (grupo) y "Unidad de Negocio" el centro_costo (detalle): el formato oficial usa estos terminos al reves que la BD. -->
     <table class="dt" style="margin-top:1px;">
         <thead>
             <tr>
@@ -424,8 +425,8 @@ $border = '#c0c0c0';
             ?>
             <tr>
                 <td><?= View::e($cuentaLabel) ?></td>
-                <td><?= $d ? View::e($d['centro_nombre'] ?? '') : '' ?></td>
                 <td><?= $d ? View::e($d['unidad_negocio_nombre'] ?? '') : '' ?></td>
+                <td><?= $d ? View::e($d['centro_nombre'] ?? '') : '' ?></td>
                 <td class="tc"><?= $d ? number_format((float)$d['porcentaje'], 2) : '' ?></td>
                 <td class="tr"><?= $d ? number_format((float)$d['cantidad'], 2) : '' ?></td>
                 <td class="tc"><?= $d ? View::e($d['factura'] ?? '') : '' ?></td>

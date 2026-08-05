@@ -746,7 +746,6 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                 DISTRIBUCIÓN DE GASTO
             </div>
             
-            <!-- Nota: "Centro de Costo" muestra la unidad_negocio (grupo) y "Unidad de Negocio" el centro_costo (detalle): el formato oficial usa estos terminos al reves que la BD. -->
             <div class="table-responsive">
                 <table class="table table-bordered form-table" id="tablaDistribucion">
                     <thead class="table-dark-custom">
@@ -780,6 +779,21 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                         ?>
                             </td>
                                     <td>
+                                        <?php 
+                                        $centroId = getData($dist, 'centro_costo_id');
+                                        $centroNombre = getData($dist, 'centro_nombre', '');
+                                        if (empty($centroNombre) && !empty($centros_costo) && $centroId) {
+                                            foreach ($centros_costo as $centro) {
+                                                if ($centro->id == $centroId) {
+                                                    $centroNombre = $centro->nombre ?? $centro->descripcion ?? 'Sin nombre';
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        echo View::e($centroNombre ?: 'N/A');
+                                        ?>
+                            </td>
+                                    <td>
                                         <?php
                                         $unidadId = getData($dist, 'unidad_negocio_id');
                                         $unidadNombre = getData($dist, 'unidad_negocio_nombre', '');
@@ -794,21 +808,6 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                         echo View::e($unidadNombre ?: 'N/A');
                                         ?>
                                     </td>
-                                    <td>
-                                        <?php
-                                        $centroId = getData($dist, 'centro_costo_id');
-                                        $centroNombre = getData($dist, 'centro_nombre', '');
-                                        if (empty($centroNombre) && !empty($centros_costo) && $centroId) {
-                                            foreach ($centros_costo as $centro) {
-                                                if ($centro->id == $centroId) {
-                                                    $centroNombre = $centro->nombre ?? $centro->descripcion ?? 'Sin nombre';
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        echo View::e($centroNombre ?: 'N/A');
-                                        ?>
-                            </td>
                                     <td class="text-center">
                                         <?php echo number_format(getData($dist, 'porcentaje', 0), 2); ?>%
                                     </td>

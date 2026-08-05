@@ -657,7 +657,6 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                             $facturasMtoInit = [1 => 0.0, 2 => 0.0, 3 => 0.0, 4 => 0.0];
                             $simInit = ($requisicion['orden']->moneda ?? 'GTQ') === 'USD' ? '$' : (($requisicion['orden']->moneda ?? 'GTQ') === 'EUR' ? '€' : 'Q');
                         ?>
-                        <!-- Nota: la etiqueta "Centro de Costo" muestra la unidad_negocio (grupo) y "Unidad de Negocio" el centro_costo (detalle): el formato oficial usa estos terminos al reves que la BD. -->
                         <?php if (!empty($requisicion['distribucion'])): ?>
                             <?php foreach ($requisicion['distribucion'] as $index => $dist): ?>
                                 <tr class="distribucion-row">
@@ -679,12 +678,6 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                         </div>
                                     </td>
                                     <td>
-                                        <input type="text" class="form-control" name="distribucion[<?php echo $index; ?>][unidad_negocio_display]"
-                                               value="<?php echo View::e($dist['unidad_negocio_nombre'] ?? ''); ?>"
-                                               readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
-                                        <input type="hidden" name="distribucion[<?php echo $index; ?>][unidad_negocio_id]" value="<?php echo $dist['unidad_negocio_id'] ?? ''; ?>">
-                                    </td>
-                                    <td>
                                         <select class="form-select" name="distribucion[<?php echo $index; ?>][centro_costo_id]" required>
                                             <option value="">Seleccione...</option>
                                             <?php if (!empty($centros_costo)): ?>
@@ -698,6 +691,12 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                                 <?php endforeach; ?>
                                             <?php endif; ?>
                                         </select>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control" name="distribucion[<?php echo $index; ?>][unidad_negocio_display]"
+                                               value="<?php echo View::e($dist['unidad_negocio_nombre'] ?? ''); ?>" 
+                                               readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
+                                        <input type="hidden" name="distribucion[<?php echo $index; ?>][unidad_negocio_id]" value="<?php echo $dist['unidad_negocio_id'] ?? ''; ?>">
                                     </td>
                                     <td>
                                         <input type="number" class="form-control dist-porcentaje" name="distribucion[<?php echo $index; ?>][porcentaje]" 
@@ -755,10 +754,6 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                     </div>
                                 </td>
                                 <td>
-                                    <input type="text" class="form-control" name="distribucion[0][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
-                                    <input type="hidden" name="distribucion[0][unidad_negocio_id]" value="">
-                                </td>
-                                <td>
                                     <select class="form-select" name="distribucion[0][centro_costo_id]" required>
                                         <option value="">Seleccione...</option>
                                         <?php if (!empty($centros_costo)): ?>
@@ -772,6 +767,10 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                         <?php endforeach; ?>
                                         <?php endif; ?>
                                     </select>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control" name="distribucion[0][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
+                                    <input type="hidden" name="distribucion[0][unidad_negocio_id]" value="">
                                 </td>
                                 <td>
                                     <input type="number" class="form-control dist-porcentaje" name="distribucion[0][porcentaje]" min="0" max="100" step="0.00001" value="100" required>
@@ -1073,10 +1072,6 @@ window.agregarDistribucion = function() {
             </div>
         </td>
         <td>
-            <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
-            <input type="hidden" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" value="">
-        </td>
-        <td>
             <select class="form-select" name="distribucion[${contadorDistribucion}][centro_costo_id]" required>
                 <option value="">Seleccione...</option>
                 <?php if (!empty($centros_costo)): ?>
@@ -1090,6 +1085,10 @@ window.agregarDistribucion = function() {
                     <?php endforeach; ?>
                 <?php endif; ?>
             </select>
+        </td>
+        <td>
+            <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
+            <input type="hidden" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" value="">
         </td>
         <td><input type="number" class="form-control dist-porcentaje" name="distribucion[${contadorDistribucion}][porcentaje]" min="0" max="100" step="0.00001" required></td>
         <td><input type="number" class="form-control dist-cantidad" name="distribucion[${contadorDistribucion}][cantidad]" readonly></td>
@@ -1944,10 +1943,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </td>
             <td>
-                <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
-                <input type="hidden" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" value="">
-            </td>
-            <td>
                 <select class="form-select" name="distribucion[${contadorDistribucion}][centro_costo_id]" required>
                 <option value="">Seleccione...</option>
                     <?php if (!empty($centros_costo)): ?>
@@ -1961,6 +1956,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 <?php endforeach; ?>
                 <?php endif; ?>
             </select>
+        </td>
+        <td>
+                <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
+                <input type="hidden" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" value="">
         </td>
             <td><input type="number" class="form-control dist-porcentaje" name="distribucion[${contadorDistribucion}][porcentaje]" min="0" max="100" step="0.00001" required></td>
             <td><input type="number" class="form-control dist-cantidad" name="distribucion[${contadorDistribucion}][cantidad]" readonly></td>

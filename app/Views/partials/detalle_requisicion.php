@@ -178,19 +178,18 @@ $badge = EstadoHelper::getBadge($estadoReal);
 </div>
 <?php endif; ?>
 
-<!-- DISTRIBUCIÓN DE GASTO -->
+<!-- Distribución por Centro de Costo -->
 <?php if (!empty($distribucion)): ?>
 <div class="detalle-section">
     <div class="detalle-section-header">
-        <i class="fas fa-chart-pie me-2"></i>Distribución de Gasto
+        <i class="fas fa-chart-pie me-2"></i>Distribución por Centro de Costo
     </div>
     <div class="detalle-section-content">
-        <!-- Nota: esta columna muestra el centro_costo (detalle); el formato oficial lo llama "Unidad de Negocio". -->
         <div class="table-responsive">
             <table class="table table-sm table-hover">
                 <thead>
                     <tr>
-                        <th>Unidad de Negocio</th>
+                        <th>Centro de Costo</th>
                         <th>Cuenta Contable</th>
                         <th class="text-center">%</th>
                         <th class="text-end">Monto</th>

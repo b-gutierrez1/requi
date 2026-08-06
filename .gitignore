@@ -268,3 +268,7 @@ backups/
 !scripts/migrations/*.sql
 # ...salvo el de cuentas contables: contiene numeros de cuenta bancaria del IGA
 scripts/migrations/*cuentas_inserts.sql
+
+# Grafo de conocimiento generado por graphify (artefacto local, se reconstruye
+# solo con el hook post-commit). Incluye el vault de Obsidian: ~2800 archivos .md
+graphify-out/

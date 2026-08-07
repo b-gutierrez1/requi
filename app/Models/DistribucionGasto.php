@@ -3,7 +3,7 @@
  * Modelo DistribucionGasto
  * 
  * Representa la distribución de gastos de una requisición entre
- * diferentes centros de costo y cuentas contables.
+ * diferentes unidades de negocio y cuentas contables.
  * 
  * @package RequisicionesMVC\Models
  * @version 2.0
@@ -20,8 +20,8 @@ class DistribucionGasto extends Model
     protected static $fillable = [
         'requisicion_id',
         'cuenta_contable_id',
-        'centro_costo_id',
         'unidad_negocio_id',
+        'centro_costo_id',
         'porcentaje',
         'cantidad',
         'factura',
@@ -41,7 +41,7 @@ class DistribucionGasto extends Model
         foreach ($this->attributes as $key => $value) {
             if ($this->isFillable($key)) {
                 // Convertir strings vacíos a null para campos de ID
-                if (in_array($key, ['cuenta_contable_id', 'centro_costo_id', 'unidad_negocio_id']) && ($value === '' || $value === '0')) {
+                if (in_array($key, ['cuenta_contable_id', 'unidad_negocio_id', 'centro_costo_id']) && ($value === '' || $value === '0')) {
                     $fillable[$key] = null;
                 } else {
                     $fillable[$key] = $value;
@@ -67,17 +67,17 @@ class DistribucionGasto extends Model
     }
 
     /**
-     * Obtiene el centro de costo asociado
+     * Obtiene el unidad de negocio asociado
      * 
      * @return array|null
      */
-    public function centroCosto()
+    public function unidadNegocio()
     {
-        if (!isset($this->attributes['centro_costo_id'])) {
+        if (!isset($this->attributes['unidad_negocio_id'])) {
             return null;
         }
 
-        return CentroCosto::find($this->attributes['centro_costo_id']);
+        return UnidadNegocio::find($this->attributes['unidad_negocio_id']);
     }
 
     /**
@@ -95,19 +95,19 @@ class DistribucionGasto extends Model
     }
 
     /**
-     * Obtiene la unidad de negocio asociada
+     * Obtiene la centro de costo asociada
      * 
      * @return array|null
      */
-    public function unidadNegocio()
+    public function centroCosto()
     {
-        if (!isset($this->attributes['unidad_negocio_id'])) {
+        if (!isset($this->attributes['centro_costo_id'])) {
             return null;
         }
 
-        $sql = "SELECT * FROM unidad_de_negocio WHERE id = ? LIMIT 1";
+        $sql = "SELECT * FROM centro_de_costo WHERE id = ? LIMIT 1";
         $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$this->attributes['unidad_negocio_id']]);
+        $stmt->execute([$this->attributes['centro_costo_id']]);
         
         return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
     }
@@ -137,14 +137,14 @@ class DistribucionGasto extends Model
                        cc.nombre as centro_nombre,
                        cu.codigo as cuenta_contable_codigo,
                        cu.descripcion as cuenta_nombre,
-                       COALESCE(un.nombre, un_cc.nombre) as unidad_negocio_nombre,
-                       COALESCE(dg.unidad_negocio_id, cc.unidad_negocio_id) as unidad_negocio_id,
+                       COALESCE(un.nombre, un_cc.nombre) as centro_costo_nombre,
+                       COALESCE(dg.centro_costo_id, cc.centro_costo_id) as centro_costo_id,
                        (dg.porcentaje * r.monto_total / 100) as monto
                    FROM " . static::$table . " dg
-                   LEFT JOIN centro_de_costo cc ON dg.centro_costo_id = cc.id
+                   LEFT JOIN unidad_de_negocio cc ON dg.unidad_negocio_id = cc.id
                    LEFT JOIN cuenta_contable cu ON dg.cuenta_contable_id = cu.id
-                   LEFT JOIN unidad_de_negocio un ON dg.unidad_negocio_id = un.id
-                   LEFT JOIN unidad_de_negocio un_cc ON cc.unidad_negocio_id = un_cc.id
+                   LEFT JOIN centro_de_costo un ON dg.centro_costo_id = un.id
+                   LEFT JOIN centro_de_costo un_cc ON cc.centro_costo_id = un_cc.id
                    LEFT JOIN requisiciones r ON dg.requisicion_id = r.id
                    WHERE dg.requisicion_id = ?
                    ORDER BY dg.id ASC";
@@ -156,7 +156,7 @@ class DistribucionGasto extends Model
     }
 
     /**
-     * Obtiene los centros de costo únicos de una orden
+     * Obtiene los unidades de negocio únicos de una orden
      * 
      * @param int $ordenCompraId
      * @return array
@@ -165,9 +165,9 @@ class DistribucionGasto extends Model
     {
         $table = static::$table;
         
-        $sql = "SELECT DISTINCT dg.centro_costo_id, cc.nombre
+        $sql = "SELECT DISTINCT dg.unidad_negocio_id, cc.nombre
                 FROM {$table} dg
-                INNER JOIN centro_de_costo cc ON dg.centro_costo_id = cc.id
+                INNER JOIN unidad_de_negocio cc ON dg.unidad_negocio_id = cc.id
                 WHERE dg.requisicion_id = ?
                 ORDER BY cc.nombre ASC";
         
@@ -210,9 +210,9 @@ class DistribucionGasto extends Model
             $errores[] = 'La cuenta contable es requerida';
         }
 
-        // Validar centro de costo
-        if (!isset($data['centro_costo_id']) || empty($data['centro_costo_id'])) {
-            $errores[] = 'El centro de costo es requerido';
+        // Validar unidad de negocio
+        if (!isset($data['unidad_negocio_id']) || empty($data['unidad_negocio_id'])) {
+            $errores[] = 'El unidad de negocio es requerido';
         }
 
         // Validar porcentaje
@@ -317,22 +317,22 @@ class DistribucionGasto extends Model
     }
 
     /**
-     * Calcula el total de distribución por centro de costo
+     * Calcula el total de distribución por unidad de negocio
      * 
      * @param int $ordenCompraId
-     * @param int $centroCostoId
+     * @param int $unidadNegocioId
      * @return float
      */
-    public static function getTotalPorCentroCosto($ordenCompraId, $centroCostoId)
+    public static function getTotalPorUnidadNegocio($ordenCompraId, $unidadNegocioId)
     {
         $table = static::$table;
         
         $sql = "SELECT SUM(cantidad) as total
                 FROM {$table}
-                WHERE requisicion_id = ? AND centro_costo_id = ?";
+                WHERE requisicion_id = ? AND unidad_negocio_id = ?";
         
         $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$ordenCompraId, $centroCostoId]);
+        $stmt->execute([$ordenCompraId, $unidadNegocioId]);
         
         $result = $stmt->fetch(\PDO::FETCH_ASSOC);
         return floatval($result['total'] ?? 0);
@@ -364,7 +364,7 @@ class DistribucionGasto extends Model
         
         $sql = "SELECT 
                     COUNT(*) as total_distribuciones,
-                    COUNT(DISTINCT centro_costo_id) as centros_costo_distintos,
+                    COUNT(DISTINCT unidad_negocio_id) as unidades_negocio_distintos,
                     SUM(porcentaje) as suma_porcentajes,
                     SUM(cantidad) as monto_total
                 FROM {$table}
@@ -375,7 +375,7 @@ class DistribucionGasto extends Model
         
         return $stmt->fetch(\PDO::FETCH_ASSOC) ?: [
             'total_distribuciones' => 0,
-            'centros_costo_distintos' => 0,
+            'unidades_negocio_distintos' => 0,
             'suma_porcentajes' => 0,
             'monto_total' => 0
         ];

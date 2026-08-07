@@ -257,7 +257,7 @@ $title = 'Gestión de Autorizadores';
         <div class="col-md-3">
             <div class="stats-card p-4 text-center">
                 <i class="fas fa-building fa-3x text-info mb-3"></i>
-                <h3 class="mb-1"><?= count(array_unique(array_column(array_map(function($a) { return (array)$a; }, $autorizadores ?? []), 'centro_costo_id'))) ?></h3>
+                <h3 class="mb-1"><?= count(array_unique(array_column(array_map(function($a) { return (array)$a; }, $autorizadores ?? []), 'unidad_negocio_id'))) ?></h3>
                 <p class="text-muted mb-0">Centros Asignados</p>
             </div>
         </div>
@@ -297,7 +297,7 @@ $title = 'Gestión de Autorizadores';
                     <tr>
                         <th width="5%">ID</th>
                         <th width="20%">Autorizador</th>
-                        <th width="20%">Centro de Costo</th>
+                        <th width="20%">Unidad de Negocio</th>
                         <th width="20%">Tipos</th>
                         <th width="10%">Estado</th>
                         <th width="10%" class="text-center">Acciones</th>
@@ -322,10 +322,10 @@ $title = 'Gestión de Autorizadores';
                                     </div>
                                 </td>
                                 <td>
-                                    <?php if (!empty($autorizador->centro_costo_id)): ?>
+                                    <?php if (!empty($autorizador->unidad_negocio_id)): ?>
                                         <?php 
                                         $centro = array_filter($centros ?? [], function($c) use ($autorizador) { 
-                                            return $c->id == $autorizador->centro_costo_id; 
+                                            return $c->id == $autorizador->unidad_negocio_id; 
                                         });
                                         $centro = reset($centro);
                                         ?>
@@ -341,7 +341,7 @@ $title = 'Gestión de Autorizadores';
                                 </td>
                                 <td>
                                     <div class="tipo-badge-container">
-                                        <?php if ($autorizador->puede_autorizar_centro_costo ?? false): ?>
+                                        <?php if ($autorizador->puede_autorizar_unidad_negocio ?? false): ?>
                                             <span class="badge badge-tipo badge-centro">Centro</span>
                                         <?php endif; ?>
                                         <?php if ($autorizador->puede_autorizar_flujo ?? false): ?>
@@ -356,7 +356,7 @@ $title = 'Gestión de Autorizadores';
                                         <?php if ($autorizador->puede_autorizar_respaldo ?? false): ?>
                                             <span class="badge badge-tipo badge-respaldo">Respaldo</span>
                                         <?php endif; ?>
-                                        <?php if (!($autorizador->puede_autorizar_centro_costo ?? false) && 
+                                        <?php if (!($autorizador->puede_autorizar_unidad_negocio ?? false) && 
                                                  !($autorizador->puede_autorizar_flujo ?? false) && 
                                                  !($autorizador->puede_autorizar_cuenta_contable ?? false) && 
                                                  !($autorizador->puede_autorizar_metodo_pago ?? false) && 

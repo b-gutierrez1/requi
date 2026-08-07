@@ -158,7 +158,7 @@ $title = 'Editar Autorizador';
                             <strong>ID:</strong> #<?= View::e($autorizador->id ?? 'N/A') ?>
                         </div>
                         <div class="col-md-8">
-                            <strong>Centros de Costo asignados:</strong>
+                            <strong>Unidades de Negocio asignados:</strong>
                             <span class="centros-badge"><?= count($centrosAsignados ?? []) ?></span>
                         </div>
                     </div>
@@ -218,7 +218,7 @@ $title = 'Editar Autorizador';
                             </button>
                             <a href="<?= url('/admin/autorizadores/' . ($autorizador->id ?? '') . '/centros') ?>" class="btn btn-centros">
                                 <i class="fas fa-building me-2"></i>
-                                Gestionar Centros de Costo
+                                Gestionar Unidades de Negocio
                             </a>
                             <a href="<?= url('/admin/autorizadores') ?>" class="btn btn-cancel">
                                 <i class="fas fa-times me-2"></i>

@@ -50,8 +50,8 @@ $moneda = getValue($orden, 'moneda', 'GTQ');
 $centrosDistrib = [];
 if (!empty($distribucion)) {
     foreach ($distribucion as $distItem) {
-        if (isset($distItem['centro_costo_id'])) {
-            $centrosDistrib[$distItem['centro_costo_id']] = $distItem;
+        if (isset($distItem['unidad_negocio_id'])) {
+            $centrosDistrib[$distItem['unidad_negocio_id']] = $distItem;
         }
     }
 }
@@ -133,7 +133,7 @@ View::startSection('content');
                 <i class="fas fa-check-circle me-2"></i>
                 Autorizar Requisición #<?php echo getValue($orden, 'id'); ?>
             </h1>
-            <p class="text-muted mb-0">Revisa la información y autoriza los centros de costo</p>
+            <p class="text-muted mb-0">Revisa la información y autoriza los unidades de negocio</p>
         </div>
         <div class="col-md-4 text-end">
             <a href="<?= url('/requisiciones/' . getValue($orden, 'id')) ?>" class="btn btn-detalle-super btn-lg me-2 fw-bold px-4 py-3">
@@ -356,12 +356,12 @@ View::startSection('content');
             </div>
             <?php endif; ?>
 
-            <!-- Centros de Costo a Autorizar -->
+            <!-- Unidades de Negocio a Autorizar -->
             <div class="card mb-3 border-warning">
                 <div class="card-header bg-warning text-dark">
                     <h5 class="mb-0">
                         <i class="fas fa-tasks me-2"></i>
-                        Centros de Costo Pendientes de Autorización
+                        Unidades de Negocio Pendientes de Autorización
                     </h5>
                 </div>
                 <div class="card-body p-0">
@@ -370,7 +370,7 @@ View::startSection('content');
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Centro de Costo</th>
+                                    <th>Unidad de Negocio</th>
                                     <th>Cuenta Contable</th>
                                     <th>Autorizador</th>
                                     <th width="100" class="text-end">%</th>
@@ -385,9 +385,9 @@ View::startSection('content');
                                         ? json_decode($centro['metadata'], true)
                                         : ($centro['metadata'] ?? []);
                                     $distInfo = [];
-                                    $centroCostoId = $centro['centro_costo_id'] ?? null;
-                                    if ($centroCostoId && isset($centrosDistrib[$centroCostoId])) {
-                                        $distInfo = $centrosDistrib[$centroCostoId];
+                                    $unidadNegocioId = $centro['unidad_negocio_id'] ?? null;
+                                    if ($unidadNegocioId && isset($centrosDistrib[$unidadNegocioId])) {
+                                        $distInfo = $centrosDistrib[$unidadNegocioId];
                                     }
                                     $porcentajeCentro = $centro['porcentaje'] ?? ($metadataCentro['porcentaje'] ?? ($distInfo['porcentaje'] ?? 0));
                                     $montoCentro = $distInfo['monto_distribuido'] ?? ($distInfo['monto'] ?? 0);
@@ -463,9 +463,9 @@ View::startSection('content');
                     <?php else: ?>
                     <div class="p-3 text-center text-muted">
                         <?php if ($flujoEstado === 'pendiente_revision'): ?>
-                            En espera de la aprobación de revisión para generar las autorizaciones de centros de costo.
+                            En espera de la aprobación de revisión para generar las autorizaciones de unidades de negocio.
                         <?php else: ?>
-                            No hay centros de costo pendientes de autorización.
+                            No hay unidades de negocio pendientes de autorización.
                         <?php endif; ?>
                     </div>
                     <?php endif; ?>
@@ -665,7 +665,7 @@ View::startSection('modals');
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title">
                     <i class="fas fa-times-circle me-2"></i>
-                    Rechazar Centro de Costo
+                    Rechazar Unidad de Negocio
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -697,7 +697,7 @@ View::startSection('scripts');
 <script src="<?= url('/js/authorization-effects.js') ?>"></script>
 <script>
 function autorizarCentro(centroId) {
-    if (!confirm('¿Estás seguro de autorizar este centro de costo?')) {
+    if (!confirm('¿Estás seguro de autorizar este unidad de negocio?')) {
         return;
     }
     
@@ -1032,7 +1032,7 @@ function enviarAprobacion(formData) {
             </div>
             <div class="modal-body">
                 <p class="text-muted small mb-3">
-                    Los siguientes centros de costo requieren que selecciones manualmente quién los autorizará en esta requisición.
+                    Los siguientes unidades de negocio requieren que selecciones manualmente quién los autorizará en esta requisición.
                 </p>
                 <div id="asignacionCentrosContainer"></div>
                 <div class="mb-3 mt-3">
@@ -1499,13 +1499,13 @@ function createCompleteRequisitionDetail() {
                         </div>
                         <?php endif; ?>
 
-                        <!-- Distribución de Centros de Costo -->
+                        <!-- Distribución de Unidades de Negocio -->
                         <?php if (!empty($centrosAutorizaciones) || !empty($distribucion)): ?>
                         <div class="modal-card mb-3">
                             <div class="modal-card-header">
                                 <h6 class="modal-card-title">
                                     <i class="fas fa-chart-pie me-1"></i>
-                                    Distribución de Centros de Costo
+                                    Distribución de Unidades de Negocio
                                 </h6>
                             </div>
                             <div class="modal-card-body">
@@ -1517,9 +1517,9 @@ function createCompleteRequisitionDetail() {
                                                     ? json_decode($centro['metadata'], true)
                                                     : ($centro['metadata'] ?? []);
                                                 $distInfo = [];
-                                                $centroCostoId = $centro['centro_costo_id'] ?? null;
-                                                if ($centroCostoId && isset($centrosDistrib[$centroCostoId])) {
-                                                    $distInfo = $centrosDistrib[$centroCostoId];
+                                                $unidadNegocioId = $centro['unidad_negocio_id'] ?? null;
+                                                if ($unidadNegocioId && isset($centrosDistrib[$unidadNegocioId])) {
+                                                    $distInfo = $centrosDistrib[$unidadNegocioId];
                                                 }
                                                 $porcentajeCentro = $centro['porcentaje'] ?? ($metadataCentro['porcentaje'] ?? ($distInfo['porcentaje'] ?? 0));
                                                 $montoCentro = $distInfo['monto_distribuido'] ?? ($distInfo['monto'] ?? 0);
@@ -1558,7 +1558,7 @@ function createCompleteRequisitionDetail() {
                                 <?php else: ?>
                                     <div class="text-center text-muted py-3">
                                         <i class="fas fa-info-circle mb-2"></i>
-                                        <div>No hay distribución de centros de costo configurada</div>
+                                        <div>No hay distribución de unidades de negocio configurada</div>
                                     </div>
                                 <?php endif; ?>
                             </div>
@@ -1920,7 +1920,7 @@ function createInfoGrid(req, data) {
         <div class="info-grid">
             ${createInfoCard('Información General', [
                 {label: 'Descripción', value: req.descripcion, icon: 'fas fa-align-left'},
-                {label: 'Centro de Costo', value: req.centro_costo, icon: 'fas fa-building'},
+                {label: 'Unidad de Negocio', value: req.unidad_negocio, icon: 'fas fa-building'},
                 {label: 'Proveedor', value: req.proveedor_nombre, icon: 'fas fa-store'},
                 {label: 'Forma de Pago', value: req.forma_pago, icon: 'fas fa-credit-card'}
             ])}

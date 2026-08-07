@@ -250,7 +250,7 @@ $title = 'Editar Autorizador de Respaldo';
                             
                             <div class="col-md-6">
                                 <label class="form-label">
-                                    Centros de Costo <span class="required">*</span>
+                                    Unidades de Negocio <span class="required">*</span>
                                 </label>
                                 <div id="centros_container" style="border: 2px solid #e9ecef; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; background: #f8f9fa;">
                                     <div class="mb-2">
@@ -264,8 +264,8 @@ $title = 'Editar Autorizador de Respaldo';
                                     <?php
                                     $centrosAsignados = $respaldo['centros_asignados'] ?? [];
                                     // Fallback para estructura antigua
-                                    if (empty($centrosAsignados) && !empty($respaldo['centro_costo_id'])) {
-                                        $centrosAsignados = [$respaldo['centro_costo_id']];
+                                    if (empty($centrosAsignados) && !empty($respaldo['unidad_negocio_id'])) {
+                                        $centrosAsignados = [$respaldo['unidad_negocio_id']];
                                     }
                                     ?>
                                     <?php if (!empty($centros)): ?>
@@ -273,7 +273,7 @@ $title = 'Editar Autorizador de Respaldo';
                                             <?php $checked = in_array($centro->id, $centrosAsignados) ? 'checked' : ''; ?>
                                             <div class="form-check mb-2">
                                                 <input class="form-check-input centro-checkbox" type="checkbox"
-                                                       name="centros_costo_ids[]" value="<?= View::e($centro->id ?? '') ?>"
+                                                       name="unidades_negocio_ids[]" value="<?= View::e($centro->id ?? '') ?>"
                                                        id="centro_<?= View::e($centro->id ?? '') ?>" <?= $checked ?>>
                                                 <label class="form-check-label" for="centro_<?= View::e($centro->id ?? '') ?>">
                                                     <?= View::e($centro->nombre ?? 'Sin nombre') ?>
@@ -284,10 +284,10 @@ $title = 'Editar Autorizador de Respaldo';
                                             </div>
                                         <?php endforeach; ?>
                                     <?php else: ?>
-                                        <p class="text-muted mb-0">No hay centros de costo disponibles</p>
+                                        <p class="text-muted mb-0">No hay unidades de negocio disponibles</p>
                                     <?php endif; ?>
                                 </div>
-                                <div class="help-text">Seleccione los centros de costo para los cuales aplica el respaldo</div>
+                                <div class="help-text">Seleccione los unidades de negocio para los cuales aplica el respaldo</div>
                                 <div id="centros_count" class="mt-2">
                                     <span class="badge bg-primary"><span id="selected_count"><?= count($centrosAsignados) ?></span> seleccionados</span>
                                 </div>
@@ -582,7 +582,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // ========================================================================
-    // MANEJO DE CHECKBOXES DE CENTROS DE COSTO
+    // MANEJO DE CHECKBOXES DE UNIDADES DE NEGOCIO
     // ========================================================================
 
     function updateSelectedCount() {
@@ -630,7 +630,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Validar que al menos un centro esté seleccionado
         const centrosSeleccionados = document.querySelectorAll('.centro-checkbox:checked').length;
         if (centrosSeleccionados === 0) {
-            alert('Debe seleccionar al menos un centro de costo');
+            alert('Debe seleccionar al menos un unidad de negocio');
             return;
         }
 

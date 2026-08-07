@@ -1,8 +1,8 @@
 <?php
 /**
- * CentroCostoMapper
+ * UnidadNegocioMapper
  * 
- * Clase helper para mapear centros de costo a unidades de negocio y tipos de factura
+ * Clase helper para mapear unidades de negocio a centros de costo y tipos de factura
  * según las reglas de negocio establecidas.
  * 
  * @package App\Helpers
@@ -11,10 +11,10 @@
 
 namespace App\Helpers;
 
-class CentroCostoMapper
+class UnidadNegocioMapper
 {
     /**
-     * Mapeo de códigos de centro de costo a unidades de negocio y facturas
+     * Mapeo de códigos de unidad de negocio a centros de costo y facturas
      * 
      * @var array
      */
@@ -53,25 +53,25 @@ class CentroCostoMapper
         'ADUA' => ['unidad' => 'ADMINISTRACION', 'factura' => 3],
         'CUBI' => ['unidad' => 'ACTIVIDADES CULTURALES', 'factura' => 3],
         'N001' => ['unidad' => 'CURSOS NIÑOS', 'factura' => 3],
-        'GENO1' => ['unidad' => 'UNIDAD DE NEGOCIO GENERAL', 'factura' => 3],
+        'GENO1' => ['unidad' => 'CENTRO DE COSTO GENERAL', 'factura' => 3],
     ];
 
     /**
-     * Obtiene la unidad de negocio para un código de centro de costo
+     * Obtiene la centro de costo para un código de unidad de negocio
      * 
-     * @param string $codigoCentro Código del centro de costo
-     * @return string|null Nombre de la unidad de negocio o null si no existe
+     * @param string $codigoCentro Código del unidad de negocio
+     * @return string|null Nombre de la centro de costo o null si no existe
      */
-    public static function getUnidadNegocio($codigoCentro)
+    public static function getCentroCosto($codigoCentro)
     {
         $codigoCentro = strtoupper(trim($codigoCentro));
         return self::$mapeo[$codigoCentro]['unidad'] ?? null;
     }
 
     /**
-     * Obtiene el tipo de factura para un código de centro de costo
+     * Obtiene el tipo de factura para un código de unidad de negocio
      * 
-     * @param string $codigoCentro Código del centro de costo
+     * @param string $codigoCentro Código del unidad de negocio
      * @return int|null Número de factura (1, 2, 3) o null si no existe
      */
     public static function getTipoFactura($codigoCentro)
@@ -81,9 +81,9 @@ class CentroCostoMapper
     }
 
     /**
-     * Obtiene tanto la unidad de negocio como el tipo de factura
+     * Obtiene tanto la centro de costo como el tipo de factura
      * 
-     * @param string $codigoCentro Código del centro de costo
+     * @param string $codigoCentro Código del unidad de negocio
      * @return array Array con 'unidad' y 'factura' o array vacío si no existe
      */
     public static function getMapeoCompleto($codigoCentro)
@@ -95,7 +95,7 @@ class CentroCostoMapper
     /**
      * Verifica si existe un mapeo para el código dado
      * 
-     * @param string $codigoCentro Código del centro de costo
+     * @param string $codigoCentro Código del unidad de negocio
      * @return bool True si existe mapeo, false si no
      */
     public static function existeMapeo($codigoCentro)
@@ -105,10 +105,10 @@ class CentroCostoMapper
     }
 
     /**
-     * Obtiene todos los centros de costo por tipo de factura
+     * Obtiene todos los unidades de negocio por tipo de factura
      * 
      * @param int $tipoFactura Número de factura (1, 2, 3)
-     * @return array Array de códigos de centro de costo
+     * @return array Array de códigos de unidad de negocio
      */
     public static function getCentrosPorFactura($tipoFactura)
     {
@@ -122,16 +122,16 @@ class CentroCostoMapper
     }
 
     /**
-     * Obtiene todos los centros de costo por unidad de negocio
+     * Obtiene todos los unidades de negocio por centro de costo
      * 
-     * @param string $unidadNegocio Nombre de la unidad de negocio
-     * @return array Array de códigos de centro de costo
+     * @param string $centroCosto Nombre de la centro de costo
+     * @return array Array de códigos de unidad de negocio
      */
-    public static function getCentrosPorUnidad($unidadNegocio)
+    public static function getCentrosPorUnidad($centroCosto)
     {
         $centros = [];
         foreach (self::$mapeo as $codigo => $datos) {
-            if ($datos['unidad'] === $unidadNegocio) {
+            if ($datos['unidad'] === $centroCosto) {
                 $centros[] = $codigo;
             }
         }
@@ -139,9 +139,9 @@ class CentroCostoMapper
     }
 
     /**
-     * Obtiene todas las unidades de negocio únicas
+     * Obtiene todas las centros de costo únicas
      * 
-     * @return array Array de nombres de unidades de negocio
+     * @return array Array de nombres de centros de costo
      */
     public static function getUnidadesUnicas()
     {
@@ -186,12 +186,12 @@ class CentroCostoMapper
     /**
      * Valida si una combinación centro-unidad-factura es correcta
      * 
-     * @param string $codigoCentro Código del centro de costo
-     * @param string $unidadNegocio Unidad de negocio
+     * @param string $codigoCentro Código del unidad de negocio
+     * @param string $centroCosto Unidad de negocio
      * @param int $tipoFactura Tipo de factura
      * @return bool True si es válida, false si no
      */
-    public static function validarCombinacion($codigoCentro, $unidadNegocio, $tipoFactura)
+    public static function validarCombinacion($codigoCentro, $centroCosto, $tipoFactura)
     {
         $mapeo = self::getMapeoCompleto($codigoCentro);
         
@@ -199,7 +199,7 @@ class CentroCostoMapper
             return false;
         }
 
-        return $mapeo['unidad'] === $unidadNegocio && $mapeo['factura'] === $tipoFactura;
+        return $mapeo['unidad'] === $centroCosto && $mapeo['factura'] === $tipoFactura;
     }
 
     /**

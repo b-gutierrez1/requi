@@ -113,11 +113,11 @@ class Recordatorio extends Model
                 $stmt->execute();
                 $autorizadores = $stmt->fetchAll(\PDO::FETCH_COLUMN);
             } elseif ($flujo['estado'] === 'pendiente_autorizacion') {
-                // Obtener autorizadores de centros de costo
+                // Obtener autorizadores de unidades de negocio
                 $sql = "SELECT DISTINCT autorizador_email 
                         FROM autorizaciones 
                         WHERE requisicion_id = ? 
-                          AND tipo = 'centro_costo'
+                          AND tipo = 'unidad_negocio'
                           AND estado = 'pendiente'";
                 $stmt = self::getConnection()->prepare($sql);
                 $stmt->execute([$ordenCompraId]);

@@ -2,11 +2,11 @@
 /**
  * Modelo UnidadNegocio
  * 
- * Representa las unidades de negocio de la organización.
- * Cada distribución de gasto está asociada a una unidad de negocio.
+ * Representa los unidades de negocio de la organización.
+ * Cada unidad de negocio tiene autorizadores asignados y está vinculado a una Centro de Costo.
  * 
  * @package RequisicionesMVC\Models
- * @version 2.0
+ * @version 2.1
  */
 
 namespace App\Models;
@@ -19,9 +19,112 @@ class UnidadNegocio extends Model
 
     protected static $fillable = [
         'nombre',
+        'codigo',
+        'factura',
+        'centro_costo_id',
+        'requiere_asignacion_manual',
     ];
 
     protected static $guarded = ['id'];
+
+    /**
+     * Obtiene la centro de costo asociada a este unidad de negocio
+     * 
+     * @return array|null
+     */
+    public function getCentroCosto()
+    {
+        if (!isset($this->attributes['centro_costo_id']) || !$this->attributes['centro_costo_id']) {
+            return null;
+        }
+
+        return CentroCosto::find($this->attributes['centro_costo_id']);
+    }
+
+    /**
+     * Obtiene el ID de la centro de costo
+     * 
+     * @return int|null
+     */
+    public function getCentroCostoId()
+    {
+        return $this->attributes['centro_costo_id'] ?? null;
+    }
+
+    /**
+     * Obtiene las personas autorizadas de este unidad de negocio
+     * 
+     * @return array
+     */
+    public function personasAutorizadas()
+    {
+        $table = \App\Models\PersonaAutorizada::getTable();
+        $sql = "SELECT * FROM {$table} WHERE unidad_negocio_id = ?";
+        $stmt = self::getConnection()->prepare($sql);
+        $stmt->execute([$this->attributes['id']]);
+        
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtiene el autorizador principal activo
+     * 
+     * @return array|null
+     */
+    public function getAutorizadorPrincipal()
+    {
+        $table = \App\Models\PersonaAutorizada::getTable();
+        $sql = "SELECT * FROM {$table} 
+                WHERE unidad_negocio_id = ? 
+                ORDER BY id ASC 
+                LIMIT 1";
+        
+        $stmt = self::getConnection()->prepare($sql);
+        $centroId = $this->attributes['id'] ?? $this->id ?? null;
+        if (!$centroId) {
+            return null;
+        }
+        $stmt->execute([$centroId]);
+        
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+    }
+
+    /**
+     * Obtiene el autorizador de respaldo activo actual
+     *
+     * @return array|null
+     */
+    public function getAutorizadorRespaldoActivo()
+    {
+        $centroId = $this->attributes['id'] ?? $this->id ?? null;
+        if (!$centroId) {
+            return null;
+        }
+
+        return AutorizadorRespaldo::activoPorCentro($centroId);
+    }
+
+    /**
+     * Obtiene el email del autorizador (respaldo o principal)
+     * 
+     * @return string|null
+     */
+    public function getEmailAutorizador()
+    {
+        // Primero buscar respaldo activo
+        $respaldo = $this->getAutorizadorRespaldoActivo();
+        if ($respaldo) {
+            return $respaldo['autorizador_respaldo_email'];
+        }
+
+        // Si no hay respaldo, buscar principal
+        $principal = $this->getAutorizadorPrincipal();
+        if ($principal) {
+            return $principal['email'];
+        }
+
+        return null;
+    }
 
     /**
      * Obtiene las distribuciones de gasto asociadas
@@ -38,43 +141,31 @@ class UnidadNegocio extends Model
     }
 
     /**
-     * Obtiene todas las unidades de negocio activas
+     * Obtiene todos los unidades de negocio activos con su centro de costo y factura
      * 
      * @return array
      */
-    public static function activas()
+    public static function activos()
     {
         $table = static::$table;
         
-        $sql = "SELECT * FROM {$table} WHERE activo = 1 ORDER BY nombre ASC";
+        // Nota: cc.* ya incluye cc.factura, pero agregamos COALESCE para asegurar un valor por defecto
+        $sql = "SELECT cc.*, 
+                       un.id as rel_centro_costo_id,
+                       un.nombre as centro_costo_nombre,
+                       cc.factura as factura_numero
+                FROM {$table} cc
+                LEFT JOIN centro_de_costo un ON cc.centro_costo_id = un.id
+                WHERE cc.activo = 1
+                ORDER BY cc.nombre ASC";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute();
-        
+
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     /**
-     * Busca por nombre
-     * 
-     * @param string $nombre
-     * @return array|null
-     */
-    public static function buscarPorNombre($nombre)
-    {
-        $table = static::$table;
-        
-        $sql = "SELECT * FROM {$table} 
-                WHERE nombre = ? 
-                LIMIT 1";
-        
-        $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$nombre]);
-        
-        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
-    }
-
-    /**
-     * Busca unidades de negocio por término
+     * Busca unidades de negocio por nombre o código
      * 
      * @param string $termino
      * @return array
@@ -95,31 +186,7 @@ class UnidadNegocio extends Model
     }
 
     /**
-     * Obtiene unidad de negocio por código (no disponible - tabla solo tiene nombre)
-     * 
-     * @param string $codigo
-     * @return array|null
-     */
-    public static function porCodigo($codigo)
-    {
-        // La tabla unidad_de_negocio no tiene columna codigo
-        return null;
-    }
-
-    /**
-     * Activa o desactiva la unidad de negocio (no disponible - tabla no tiene columna activo)
-     * 
-     * @param bool $activo
-     * @return bool
-     */
-    public function setActivo($activo = true)
-    {
-        // La tabla unidad_de_negocio no tiene columna activo
-        return false;
-    }
-
-    /**
-     * Obtiene el total gastado en esta unidad de negocio
+     * Obtiene el total gastado en este unidad de negocio
      * 
      * @param string $fechaInicio
      * @param string $fechaFin
@@ -148,46 +215,47 @@ class UnidadNegocio extends Model
     }
 
     /**
-     * Cuenta requisiciones por unidad de negocio
-     * 
-     * @return int
+     * Obtiene centros que requieren asignación manual de autorizador en revisión
      */
-    public function contarRequisiciones()
+    public static function conAsignacionManual(): array
     {
-        $sql = "SELECT COUNT(DISTINCT dg.requisicion_id) as total
-                FROM distribucion_gasto dg
-                WHERE dg.unidad_negocio_id = ?";
-        
+        $table = static::$table;
+        $sql = "SELECT id, nombre FROM {$table} WHERE requiere_asignacion_manual = 1 AND activo = 1 ORDER BY nombre ASC";
         $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$this->attributes['id']]);
-        
-        $result = $stmt->fetch(\PDO::FETCH_ASSOC);
-        return $result['total'] ?? 0;
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     /**
-     * Obtiene estadísticas de la unidad de negocio
-     * 
-     * @return array
+     * Contar total de unidades de negocio
+     *
+     * @return int
      */
-    public function getEstadisticas()
+    public static function count()
     {
-        $sql = "SELECT 
-                    COUNT(DISTINCT dg.requisicion_id) as total_requisiciones,
-                    SUM(dg.cantidad) as monto_total,
-                    AVG(dg.cantidad) as monto_promedio,
-                    COUNT(DISTINCT dg.centro_costo_id) as centros_costo_utilizados
-                FROM distribucion_gasto dg
-                WHERE dg.unidad_negocio_id = ?";
-        
-        $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$this->attributes['id']]);
-        
-        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: [
-            'total_requisiciones' => 0,
-            'monto_total' => 0,
-            'monto_promedio' => 0,
-            'centros_costo_utilizados' => 0
-        ];
+        $stmt = self::query("SELECT COUNT(*) as total FROM " . self::getTable());
+        $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return (int)($result['total'] ?? 0);
+    }
+
+    /**
+     * Verifica si tiene autorizador asignado
+     * 
+     * @return bool
+     */
+    public function tieneAutorizador()
+    {
+        return $this->getEmailAutorizador() !== null;
+    }
+
+    /**
+     * Activa o desactiva el unidad de negocio
+     * 
+     * @param bool $activo
+     * @return bool
+     */
+    public function setActivo($activo = true)
+    {
+        return self::update($this->attributes['id'], ['activo' => $activo ? 1 : 0]);
     }
 }

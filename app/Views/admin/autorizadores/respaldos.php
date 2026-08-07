@@ -305,10 +305,10 @@ $title = 'Autorizadores de Respaldo';
                                             <span class="badge bg-secondary ms-1">+<?= $totalCentros - 1 ?> más</span>
                                         <?php endif; ?>
                                     </div>
-                                <?php elseif (!empty($respaldo->centro_costo_id)): ?>
+                                <?php elseif (!empty($respaldo->unidad_negocio_id)): ?>
                                     <?php
                                     $centro = array_filter($centros ?? [], function($c) use ($respaldo) {
-                                        return $c->id == $respaldo->centro_costo_id;
+                                        return $c->id == $respaldo->unidad_negocio_id;
                                     });
                                     $centro = reset($centro);
                                     ?>

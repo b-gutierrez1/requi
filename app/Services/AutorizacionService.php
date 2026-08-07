@@ -12,7 +12,7 @@
  * 
  * FUNCIONALIDADES:
  * - Revisión inicial (siempre requerida)
- * - Autorización por centros de costo
+ * - Autorización por unidades de negocio
  * - Autorización especial por forma de pago
  * - Autorización especial por cuenta contable
  * 
@@ -169,7 +169,7 @@ class AutorizacionService
         
         if ($estadoActual !== $estadoEsperado) {
             $mensajesEstado = [
-                'pendiente_autorizacion' => 'La requisición ya fue aprobada en revisión y está pendiente de autorización por centros de costo',
+                'pendiente_autorizacion' => 'La requisición ya fue aprobada en revisión y está pendiente de autorización por unidades de negocio',
                 'autorizado' => 'La requisición ya está completamente autorizada',
                 'rechazado' => 'La requisición fue rechazada previamente',
                 'rechazado_revision' => 'La requisición ya fue rechazada en la revisión'
@@ -492,14 +492,14 @@ class AutorizacionService
     }
 
     /**
-     * Autoriza un centro de costo
+     * Autoriza un unidad de negocio
      * 
      * @param int $autorizacionId
      * @param string $autorizadorEmail
      * @param string $comentario
      * @return array
      */
-    public function autorizarCentroCosto($autorizacionId, $autorizadorEmail, $comentario = '')
+    public function autorizarUnidadNegocio($autorizacionId, $autorizadorEmail, $comentario = '')
     {
         try {
             $autorizacion = $this->autorizacionCentroRepo->findById($autorizacionId);
@@ -515,7 +515,7 @@ class AutorizacionService
             if ($ordenId && $this->tieneAutorizacionesEspecialesPendientes($ordenId)) {
                 return [
                     'success' => false,
-                    'error' => 'Aún existen autorizaciones especiales pendientes. Deben completarse antes de autorizar los centros de costo.',
+                    'error' => 'Aún existen autorizaciones especiales pendientes. Deben completarse antes de autorizar los unidades de negocio.',
                     'code' => 'SPECIAL_PENDING'
                 ];
             }
@@ -525,17 +525,17 @@ class AutorizacionService
             if (!$resultado) {
                 return [
                     'success' => false,
-                    'error' => 'Error al autorizar el centro de costo',
+                    'error' => 'Error al autorizar el unidad de negocio',
                     'code' => 'AUTHORIZATION_ERROR'
                 ];
             }
 
-            $centroCostoId = (int)($autorizacion['centro_costo_id'] ?? 0);
+            $unidadNegocioId = (int)($autorizacion['unidad_negocio_id'] ?? 0);
             $nivelAprobado = (int)($autorizacion['nivel'] ?? 1);
 
             // Auto-omitir otros autorizadores del MISMO nivel y centro (principal+respaldo en paralelo:
             // solo uno debe aprobar; nunca omitir niveles superiores que aún no les toca).
-            if ($centroCostoId && $ordenId) {
+            if ($unidadNegocioId && $ordenId) {
                 $pdo = Model::getConnection();
                 $stmtOmitir = $pdo->prepare("
                     UPDATE autorizaciones
@@ -543,19 +543,19 @@ class AutorizacionService
                         comentarios = CONCAT(IFNULL(comentarios, ''), ' [Auto-omitida: ya autorizada por otro autorizador del mismo nivel]'),
                         fecha_respuesta = NOW()
                     WHERE requisicion_id = ?
-                      AND tipo = 'centro_costo'
-                      AND centro_costo_id = ?
+                      AND tipo = 'unidad_negocio'
+                      AND unidad_negocio_id = ?
                       AND nivel = ?
                       AND estado = 'pendiente'
                       AND autorizador_email != ?
                 ");
-                $stmtOmitir->execute([$ordenId, $centroCostoId, $nivelAprobado, $autorizadorEmail]);
-                error_log("Auto-omitidas " . $stmtOmitir->rowCount() . " autorizaciones (nivel=$nivelAprobado, centro=$centroCostoId, req=$ordenId)");
+                $stmtOmitir->execute([$ordenId, $unidadNegocioId, $nivelAprobado, $autorizadorEmail]);
+                error_log("Auto-omitidas " . $stmtOmitir->rowCount() . " autorizaciones (nivel=$nivelAprobado, centro=$unidadNegocioId, req=$ordenId)");
             }
 
             // Notificar al siguiente nivel si existe (flujo secuencial)
-            if ($centroCostoId && $ordenId) {
-                $this->notificacionService->notificarSiguienteNivelCentroCosto($ordenId, $centroCostoId, $nivelAprobado);
+            if ($unidadNegocioId && $ordenId) {
+                $this->notificacionService->notificarSiguienteNivelUnidadNegocio($ordenId, $unidadNegocioId, $nivelAprobado);
             }
 
             // Verificar si todas las autorizaciones están completas
@@ -576,14 +576,14 @@ class AutorizacionService
             ];
         } catch (\RuntimeException $e) {
             // Guard de orden secuencial — aprobación fuera de turno
-            error_log("Guard orden secuencial en autorizarCentroCosto: " . $e->getMessage());
+            error_log("Guard orden secuencial en autorizarUnidadNegocio: " . $e->getMessage());
             return [
                 'success' => false,
                 'error'   => $e->getMessage(),
                 'code'    => 'OUT_OF_ORDER'
             ];
         } catch (\Exception $e) {
-            error_log("Error en autorizarCentroCosto: " . $e->getMessage());
+            error_log("Error en autorizarUnidadNegocio: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Error interno del servidor',
@@ -593,14 +593,14 @@ class AutorizacionService
     }
 
     /**
-     * Rechaza un centro de costo
+     * Rechaza un unidad de negocio
      * 
      * @param int $autorizacionId
      * @param string $autorizadorEmail
      * @param string $motivo
      * @return array
      */
-    public function rechazarCentroCosto($autorizacionId, $autorizadorEmail, $motivo)
+    public function rechazarUnidadNegocio($autorizacionId, $autorizadorEmail, $motivo)
     {
         try {
             $autorizacion = $this->autorizacionCentroRepo->findById($autorizacionId);
@@ -617,7 +617,7 @@ class AutorizacionService
             if (!$resultado) {
                 return [
                     'success' => false,
-                    'error' => 'Error al rechazar el centro de costo',
+                    'error' => 'Error al rechazar el unidad de negocio',
                     'code' => 'REJECTION_ERROR'
                 ];
             }
@@ -642,7 +642,7 @@ class AutorizacionService
                 'message' => 'Centro de costo rechazado exitosamente'
             ];
         } catch (\Exception $e) {
-            error_log("Error en rechazarCentroCosto: " . $e->getMessage());
+            error_log("Error en rechazarUnidadNegocio: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Error interno del servidor',
@@ -937,25 +937,25 @@ class AutorizacionService
                 AutorizacionFlujo::verificarYActualizarEstado($flujoId);
             }
 
-            // Si todas las autorizaciones especiales están completas, crear autorizaciones de centros de costo
+            // Si todas las autorizaciones especiales están completas, crear autorizaciones de unidades de negocio
             if (!$this->tieneAutorizacionesEspecialesPendientes($ordenId)) {
-                error_log("Todas las autorizaciones especiales completadas para requisición $ordenId, creando autorizaciones de centros de costo");
+                error_log("Todas las autorizaciones especiales completadas para requisición $ordenId, creando autorizaciones de unidades de negocio");
                 
-                // Verificar si ya existen autorizaciones de centros de costo
+                // Verificar si ya existen autorizaciones de unidades de negocio
                 $stmt = $pdo->prepare("
                     SELECT COUNT(*) FROM autorizaciones 
-                    WHERE requisicion_id = ? AND tipo = 'centro_costo'
+                    WHERE requisicion_id = ? AND tipo = 'unidad_negocio'
                 ");
                 $stmt->execute([$ordenId]);
                 $centrosExistentes = (int)$stmt->fetchColumn();
                 
                 // Si no existen, crearlas
                 if ($centrosExistentes === 0) {
-                    error_log("Creando autorizaciones de centros de costo para requisición $ordenId");
+                    error_log("Creando autorizaciones de unidades de negocio para requisición $ordenId");
                     $this->autorizacionCentroRepo->createFromDistribucion($ordenId);
-                    error_log("✅ Autorizaciones de centros de costo creadas exitosamente");
+                    error_log("✅ Autorizaciones de unidades de negocio creadas exitosamente");
                 } else {
-                    error_log("Las autorizaciones de centros de costo ya existen ($centrosExistentes) para requisición $ordenId");
+                    error_log("Las autorizaciones de unidades de negocio ya existen ($centrosExistentes) para requisición $ordenId");
                 }
                 
                 // Notificar a los autorizadores de centros
@@ -1135,25 +1135,25 @@ class AutorizacionService
                 AutorizacionFlujo::verificarYActualizarEstado($flujoId);
             }
 
-            // Si todas las autorizaciones especiales están completas, crear autorizaciones de centros de costo
+            // Si todas las autorizaciones especiales están completas, crear autorizaciones de unidades de negocio
             if (!$this->tieneAutorizacionesEspecialesPendientes($ordenId)) {
-                error_log("Todas las autorizaciones especiales completadas para requisición $ordenId, creando autorizaciones de centros de costo");
+                error_log("Todas las autorizaciones especiales completadas para requisición $ordenId, creando autorizaciones de unidades de negocio");
                 
-                // Verificar si ya existen autorizaciones de centros de costo
+                // Verificar si ya existen autorizaciones de unidades de negocio
                 $stmt = $pdo->prepare("
                     SELECT COUNT(*) FROM autorizaciones 
-                    WHERE requisicion_id = ? AND tipo = 'centro_costo'
+                    WHERE requisicion_id = ? AND tipo = 'unidad_negocio'
                 ");
                 $stmt->execute([$ordenId]);
                 $centrosExistentes = (int)$stmt->fetchColumn();
                 
                 // Si no existen, crearlas
                 if ($centrosExistentes === 0) {
-                    error_log("Creando autorizaciones de centros de costo para requisición $ordenId");
+                    error_log("Creando autorizaciones de unidades de negocio para requisición $ordenId");
                     $this->autorizacionCentroRepo->createFromDistribucion($ordenId);
-                    error_log("✅ Autorizaciones de centros de costo creadas exitosamente");
+                    error_log("✅ Autorizaciones de unidades de negocio creadas exitosamente");
                 } else {
-                    error_log("Las autorizaciones de centros de costo ya existen ($centrosExistentes) para requisición $ordenId");
+                    error_log("Las autorizaciones de unidades de negocio ya existen ($centrosExistentes) para requisición $ordenId");
                 }
                 
                 // Notificar a los autorizadores de centros
@@ -1450,10 +1450,10 @@ class AutorizacionService
         try {
             $autorizaciones = [];
             
-            // 1. Autorizaciones de centro de costo (principales y respaldo)
+            // 1. Autorizaciones de unidad de negocio (principales y respaldo)
             $centros = $this->getAutorizacionesPendientes($email);
             foreach ($centros as $auth) {
-                $auth['tipo_flujo'] = 'centro_costo';
+                $auth['tipo_flujo'] = 'unidad_negocio';
                 $auth['prioridad'] = 2; // Normal
                 $autorizaciones[] = $auth;
             }
@@ -1496,14 +1496,14 @@ class AutorizacionService
     {
         $tipos = [];
         
-        // Verificar centro de costo principal
+        // Verificar unidad de negocio principal
         if ($this->esAutorizadorDe($email, null)) {
-            $tipos[] = 'centro_costo_principal';
+            $tipos[] = 'unidad_negocio_principal';
         }
         
         // Verificar respaldo
         if ($this->esAutorizadorRespaldo($email)) {
-            $tipos[] = 'centro_costo_respaldo';
+            $tipos[] = 'unidad_negocio_respaldo';
         }
         
         // Verificar especiales
@@ -1559,7 +1559,7 @@ class AutorizacionService
     }
 
     /**
-     * Crea autorizaciones por centro de costo (método privado)
+     * Crea autorizaciones por unidad de negocio (método privado)
      * 
      * @param int $flujoId
      * @param int $ordenId
@@ -1630,8 +1630,8 @@ class AutorizacionService
                     r.monto_total,
                     COALESCE(af.estado, r.estado, 'pendiente') as estado_actual,
                     CASE 
-                        WHEN a.estado = 'aprobada' AND a.tipo = 'centro_costo' THEN 'centro_autorizado'
-                        WHEN a.estado = 'rechazada' AND a.tipo = 'centro_costo' THEN 'centro_rechazado'
+                        WHEN a.estado = 'aprobada' AND a.tipo = 'unidad_negocio' THEN 'centro_autorizado'
+                        WHEN a.estado = 'rechazada' AND a.tipo = 'unidad_negocio' THEN 'centro_rechazado'
                         WHEN a.estado = 'aprobada' AND a.tipo IN ('forma_pago', 'cuenta_contable', 'revision') THEN 'revision_aprobada'
                         WHEN a.estado = 'rechazada' AND a.tipo IN ('forma_pago', 'cuenta_contable', 'revision') THEN 'revision_rechazada'
                         ELSE 'accion_desconocida'
@@ -1651,8 +1651,8 @@ class AutorizacionService
                 $tipoFiltro = match($filtros['accion']) {
                     'revision_aprobada' => "a.estado = 'aprobada' AND a.tipo IN ('forma_pago', 'cuenta_contable', 'revision')",
                     'revision_rechazada' => "a.estado = 'rechazada' AND a.tipo IN ('forma_pago', 'cuenta_contable', 'revision')",
-                    'centro_autorizado' => "a.estado = 'aprobada' AND a.tipo = 'centro_costo'",
-                    'centro_rechazado' => "a.estado = 'rechazada' AND a.tipo = 'centro_costo'",
+                    'centro_autorizado' => "a.estado = 'aprobada' AND a.tipo = 'unidad_negocio'",
+                    'centro_rechazado' => "a.estado = 'rechazada' AND a.tipo = 'unidad_negocio'",
                     default => null
                 };
                 
@@ -1739,8 +1739,8 @@ class AutorizacionService
                     r.monto_total,
                     COALESCE(af.estado, 'pendiente') as estado_actual,
                     CASE
-                        WHEN a.estado = 'aprobada' AND a.tipo = 'centro_costo' THEN 'centro_autorizado'
-                        WHEN a.estado = 'rechazada' AND a.tipo = 'centro_costo' THEN 'centro_rechazado'
+                        WHEN a.estado = 'aprobada' AND a.tipo = 'unidad_negocio' THEN 'centro_autorizado'
+                        WHEN a.estado = 'rechazada' AND a.tipo = 'unidad_negocio' THEN 'centro_rechazado'
                         WHEN a.estado = 'aprobada' AND a.tipo IN ('forma_pago','cuenta_contable','revision') THEN 'revision_aprobada'
                         WHEN a.estado = 'rechazada' AND a.tipo IN ('forma_pago','cuenta_contable','revision') THEN 'revision_rechazada'
                         ELSE 'accion_desconocida'
@@ -1762,8 +1762,8 @@ class AutorizacionService
                 $tipoFiltro = match($filtros['accion']) {
                     'revision_aprobada'  => "a.estado = 'aprobada' AND a.tipo IN ('forma_pago','cuenta_contable','revision')",
                     'revision_rechazada' => "a.estado = 'rechazada' AND a.tipo IN ('forma_pago','cuenta_contable','revision')",
-                    'centro_autorizado'  => "a.estado = 'aprobada' AND a.tipo = 'centro_costo'",
-                    'centro_rechazado'   => "a.estado = 'rechazada' AND a.tipo = 'centro_costo'",
+                    'centro_autorizado'  => "a.estado = 'aprobada' AND a.tipo = 'unidad_negocio'",
+                    'centro_rechazado'   => "a.estado = 'rechazada' AND a.tipo = 'unidad_negocio'",
                     default => null
                 };
                 if ($tipoFiltro) {
@@ -1845,11 +1845,11 @@ class AutorizacionService
     public function esAutorizadorGeneral($email)
     {
         try {
-            // Verificar si es autorizador de centro de costo
+            // Verificar si es autorizador de unidad de negocio
             $pdo = Model::getConnection();
             $stmt = $pdo->prepare("
                 SELECT COUNT(*) 
-                FROM autorizacion_centro_costo 
+                FROM autorizacion_unidad_negocio 
                 WHERE autorizador_email = ?
             ");
             $stmt->execute([$email]);

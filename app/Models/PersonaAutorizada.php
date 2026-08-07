@@ -3,7 +3,7 @@
  * Modelo PersonaAutorizada
  * 
  * Representa las personas autorizadas para aprobar requisiciones
- * de un centro de costo específico.
+ * de un unidad de negocio específico.
  * 
  * @package RequisicionesMVC\Models
  * @version 2.0
@@ -18,7 +18,7 @@ class PersonaAutorizada extends Model
     protected static $timestamps = false;
 
     protected static $fillable = [
-        'centro_costo_id',
+        'unidad_negocio_id',
         'nombre',
         'email',
         'cargo',
@@ -27,69 +27,69 @@ class PersonaAutorizada extends Model
     protected static $guarded = ['id'];
 
     /**
-     * Obtiene el centro de costo asociado
+     * Obtiene el unidad de negocio asociado
      * 
      * @return array|null
      */
-    public function centroCosto()
+    public function unidadNegocio()
     {
-        if (!isset($this->attributes['centro_costo_id'])) {
+        if (!isset($this->attributes['unidad_negocio_id'])) {
             return null;
         }
 
-        return CentroCosto::find($this->attributes['centro_costo_id']);
+        return UnidadNegocio::find($this->attributes['unidad_negocio_id']);
     }
 
     /**
-     * Obtiene todas las personas autorizadas de un centro de costo
+     * Obtiene todas las personas autorizadas de un unidad de negocio
      * 
-     * @param int $centroCostoId
+     * @param int $unidadNegocioId
      * @return array
      */
-    public static function porCentroCosto($centroCostoId)
+    public static function porUnidadNegocio($unidadNegocioId)
     {
         $table = static::getTable();
         
         $sql = "SELECT * FROM {$table} 
-                WHERE centro_costo_id = ? 
+                WHERE unidad_negocio_id = ? 
                 ORDER BY id ASC";
         
         $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$centroCostoId]);
+        $stmt->execute([$unidadNegocioId]);
         
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     /**
-     * Obtiene personas activas de un centro de costo.
+     * Obtiene personas activas de un unidad de negocio.
      *
-     * Alias de porCentroCosto() — ambos métodos eran idénticos.
-     * Se mantiene por backward compatibility; preferir porCentroCosto() en código nuevo.
+     * Alias de porUnidadNegocio() — ambos métodos eran idénticos.
+     * Se mantiene por backward compatibility; preferir porUnidadNegocio() en código nuevo.
      *
-     * @param int $centroCostoId
+     * @param int $unidadNegocioId
      * @return array
      */
-    public static function activasPorCentroCosto($centroCostoId)
+    public static function activasPorUnidadNegocio($unidadNegocioId)
     {
-        return self::porCentroCosto($centroCostoId);
+        return self::porUnidadNegocio($unidadNegocioId);
     }
 
     /**
      * Obtiene el autorizador principal activo de un centro
      * 
-     * @param int $centroCostoId
+     * @param int $unidadNegocioId
      * @return array|null
      */
-    public static function principalPorCentro($centroCostoId)
+    public static function principalPorCentro($unidadNegocioId)
     {
         $table = static::getTable();
         $sql = "SELECT * FROM {$table} 
-                WHERE centro_costo_id = ? 
+                WHERE unidad_negocio_id = ? 
                 ORDER BY id ASC 
                 LIMIT 1";
         
         $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$centroCostoId]);
+        $stmt->execute([$unidadNegocioId]);
         
         return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
     }
@@ -101,21 +101,21 @@ class PersonaAutorizada extends Model
      * con su campo `orden` (1=aprueba primero, 2=aprueba segundo), consultando la tabla
      * base para acceder a la columna orden que la vista persona_autorizada no expone.
      *
-     * @param int $centroCostoId
+     * @param int $unidadNegocioId
      * @return array  Cada elemento: ['email', 'nombre', 'orden', 'autorizador_id']
      */
-    public static function todosPorCentro(int $centroCostoId): array
+    public static function todosPorCentro(int $unidadNegocioId): array
     {
         $sql = "SELECT a.email, a.nombre, a.cargo, acc.orden, acc.autorizador_id
-                FROM autorizador_centro_costo acc
+                FROM autorizador_unidad_negocio acc
                 JOIN autorizadores a ON a.id = acc.autorizador_id
-                WHERE acc.centro_costo_id = ?
+                WHERE acc.unidad_negocio_id = ?
                   AND acc.activo = 1
                   AND a.activo = 1
                 ORDER BY acc.orden ASC, a.id ASC";
 
         $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$centroCostoId]);
+        $stmt->execute([$unidadNegocioId]);
 
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
@@ -138,7 +138,7 @@ class PersonaAutorizada extends Model
     }
 
     /**
-     * Obtiene todos los centros de costo de una persona autorizada
+     * Obtiene todos los unidades de negocio de una persona autorizada
      * 
      * @param string $email
      * @return array
@@ -148,11 +148,11 @@ class PersonaAutorizada extends Model
         $table = static::getTable();
         
         $sql = "SELECT DISTINCT 
-                    pa.centro_costo_id,
+                    pa.unidad_negocio_id,
                     cc.nombre as centro_nombre,
                     cc.id as centro_id
                 FROM {$table} pa
-                INNER JOIN centro_de_costo cc ON pa.centro_costo_id = cc.id
+                INNER JOIN unidad_de_negocio cc ON pa.unidad_negocio_id = cc.id
                 WHERE pa.email = ? 
                 ORDER BY cc.nombre ASC";
         
@@ -166,20 +166,20 @@ class PersonaAutorizada extends Model
      * Verifica si un email es autorizador de un centro
      * 
      * @param string $email
-     * @param int $centroCostoId
+     * @param int $unidadNegocioId
      * @return bool
      */
-    public static function esAutorizadorDe($email, $centroCostoId)
+    public static function esAutorizadorDe($email, $unidadNegocioId)
     {
         $table = static::getTable();
         
         $sql = "SELECT COUNT(*) as total 
                 FROM {$table} 
                 WHERE email = ? 
-                AND centro_costo_id = ?";
+                AND unidad_negocio_id = ?";
         
         $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$email, $centroCostoId]);
+        $stmt->execute([$email, $unidadNegocioId]);
         
         $result = $stmt->fetch(\PDO::FETCH_ASSOC);
         return ($result['total'] ?? 0) > 0;
@@ -240,13 +240,13 @@ class PersonaAutorizada extends Model
                     oc.nombre_razon_social,
                     oc.monto_total,
                     oc.fecha,
-                    cc.nombre as centro_costo_nombre
+                    cc.nombre as unidad_negocio_nombre
                 FROM autorizaciones a
                 INNER JOIN requisiciones oc ON a.requisicion_id = oc.id
-                LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+                LEFT JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
                 WHERE a.autorizador_email = ?
                   AND a.estado = 'pendiente'
-                  AND a.tipo = 'centro_costo'
+                  AND a.tipo = 'unidad_negocio'
                 ORDER BY oc.fecha DESC";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -267,7 +267,7 @@ class PersonaAutorizada extends Model
                 FROM autorizaciones a
                 WHERE a.autorizador_email = ?
                   AND a.estado = 'pendiente'
-                  AND a.tipo = 'centro_costo'";
+                  AND a.tipo = 'unidad_negocio'";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$email]);
@@ -291,7 +291,7 @@ class PersonaAutorizada extends Model
                     SUM(CASE WHEN a.estado = 'rechazada' THEN 1 ELSE 0 END) as rechazadas
                 FROM autorizaciones a
                 WHERE a.autorizador_email = ?
-                  AND a.tipo = 'centro_costo'";
+                  AND a.tipo = 'unidad_negocio'";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$email]);

@@ -2,7 +2,7 @@
 use App\Helpers\View;
 use App\Helpers\Session;
 
-$title = 'Asignar Centros de Costo';
+$title = 'Asignar Unidades de Negocio';
 ?>
 
 <?php View::startSection('content'); ?>
@@ -240,7 +240,7 @@ $title = 'Asignar Centros de Costo';
                     <i class="fas fa-building me-3"></i>
                     <?= View::e($title) ?>
                 </h1>
-                <p class="mb-0 opacity-75">Selecciona los centros de costo para este autorizador</p>
+                <p class="mb-0 opacity-75">Selecciona los unidades de negocio para este autorizador</p>
             </div>
             <div class="col-md-4 text-end">
                 <a href="<?= url('/admin/autorizadores/' . ($autorizador->id ?? '') . '/edit') ?>" class="btn btn-light">
@@ -289,7 +289,7 @@ $title = 'Asignar Centros de Costo';
                     <input type="text"
                            class="search-input"
                            id="searchCentros"
-                           placeholder="Buscar centro de costo...">
+                           placeholder="Buscar unidad de negocio...">
                 </div>
                 <div class="d-flex gap-2 align-items-center">
                     <button type="button" class="btn-select" id="btnSelectAll">
@@ -328,7 +328,7 @@ $title = 'Asignar Centros de Costo';
                                         <div class="centro-codigo"><?= View::e($centroCodigo) ?></div>
                                     <?php endif; ?>
                                 </div>
-                                <select name="centro_costo_orden[<?= View::e($centroId) ?>]"
+                                <select name="unidad_negocio_orden[<?= View::e($centroId) ?>]"
                                         class="form-select form-select-sm orden-select ms-2"
                                         style="width:auto;min-width:180px;"
                                         data-centro-id="<?= View::e($centroId) ?>">
@@ -343,7 +343,7 @@ $title = 'Asignar Centros de Costo';
             </div>
             <div class="no-results" id="noResults">
                 <i class="fas fa-search fa-2x mb-2"></i>
-                <p>No se encontraron centros de costo con ese criterio</p>
+                <p>No se encontraron unidades de negocio con ese criterio</p>
             </div>
         </div>
 

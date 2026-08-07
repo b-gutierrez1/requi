@@ -23,9 +23,9 @@ View::startSection('content');
                     </a>
                     <a href="<?= url('/admin/catalogos?tipo=centros') ?>" class="btn <?php echo $catalogo === 'centros' ? 'btn-primary' : 'btn-outline-primary'; ?>">
                         <i class="fas fa-building me-2"></i>
-                        Centros de Costo
+                        Unidades de Negocio
                     </a>
-                    <a href="<?= url('/admin/relaciones') ?>" class="btn btn-outline-info" title="Ver relaciones entre Centro de Costo y Unidad de Negocio">
+                    <a href="<?= url('/admin/relaciones') ?>" class="btn btn-outline-info" title="Ver relaciones entre Unidad de Negocio y Centro de Costo">
                         <i class="fas fa-project-diagram me-2"></i>
                         Relaciones
                     </a>
@@ -104,13 +104,13 @@ View::startSection('content');
             </div>
         </div>
 
-        <!-- Centros de Costo -->
+        <!-- Unidades de Negocio -->
         <div class="<?php echo $catalogo === 'centros' ? '' : 'd-none'; ?>">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center" style="position: relative; z-index: 1015;">
                     <h5 class="mb-0" style="transform: none !important;">
                         <i class="fas fa-building me-2"></i>
-                        Centros de Costo
+                        Unidades de Negocio
                     </h5>
                     <a href="<?= url('/admin/centros') ?>" class="btn btn-primary" style="position: relative; z-index: 1016; transform: none !important; transition: none !important;">
                         <i class="fas fa-cog me-2"></i>
@@ -148,7 +148,7 @@ View::startSection('content');
                                     <tr>
                                         <td colspan="3" class="text-center text-muted">
                                             <i class="fas fa-inbox fa-2x mb-2"></i><br>
-                                            No hay centros de costo registrados
+                                            No hay unidades de negocio registrados
                                         </td>
                                     </tr>
                                 <?php endif; ?>

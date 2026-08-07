@@ -16,7 +16,7 @@ use App\Models\Requisicion;
 use App\Models\Autorizacion;
 use App\Models\AutorizacionFlujo;
 use App\Models\Recordatorio;
-use App\Models\CentroCosto;
+use App\Models\UnidadNegocio;
 use App\Models\CuentaContable;
 use App\Models\DistribucionGasto;
 use App\Models\AutorizadorMetodoPago;
@@ -204,9 +204,9 @@ class NotificacionService
                     $data['estado_actual'] = 'Pendiente de Autorización de Cuenta Contable';
                     $data['mensaje_siguiente_paso'] = 'Ahora requiere autorización especial por las cuentas contables utilizadas.';
                     break;
-                case 'centro_costo':
+                case 'unidad_negocio':
                     $data['estado_actual'] = 'Pendiente de Autorización por Centros';
-                    $data['mensaje_siguiente_paso'] = 'Ahora está pendiente de autorización por los centros de costo correspondientes.';
+                    $data['mensaje_siguiente_paso'] = 'Ahora está pendiente de autorización por los unidades de negocio correspondientes.';
                     break;
                 default:
                     $data['estado_actual'] = 'Pendiente de Autorización';
@@ -396,7 +396,7 @@ class NotificacionService
      * Notifica URGENTEMENTE a los autorizadores sobre requisiciones pendientes
      * 
      * @param int $ordenId ID de la orden
-     * @param array $centrosIds IDs de centros de costo
+     * @param array $centrosIds IDs de unidades de negocio
      * @return array Resultado
      */
     public function notificarUrgenteAutorizacionPendiente($ordenId, $centrosIds)
@@ -417,7 +417,7 @@ class NotificacionService
             $resultados = [];
 
             foreach ($centrosIds as $centroId) {
-                $centro = CentroCosto::find($centroId);
+                $centro = UnidadNegocio::find($centroId);
                 if (!$centro) {
                     continue;
                 }
@@ -429,7 +429,7 @@ class NotificacionService
                 
                 foreach ($autorizadores as $autorizador) {
                     $data['destinatario_nombre'] = $autorizador['nombre'];
-                    $data['centro_costo'] = $centroNombre;
+                    $data['unidad_negocio'] = $centroNombre;
                     $data['url_revision'] = $this->obtenerUrlAccion($ordenId, 'autorizar');
                     $data['tiempo_limite'] = '24 horas'; // Tiempo límite para respuesta
 
@@ -584,14 +584,14 @@ class NotificacionService
     }
 
     /**
-     * Obtiene autorizadores de un centro de costo
+     * Obtiene autorizadores de un unidad de negocio
      * 
-     * @param int $centroId ID del centro de costo
+     * @param int $centroId ID del unidad de negocio
      * @return array Array de autorizadores
      */
     private function getAutorizadoresCentro($centroId)
     {
-        $centro = CentroCosto::find($centroId);
+        $centro = UnidadNegocio::find($centroId);
         if (!$centro) {
             error_log("NotificacionService: Centro de costo no encontrado: $centroId");
             return [];
@@ -600,7 +600,7 @@ class NotificacionService
         $autorizadores = [];
         $centroNombre = is_object($centro) ? ($centro->nombre ?? '') : ($centro['nombre'] ?? '');
 
-        // Si $centro es un objeto CentroCosto, usar sus métodos
+        // Si $centro es un objeto UnidadNegocio, usar sus métodos
         if (is_object($centro) && method_exists($centro, 'getEmailAutorizador')) {
             $emailAutorizador = $centro->getEmailAutorizador();
             if ($emailAutorizador) {
@@ -783,7 +783,7 @@ class NotificacionService
                     error_log("notificarSiguienteNivel: Llamando a notificarAutorizadorEspecialCuentas");
                     $resultado = $this->notificarAutorizadorEspecialCuentas($ordenId);
                     break;
-                case 'centro_costo':
+                case 'unidad_negocio':
                     error_log("notificarSiguienteNivel: Llamando a notificarAutorizadoresCentros");
                     $resultado = $this->notificarAutorizadoresCentros($ordenId);
                     break;
@@ -830,17 +830,17 @@ class NotificacionService
                 'estado' => Autorizacion::ESTADO_PENDIENTE
             ]));
             if ($pendienteCentros > 0) {
-                return 'centro_costo';
+                return 'unidad_negocio';
             }
 
-            // Fallback: los registros de centro_costo aún no se crean en este punto del flujo
+            // Fallback: los registros de unidad_negocio aún no se crean en este punto del flujo
             // (se crean después de que las autorizaciones especiales terminan).
             // Verificar el estado del flujo directamente para detectar este caso.
             $flujo = AutorizacionFlujo::porOrdenCompra($ordenId);
             if ($flujo) {
                 $estadoFlujo = is_object($flujo) ? $flujo->estado : $flujo['estado'];
                 if ($estadoFlujo === AutorizacionFlujo::ESTADO_PENDIENTE_AUTORIZACION_CENTROS) {
-                    return 'centro_costo';
+                    return 'unidad_negocio';
                 }
             }
         } catch (\Exception $e) {
@@ -997,15 +997,15 @@ class NotificacionService
             $stmt = $pdo->prepare("
                 SELECT a.autorizador_email, a.autorizador_nombre, cc.nombre AS centro_nombre
                 FROM autorizaciones a
-                JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+                JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
                 WHERE a.requisicion_id = ?
-                  AND a.tipo = 'centro_costo'
+                  AND a.tipo = 'unidad_negocio'
                   AND a.estado = 'pendiente'
                   AND NOT EXISTS (
                       SELECT 1 FROM autorizaciones a2
                       WHERE a2.requisicion_id = a.requisicion_id
-                        AND a2.centro_costo_id = a.centro_costo_id
-                        AND a2.tipo = 'centro_costo'
+                        AND a2.unidad_negocio_id = a.unidad_negocio_id
+                        AND a2.tipo = 'unidad_negocio'
                         AND a2.nivel < a.nivel
                         AND a2.estado = 'pendiente'
                   )
@@ -1031,10 +1031,10 @@ class NotificacionService
                 error_log("notificarAutorizadoresCentros: Enviando correo a {$email} ({$centroNombre})");
 
                 $data['destinatario_nombre'] = $nombre;
-                $data['centro_costo']        = $centroNombre;
+                $data['unidad_negocio']        = $centroNombre;
                 $data['url_revision']        = $this->obtenerUrlAccion($ordenId, 'autorizar');
-                $data['accion_requerida']    = "Autorización por Centro de Costo: {$centroNombre}";
-                $data['mensaje_tipo']        = 'AUTORIZACIÓN DE CENTRO DE COSTO';
+                $data['accion_requerida']    = "Autorización por Unidad de Negocio: {$centroNombre}";
+                $data['mensaje_tipo']        = 'AUTORIZACIÓN DE UNIDAD DE NEGOCIO';
 
                 $result = $this->sendEmailSafe(
                     'sendWithTemplate',
@@ -1062,16 +1062,16 @@ class NotificacionService
     }
 
     /**
-     * Notifica a los autorizadores del siguiente nivel de un centro de costo,
+     * Notifica a los autorizadores del siguiente nivel de un unidad de negocio,
      * solo si existen y su turno acaba de llegar (el nivel anterior aprobó).
      *
-     * Se llama desde AutorizacionService::autorizarCentroCosto() después de cada aprobación.
+     * Se llama desde AutorizacionService::autorizarUnidadNegocio() después de cada aprobación.
      *
      * @param int $ordenId
-     * @param int $centroCostoId
+     * @param int $unidadNegocioId
      * @param int $nivelRecienAprobado
      */
-    public function notificarSiguienteNivelCentroCosto(int $ordenId, int $centroCostoId, int $nivelRecienAprobado): void
+    public function notificarSiguienteNivelUnidadNegocio(int $ordenId, int $unidadNegocioId, int $nivelRecienAprobado): void
     {
         try {
             $pdo = \App\Models\Model::getConnection();
@@ -1080,23 +1080,23 @@ class NotificacionService
             $stmt = $pdo->prepare("
                 SELECT a.autorizador_email, a.autorizador_nombre, cc.nombre AS centro_nombre
                 FROM autorizaciones a
-                JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+                JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
                 WHERE a.requisicion_id = ?
-                  AND a.centro_costo_id = ?
-                  AND a.tipo = 'centro_costo'
+                  AND a.unidad_negocio_id = ?
+                  AND a.tipo = 'unidad_negocio'
                   AND a.estado = 'pendiente'
                   AND a.nivel = ?
                   AND NOT EXISTS (
                       SELECT 1 FROM autorizaciones a2
                       WHERE a2.requisicion_id = a.requisicion_id
-                        AND a2.centro_costo_id = a.centro_costo_id
-                        AND a2.tipo = 'centro_costo'
+                        AND a2.unidad_negocio_id = a.unidad_negocio_id
+                        AND a2.tipo = 'unidad_negocio'
                         AND a2.nivel < a.nivel
                         AND a2.estado = 'pendiente'
                   )
             ");
             $nivelSiguiente = $nivelRecienAprobado + 1;
-            $stmt->execute([$ordenId, $centroCostoId, $nivelSiguiente]);
+            $stmt->execute([$ordenId, $unidadNegocioId, $nivelSiguiente]);
             $siguientes = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
             if (empty($siguientes)) {
@@ -1120,10 +1120,10 @@ class NotificacionService
                 }
 
                 $data['destinatario_nombre'] = $nombre;
-                $data['centro_costo']        = $centroNombre;
+                $data['unidad_negocio']        = $centroNombre;
                 $data['url_revision']        = $this->obtenerUrlAccion($ordenId, 'autorizar');
-                $data['accion_requerida']    = "Autorización por Centro de Costo: {$centroNombre} (Nivel {$nivelSiguiente})";
-                $data['mensaje_tipo']        = "AUTORIZACIÓN DE CENTRO DE COSTO — NIVEL {$nivelSiguiente}";
+                $data['accion_requerida']    = "Autorización por Unidad de Negocio: {$centroNombre} (Nivel {$nivelSiguiente})";
+                $data['mensaje_tipo']        = "AUTORIZACIÓN DE UNIDAD DE NEGOCIO — NIVEL {$nivelSiguiente}";
 
                 $this->sendEmailSafe(
                     'sendWithTemplate',
@@ -1133,10 +1133,10 @@ class NotificacionService
                     $data
                 );
 
-                error_log("notificarSiguienteNivelCentroCosto: enviado a $email (nivel=$nivelSiguiente, centro=$centroCostoId, req=$ordenId)");
+                error_log("notificarSiguienteNivelUnidadNegocio: enviado a $email (nivel=$nivelSiguiente, centro=$unidadNegocioId, req=$ordenId)");
             }
         } catch (\Exception $e) {
-            error_log("Error en notificarSiguienteNivelCentroCosto: " . $e->getMessage());
+            error_log("Error en notificarSiguienteNivelUnidadNegocio: " . $e->getMessage());
         }
     }
 

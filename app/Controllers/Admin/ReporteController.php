@@ -90,7 +90,7 @@ class ReporteController extends Controller
         }
     }
 
-    public function reporteGastoCentroCosto()
+    public function reporteGastoUnidadNegocio()
     {
         if (!$this->validateCSRF()) {
             $this->jsonResponse(['success' => false, 'error' => 'Token inválido'], 403);
@@ -100,11 +100,11 @@ class ReporteController extends Controller
             $fechaInicio = $_POST['fecha_inicio'] ?? date('Y-m-01');
             $fechaFin    = $_POST['fecha_fin']    ?? date('Y-m-t');
 
-            $sql = "SELECT cc.nombre AS centro_costo,
+            $sql = "SELECT cc.nombre AS unidad_negocio,
                            COUNT(DISTINCT dg.requisicion_id) AS total_requisiciones,
                            SUM(dg.cantidad) AS monto_total
-                    FROM centro_de_costo cc
-                    INNER JOIN distribucion_gasto dg ON cc.id = dg.centro_costo_id
+                    FROM unidad_de_negocio cc
+                    INNER JOIN distribucion_gasto dg ON cc.id = dg.unidad_negocio_id
                     INNER JOIN requisiciones r ON dg.requisicion_id = r.id
                     WHERE DATE(r.fecha_solicitud) BETWEEN ? AND ?
                     GROUP BY cc.id, cc.nombre
@@ -113,16 +113,16 @@ class ReporteController extends Controller
             $stmt = Requisicion::query($sql, [$fechaInicio, $fechaFin]);
             $filas = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
-            $columnas = ['Centro de Costo', 'Total Requisiciones', 'Monto Total'];
+            $columnas = ['Unidad de Negocio', 'Total Requisiciones', 'Monto Total'];
             $datos = array_map(fn($r) => [
-                $r['centro_costo'],
+                $r['unidad_negocio'],
                 $r['total_requisiciones'],
                 $r['monto_total'],
             ], $filas);
 
             $this->exportarCSV(
-                'reporte_gasto_centro_costo_' . date('Y-m-d'),
-                'Gasto por Centro de Costo',
+                'reporte_gasto_unidad_negocio_' . date('Y-m-d'),
+                'Gasto por Unidad de Negocio',
                 "Del $fechaInicio al $fechaFin",
                 $columnas, $datos
             );
@@ -438,7 +438,7 @@ class ReporteController extends Controller
                 $auth['autorizador_email'] ?? '',
                 $auth['estado_auth'] ?? '',
                 $auth['fecha_autorizacion'] ?? '',
-                $auth['centro_costo_nombre'] ?? ''
+                $auth['unidad_negocio_nombre'] ?? ''
             ]);
         }
     }
@@ -449,7 +449,7 @@ class ReporteController extends Controller
         fputcsv($output, ['Monto Total General', 'Q ' . number_format($datos['monto_total_general'], 5)]);
         fputcsv($output, []);
 
-        fputcsv($output, ['Gasto por Centro de Costo']);
+        fputcsv($output, ['Gasto por Unidad de Negocio']);
         fputcsv($output, ['Código', 'Nombre', 'Monto Total', 'Total Requisiciones']);
 
         foreach ($datos['datos_financieros'] as $centro) {

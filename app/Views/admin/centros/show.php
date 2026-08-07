@@ -2,7 +2,7 @@
 use App\Helpers\View;
 use App\Helpers\Session;
 
-$title = 'Detalles del Centro de Costo';
+$title = 'Detalles del Unidad de Negocio';
 ?>
 
 <?php View::startSection('content'); ?>
@@ -12,7 +12,7 @@ $title = 'Detalles del Centro de Costo';
         <div class="col-md-6">
             <h1 class="h3 mb-0">
                 <i class="fas fa-building me-2"></i>
-                Detalles del Centro de Costo
+                Detalles del Unidad de Negocio
             </h1>
         </div>
         <div class="col-md-6 text-end">
@@ -94,12 +94,12 @@ $title = 'Detalles del Centro de Costo';
                     </div>
                     <?php endif; ?>
 
-                    <?php if (!empty($centro->unidad_negocio_id)): ?>
+                    <?php if (!empty($centro->centro_costo_id)): ?>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label text-muted">Unidad de Negocio</label>
-                                <div>ID: <?= View::e($centro->unidad_negocio_id) ?></div>
+                                <label class="form-label text-muted">Centro de Costo</label>
+                                <div>ID: <?= View::e($centro->centro_costo_id) ?></div>
                             </div>
                         </div>
                     </div>

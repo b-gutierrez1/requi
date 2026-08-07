@@ -210,16 +210,16 @@ $title = 'Crear Autorizador por Cuenta Contable';
                     <div class="form-section">
                         <h3 class="section-title">
                             <i class="fas fa-ban"></i>
-                            Exclusiones de Centros de Costo
+                            Exclusiones de Unidades de Negocio
                         </h3>
                         <div class="alert alert-warning">
                             <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Atención:</strong> Los centros de costo seleccionados abajo serán <strong>excluidos</strong> del flujo de autorización. 
-                            Si una requisición usa uno de estos centros de costo, este autorizador NO será llamado.
+                            <strong>Atención:</strong> Los unidades de negocio seleccionados abajo serán <strong>excluidos</strong> del flujo de autorización. 
+                            Si una requisición usa uno de estos unidades de negocio, este autorizador NO será llamado.
                         </div>
                         
-                        <label class="form-label">Centros de Costo a Excluir (Opcional)</label>
-                        <small class="text-muted d-block mb-3">Seleccione los centros de costo que NO requieren autorización de esta persona</small>
+                        <label class="form-label">Unidades de Negocio a Excluir (Opcional)</label>
+                        <small class="text-muted d-block mb-3">Seleccione los unidades de negocio que NO requieren autorización de esta persona</small>
                         
                         <div id="centros_exclusion_container" style="border: 2px solid #e9ecef; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; background: #f8f9fa;">
                             <div class="mb-2">
@@ -231,7 +231,7 @@ $title = 'Crear Autorizador por Cuenta Contable';
                                 </button>
                             </div>
                             <div id="centros_exclusion_list">
-                                <p class="text-muted">Cargando centros de costo...</p>
+                                <p class="text-muted">Cargando unidades de negocio...</p>
                             </div>
                         </div>
                         <div id="exclusiones_count" class="mt-2" style="display: none;">
@@ -354,25 +354,25 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // ========================================================================
-    // GESTIÓN DE EXCLUSIONES DE CENTROS DE COSTO
+    // GESTIÓN DE EXCLUSIONES DE UNIDADES DE NEGOCIO
     // ========================================================================
     
     const centrosExclusionList = document.getElementById('centros_exclusion_list');
     const exclusionesCount = document.getElementById('exclusiones_count');
     const excludedCountSpan = document.getElementById('excluded_count');
     
-    // Usar centros de costo pasados desde PHP
-    const centrosCosto = <?= json_encode($centros_costo ?? []) ?>;
+    // Usar unidades de negocio pasados desde PHP
+    const centrosCosto = <?= json_encode($unidades_negocio ?? []) ?>;
     
     if (centrosCosto && centrosCosto.length > 0) {
         renderCentrosExclusion(centrosCosto);
         exclusionesCount.style.display = 'block';
         updateExcludedCount();
     } else {
-        centrosExclusionList.innerHTML = '<p class="text-muted">No hay centros de costo disponibles</p>';
+        centrosExclusionList.innerHTML = '<p class="text-muted">No hay unidades de negocio disponibles</p>';
     }
     
-    // Renderizar centros de costo para exclusión
+    // Renderizar unidades de negocio para exclusión
     function renderCentrosExclusion(centros) {
         let html = '';
         centros.forEach(centro => {

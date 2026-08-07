@@ -15,7 +15,7 @@ use App\Controllers\RequisicionController;
 use App\Controllers\AutorizacionController;
 use App\Controllers\AdminController;
 use App\Controllers\Admin\ReporteController;
-use App\Controllers\Admin\CentroCostoController;
+use App\Controllers\Admin\UnidadNegocioController;
 use App\Controllers\Admin\AutorizadorController;
 use App\Controllers\Admin\AutorizadorEspecialController;
 use App\Helpers\Redirect;
@@ -158,7 +158,7 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
         // Ruta genérica con parámetro (debe ir AL FINAL después de todas las rutas específicas)
         $router->get('/{id}', [AutorizacionController::class, 'show']);
         
-        // Autorización por centro de costo (con CSRF)
+        // Autorización por unidad de negocio (con CSRF)
         $router->group(['middlewares' => ['CsrfMiddleware']], function($router) {
             $router->post('/centro/{id}/autorizar', [AutorizacionController::class, 'autorizarCentro']);
             $router->post('/centro/{id}/rechazar', [AutorizacionController::class, 'rechazarCentro']);
@@ -202,17 +202,17 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
             $router->delete('/usuarios/{id}/desactivar', [AdminController::class, 'desactivarUsuario']);
         });
         
-        // -------- CENTROS DE COSTO --------
-        $router->get('/centros', [CentroCostoController::class, 'centrosCosto']);
-        $router->get('/centros/create', [CentroCostoController::class, 'createCentro']);
-        $router->get('/centros/{id}', [CentroCostoController::class, 'showCentro']);
-        $router->get('/centros/{id}/edit', [CentroCostoController::class, 'editCentro']);
+        // -------- UNIDADES DE NEGOCIO --------
+        $router->get('/centros', [UnidadNegocioController::class, 'centrosCosto']);
+        $router->get('/centros/create', [UnidadNegocioController::class, 'createCentro']);
+        $router->get('/centros/{id}', [UnidadNegocioController::class, 'showCentro']);
+        $router->get('/centros/{id}/edit', [UnidadNegocioController::class, 'editCentro']);
 
         $router->group(['middlewares' => ['CsrfMiddleware']], function($router) {
-            $router->post('/centros', [CentroCostoController::class, 'storeCentro']);
-            $router->put('/centros/{id}', [CentroCostoController::class, 'updateCentro']);
-            $router->delete('/centros/{id}', [CentroCostoController::class, 'deleteCentro']);
-            $router->post('/centros/{id}/toggle', [CentroCostoController::class, 'toggleCentro']);
+            $router->post('/centros', [UnidadNegocioController::class, 'storeCentro']);
+            $router->put('/centros/{id}', [UnidadNegocioController::class, 'updateCentro']);
+            $router->delete('/centros/{id}', [UnidadNegocioController::class, 'deleteCentro']);
+            $router->post('/centros/{id}/toggle', [UnidadNegocioController::class, 'toggleCentro']);
         });
         
         // -------- AUTORIZADORES --------
@@ -295,7 +295,7 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
 
         $router->group(['middlewares' => ['CsrfMiddleware']], function($router) {
             $router->post('/reportes/estado-requisiciones', [ReporteController::class, 'reporteEstadoRequisiciones']);
-            $router->post('/reportes/gasto-centro-costo', [ReporteController::class, 'reporteGastoCentroCosto']);
+            $router->post('/reportes/gasto-unidad-negocio', [ReporteController::class, 'reporteGastoUnidadNegocio']);
             $router->post('/reportes/gasto-unidad-requirente', [ReporteController::class, 'reporteGastoUnidadRequirente']);
             $router->post('/reportes/tasa-rechazo', [ReporteController::class, 'reporteTasaRechazo']);
             $router->post('/reportes/forma-pago', [ReporteController::class, 'reporteFormaPago']);

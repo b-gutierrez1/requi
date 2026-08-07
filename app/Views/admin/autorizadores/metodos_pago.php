@@ -351,11 +351,11 @@ $metodosCubiertos = count($metodosUnicos);
                                     <span class="badge bg-success">Sin límite de monto</span>
                                 </div>
                                 
-                                <?php if (!empty($autorizador->centros_costo_count)): ?>
+                                <?php if (!empty($autorizador->unidades_negocio_count)): ?>
                                 <div class="mt-2">
                                     <small class="text-muted">
                                         <i class="fas fa-building me-1"></i>
-                                        <?= $autorizador->centros_costo_count ?> centro(s) de costo asignado(s)
+                                        <?= $autorizador->unidades_negocio_count ?> centro(s) de costo asignado(s)
                                     </small>
                                 </div>
                                 <?php endif; ?>

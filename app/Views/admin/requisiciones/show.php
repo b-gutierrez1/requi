@@ -208,7 +208,7 @@ View::startSection('content');
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Centro de Costo</th>
+                                    <th>Unidad de Negocio</th>
                                     <th>Cuenta Contable</th>
                                     <th class="text-end">%</th>
                                     <th class="text-end">Monto</th>

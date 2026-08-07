@@ -164,8 +164,8 @@ $title = 'Detalles del Autorizador de Cuenta Contable';
                             <div class="info-item">
                                 <i class="fas fa-building"></i>
                                 <div>
-                                    <strong>Centros de Costo:</strong><br>
-                                    <span><?= $autorizador->centros_costo_count ?? 0 ?> centro(s) asignado(s)</span>
+                                    <strong>Unidades de Negocio:</strong><br>
+                                    <span><?= $autorizador->unidades_negocio_count ?? 0 ?> centro(s) asignado(s)</span>
                                 </div>
                             </div>
                         </div>

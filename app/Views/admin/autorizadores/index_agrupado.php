@@ -320,7 +320,7 @@ $title = 'Gestión de Autorizadores';
                     'autorizador'     => $autorizador,
                     'centros'         => $centrosDelAut,
                     'permisos'        => [
-                        'centro_costo'    => $autorizador->puede_autorizar_centro_costo ?? false,
+                        'unidad_negocio'    => $autorizador->puede_autorizar_unidad_negocio ?? false,
                         'flujo'           => $autorizador->puede_autorizar_flujo ?? false,
                         'cuenta_contable' => $autorizador->puede_autorizar_cuenta_contable ?? false,
                         'metodo_pago'     => $autorizador->puede_autorizar_metodo_pago ?? false,
@@ -356,7 +356,7 @@ $title = 'Gestión de Autorizadores';
                             </div>
                             <div class="col-md-3">
                                 <div class="tipo-badge-container">
-                                    <?php if ($grupo['permisos']['centro_costo']): ?>
+                                    <?php if ($grupo['permisos']['unidad_negocio']): ?>
                                         <span class="badge badge-tipo badge-centro">Centro</span>
                                     <?php endif; ?>
                                     <?php if ($grupo['permisos']['flujo']): ?>
@@ -432,7 +432,7 @@ $title = 'Gestión de Autorizadores';
                         <div class="centros-list p-3 bg-white">
                             <h6 class="mb-3">
                                 <i class="fas fa-building me-2"></i>
-                                Centros de Costo que Puede Autorizar (<?= count($grupo['centros']) ?> únicos)
+                                Unidades de Negocio que Puede Autorizar (<?= count($grupo['centros']) ?> únicos)
                                 <?php 
                                 $emailKey = strtolower(trim($autorizador->email ?? ''));
                                 $duplicadosReales = $duplicadosPorEmail[$emailKey] ?? 0;
@@ -485,7 +485,7 @@ $title = 'Gestión de Autorizadores';
                         <div class="centros-list p-3 bg-white">
                             <div class="text-center text-muted">
                                 <i class="fas fa-building me-2"></i>
-                                No tiene centros de costo asignados para autorizar
+                                No tiene unidades de negocio asignados para autorizar
                                 <?php if ($grupo['registros_count'] > 1): ?>
                                     <br><small class="text-warning">Tiene <?= $grupo['registros_count'] ?> registros duplicados sin centros asignados</small>
                                 <?php endif; ?>

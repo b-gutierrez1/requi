@@ -17,9 +17,9 @@ use App\Helpers\Redirect;
 use App\Helpers\EstadoHelper;
 use App\Models\Model;
 use App\Models\Usuario;
-use App\Models\CentroCosto;
-use App\Models\CuentaContable;
 use App\Models\UnidadNegocio;
+use App\Models\CuentaContable;
+use App\Models\CentroCosto;
 use App\Models\PersonaAutorizada;
 use App\Models\AutorizadorRespaldo;
 use App\Models\AutorizadorMetodoPago;
@@ -108,8 +108,8 @@ class AdminController extends Controller
                 $result = $stmt->fetch(\PDO::FETCH_ASSOC);
                 $stats['usuarios_activos'] = (int) $result['total'];
 
-                // Total centros de costo
-                $stmt = $pdo->query("SELECT COUNT(*) as total FROM centro_de_costo");
+                // Total unidades de negocio
+                $stmt = $pdo->query("SELECT COUNT(*) as total FROM unidad_de_negocio");
                 $result = $stmt->fetch(\PDO::FETCH_ASSOC);
                 $stats['total_centros'] = (int) $result['total'];
 
@@ -434,7 +434,7 @@ class AdminController extends Controller
 
         $data = match($catalogo) {
             'cuentas' => ['items' => CuentaContable::all(), 'title' => 'Cuentas Contables'],
-            'centros' => ['items' => CentroCosto::all(), 'title' => 'Centros de Costo'],
+            'centros' => ['items' => UnidadNegocio::all(), 'title' => 'Unidades de Negocio'],
             default => ['items' => [], 'title' => 'Catálogo']
         };
 
@@ -621,7 +621,7 @@ class AdminController extends Controller
     // ========================================================================
 
     /**
-     * Limpia duplicados en centros de costo y personas autorizadas
+     * Limpia duplicados en unidades de negocio y personas autorizadas
      * 
      * @return void
      */
@@ -633,11 +633,11 @@ class AdminController extends Controller
         }
 
         try {
-            $conn = CentroCosto::getConnection();
+            $conn = UnidadNegocio::getConnection();
             $conn->beginTransaction();
 
             $reporte = [
-                'centros_costo' => [
+                'unidades_negocio' => [
                     'duplicados_encontrados' => 0,
                     'consolidados' => 0,
                     'eliminados' => 0,
@@ -652,7 +652,7 @@ class AdminController extends Controller
             ];
 
             // ================================================================
-            // 1. LIMPIAR CENTROS DE COSTO DUPLICADOS
+            // 1. LIMPIAR UNIDADES DE NEGOCIO DUPLICADOS
             // ================================================================
             
             // Buscar duplicados por nombre (normalizado)
@@ -660,7 +660,7 @@ class AdminController extends Controller
                         LOWER(TRIM(nombre)) as nombre_normalizado,
                         GROUP_CONCAT(id ORDER BY id) as ids,
                         COUNT(*) as total
-                    FROM centro_de_costo
+                    FROM unidad_de_negocio
                     GROUP BY LOWER(TRIM(nombre))
                     HAVING COUNT(*) > 1";
             
@@ -670,7 +670,7 @@ class AdminController extends Controller
             
             foreach ($duplicadosCentros as $grupo) {
                 $ids = explode(',', $grupo['ids']);
-                $reporte['centros_costo']['duplicados_encontrados'] += count($ids);
+                $reporte['unidades_negocio']['duplicados_encontrados'] += count($ids);
                 
                 // Ordenar por ID (el más antiguo primero)
                 sort($ids);
@@ -678,7 +678,7 @@ class AdminController extends Controller
                 $idsEliminar = array_slice($ids, 1); // Eliminar los demás
                 
                 // Obtener información del centro base
-                $centroBase = CentroCosto::find($idBase);
+                $centroBase = UnidadNegocio::find($idBase);
                 if (!$centroBase) continue;
                 
                 $detalle = [
@@ -690,51 +690,51 @@ class AdminController extends Controller
                 // Actualizar referencias en tablas relacionadas
                 foreach ($idsEliminar as $idEliminar) {
                     // Actualizar distribucion_gasto
-                    $sql = "UPDATE distribucion_gasto SET centro_costo_id = ? WHERE centro_costo_id = ?";
+                    $sql = "UPDATE distribucion_gasto SET unidad_negocio_id = ? WHERE unidad_negocio_id = ?";
                     $stmt = $conn->prepare($sql);
                     $stmt->execute([$idBase, $idEliminar]);
                     
-                    // Actualizar autorizaciones de centro de costo
-                    $sql = "UPDATE autorizaciones SET centro_costo_id = ? WHERE centro_costo_id = ? AND tipo = 'centro_costo'";
+                    // Actualizar autorizaciones de unidad de negocio
+                    $sql = "UPDATE autorizaciones SET unidad_negocio_id = ? WHERE unidad_negocio_id = ? AND tipo = 'unidad_negocio'";
                     $stmt = $conn->prepare($sql);
                     $stmt->execute([$idBase, $idEliminar]);
                     
                     // Actualizar persona_autorizada
                     $table = PersonaAutorizada::getTable();
-                    $sql = "UPDATE {$table} SET centro_costo_id = ? WHERE centro_costo_id = ?";
+                    $sql = "UPDATE {$table} SET unidad_negocio_id = ? WHERE unidad_negocio_id = ?";
                     $stmt = $conn->prepare($sql);
                     $stmt->execute([$idBase, $idEliminar]);
                     
                     // Actualizar autorizador_respaldo
-                    $sql = "UPDATE autorizador_respaldo SET centro_costo_id = ? WHERE centro_costo_id = ?";
+                    $sql = "UPDATE autorizador_respaldo SET unidad_negocio_id = ? WHERE unidad_negocio_id = ?";
                     $stmt = $conn->prepare($sql);
                     $stmt->execute([$idBase, $idEliminar]);
                     
                     // Eliminar el centro duplicado
-                    $sql = "DELETE FROM centro_de_costo WHERE id = ?";
+                    $sql = "DELETE FROM unidad_de_negocio WHERE id = ?";
                     $stmt = $conn->prepare($sql);
                     $stmt->execute([$idEliminar]);
                     
-                    $reporte['centros_costo']['eliminados']++;
+                    $reporte['unidades_negocio']['eliminados']++;
                 }
                 
-                $reporte['centros_costo']['consolidados']++;
-                $reporte['centros_costo']['detalles'][] = $detalle;
+                $reporte['unidades_negocio']['consolidados']++;
+                $reporte['unidades_negocio']['detalles'][] = $detalle;
             }
 
             // ================================================================
             // 2. LIMPIAR PERSONAS AUTORIZADAS DUPLICADAS
             // ================================================================
             
-            // Buscar duplicados en autorizador_centro_costo (tabla base)
+            // Buscar duplicados en autorizador_unidad_negocio (tabla base)
             $sql = "SELECT 
                         acc.autorizador_id,
-                        acc.centro_costo_id,
+                        acc.unidad_negocio_id,
                         GROUP_CONCAT(acc.id ORDER BY acc.id) as ids,
                         COUNT(*) as total
-                    FROM autorizador_centro_costo acc
+                    FROM autorizador_unidad_negocio acc
                     WHERE acc.activo = 1
-                    GROUP BY acc.autorizador_id, acc.centro_costo_id
+                    GROUP BY acc.autorizador_id, acc.unidad_negocio_id
                     HAVING COUNT(*) > 1";
             
             $stmt = $conn->prepare($sql);
@@ -759,7 +759,7 @@ class AdminController extends Controller
                 
                 // Desactivar los duplicados en lugar de eliminarlos
                 foreach ($idsEliminar as $idEliminar) {
-                    $sql = "UPDATE autorizador_centro_costo SET activo = 0 WHERE id = ?";
+                    $sql = "UPDATE autorizador_unidad_negocio SET activo = 0 WHERE id = ?";
                     $stmt = $conn->prepare($sql);
                     $stmt->execute([$idEliminar]);
                     
@@ -768,7 +768,7 @@ class AdminController extends Controller
                 
                 $detalle = [
                     'email' => $email,
-                    'centro_costo_id' => $grupo['centro_costo_id'],
+                    'unidad_negocio_id' => $grupo['unidad_negocio_id'],
                     'autorizador_id' => $grupo['autorizador_id'],
                     'mantener_id' => $idBase,
                     'eliminar_ids' => $idsEliminar
@@ -904,8 +904,8 @@ class AdminController extends Controller
             'actualizado_por' => $ultimo['actualizado_por'] ?? null,
             'registros' => $registros,
             'id_registro' => $ultimo['id'] ?? null,  // Mantener para backward compatibility
-            'centros_costo' => $centros,
-            'centros_costo_count' => is_array($centros) ? count($centros) : 0
+            'unidades_negocio' => $centros,
+            'unidades_negocio_count' => is_array($centros) ? count($centros) : 0
         ];
     }
 
@@ -914,20 +914,20 @@ class AdminController extends Controller
     // ========================================================================
     
     /**
-     * Muestra la página de relaciones entre centros de costo y unidades de negocio
+     * Muestra la página de relaciones entre unidades de negocio y centros de costo
      * 
      * @return void
      */
     public function relaciones()
     {
-        // Obtener centros de costo con sus relaciones (unidad de negocio y factura)
-        $centrosCosto = CentroCosto::activos();
-        $unidadesNegocio = UnidadNegocio::activas();
+        // Obtener unidades de negocio con sus relaciones (centro de costo y factura)
+        $centrosCosto = UnidadNegocio::activos();
+        $unidadesNegocio = CentroCosto::activas();
 
         View::render('admin/relaciones/index', [
-            'title' => 'Relaciones Centro de Costo - Unidad de Negocio',
-            'centros_costo' => $centrosCosto,
-            'unidades_negocio' => $unidadesNegocio
+            'title' => 'Relaciones Unidad de Negocio - Centro de Costo',
+            'unidades_negocio' => $centrosCosto,
+            'centros_costo' => $unidadesNegocio
         ]);
     }
 

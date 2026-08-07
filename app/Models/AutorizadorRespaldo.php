@@ -2,12 +2,12 @@
 /**
  * Modelo AutorizadorRespaldo
  *
- * Gestiona autorizadores de respaldo temporales para centros de costo.
+ * Gestiona autorizadores de respaldo temporales para unidades de negocio.
  * Se activan automáticamente por fechas cuando el autorizador principal no está disponible.
  *
  * ESTRUCTURA:
  * - autorizador_respaldo: Datos del respaldo (emails, fechas, motivo)
- * - autorizador_respaldo_centro: Relación N:M con centros de costo
+ * - autorizador_respaldo_unidad: Relación N:M con unidades de negocio
  *
  * @package RequisicionesMVC\Models
  * @version 3.0
@@ -44,7 +44,7 @@ class AutorizadorRespaldo extends Model
         static $existe = null;
         if ($existe === null) {
             try {
-                $sql = "SHOW TABLES LIKE 'autorizador_respaldo_centro'";
+                $sql = "SHOW TABLES LIKE 'autorizador_respaldo_unidad'";
                 $stmt = self::getConnection()->prepare($sql);
                 $stmt->execute();
                 $existe = $stmt->fetch() !== false;
@@ -56,7 +56,7 @@ class AutorizadorRespaldo extends Model
     }
 
     /**
-     * Obtiene los centros de costo de este respaldo
+     * Obtiene los unidades de negocio de este respaldo
      *
      * @return array
      */
@@ -70,8 +70,8 @@ class AutorizadorRespaldo extends Model
             $sql = "SELECT
                         cc.*,
                         arc.fecha_asignacion
-                    FROM autorizador_respaldo_centro arc
-                    INNER JOIN centro_de_costo cc ON cc.id = arc.centro_costo_id
+                    FROM autorizador_respaldo_unidad arc
+                    INNER JOIN unidad_de_negocio cc ON cc.id = arc.unidad_negocio_id
                     WHERE arc.respaldo_id = ?
                     ORDER BY cc.nombre ASC";
 
@@ -80,9 +80,9 @@ class AutorizadorRespaldo extends Model
             return $stmt->fetchAll(\PDO::FETCH_ASSOC);
         }
 
-        // Fallback: estructura antigua con centro_costo_id directo
-        if (isset($this->attributes['centro_costo_id'])) {
-            $centro = CentroCosto::find($this->attributes['centro_costo_id']);
+        // Fallback: estructura antigua con unidad_negocio_id directo
+        if (isset($this->attributes['unidad_negocio_id'])) {
+            $centro = UnidadNegocio::find($this->attributes['unidad_negocio_id']);
             return $centro ? [$centro] : [];
         }
 
@@ -90,52 +90,52 @@ class AutorizadorRespaldo extends Model
     }
 
     /**
-     * Obtiene respaldos por centro de costo
+     * Obtiene respaldos por unidad de negocio
      *
-     * @param int $centroCostoId
+     * @param int $unidadNegocioId
      * @return array
      */
-    public static function porCentroCosto($centroCostoId)
+    public static function porUnidadNegocio($unidadNegocioId)
     {
         if (self::tieneNuevaEstructura()) {
             $sql = "SELECT ar.*
                     FROM autorizador_respaldo ar
-                    INNER JOIN autorizador_respaldo_centro arc ON arc.respaldo_id = ar.id
-                    WHERE arc.centro_costo_id = ?
+                    INNER JOIN autorizador_respaldo_unidad arc ON arc.respaldo_id = ar.id
+                    WHERE arc.unidad_negocio_id = ?
                     ORDER BY ar.fecha_inicio DESC";
         } else {
             $sql = "SELECT * FROM autorizador_respaldo
-                    WHERE centro_costo_id = ?
+                    WHERE unidad_negocio_id = ?
                     ORDER BY fecha_inicio DESC";
         }
 
         $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$centroCostoId]);
+        $stmt->execute([$unidadNegocioId]);
 
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     /**
-     * Obtiene el respaldo activo actual de un centro de costo
+     * Obtiene el respaldo activo actual de un unidad de negocio
      * CRÍTICO: Este método es usado por AutorizacionCentroRepository
      *
-     * @param int $centroCostoId
+     * @param int $unidadNegocioId
      * @return array|null
      */
-    public static function activoPorCentro($centroCostoId)
+    public static function activoPorCentro($unidadNegocioId)
     {
         if (self::tieneNuevaEstructura()) {
-            $sql = "SELECT ar.*, arc.centro_costo_id
+            $sql = "SELECT ar.*, arc.unidad_negocio_id
                     FROM autorizador_respaldo ar
-                    INNER JOIN autorizador_respaldo_centro arc ON arc.respaldo_id = ar.id
-                    WHERE arc.centro_costo_id = ?
+                    INNER JOIN autorizador_respaldo_unidad arc ON arc.respaldo_id = ar.id
+                    WHERE arc.unidad_negocio_id = ?
                     AND ar.estado = 'activo'
                     AND ar.fecha_inicio <= CURDATE()
                     AND (ar.fecha_fin IS NULL OR ar.fecha_fin >= CURDATE())
                     LIMIT 1";
         } else {
             $sql = "SELECT * FROM autorizador_respaldo
-                    WHERE centro_costo_id = ?
+                    WHERE unidad_negocio_id = ?
                     AND estado = 'activo'
                     AND fecha_inicio <= CURDATE()
                     AND (fecha_fin IS NULL OR fecha_fin >= CURDATE())
@@ -143,7 +143,7 @@ class AutorizadorRespaldo extends Model
         }
 
         $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$centroCostoId]);
+        $stmt->execute([$unidadNegocioId]);
 
         return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
     }
@@ -159,10 +159,10 @@ class AutorizadorRespaldo extends Model
             $sql = "SELECT ar.*,
                         GROUP_CONCAT(DISTINCT cc.nombre ORDER BY cc.nombre SEPARATOR ', ') as centros_nombres,
                         GROUP_CONCAT(DISTINCT cc.id ORDER BY cc.id SEPARATOR ',') as centros_ids,
-                        COUNT(DISTINCT arc.centro_costo_id) as total_centros
+                        COUNT(DISTINCT arc.unidad_negocio_id) as total_centros
                     FROM autorizador_respaldo ar
-                    LEFT JOIN autorizador_respaldo_centro arc ON arc.respaldo_id = ar.id
-                    LEFT JOIN centro_de_costo cc ON cc.id = arc.centro_costo_id
+                    LEFT JOIN autorizador_respaldo_unidad arc ON arc.respaldo_id = ar.id
+                    LEFT JOIN unidad_de_negocio cc ON cc.id = arc.unidad_negocio_id
                     WHERE ar.estado = 'activo'
                     AND ar.fecha_inicio <= CURDATE()
                     AND (ar.fecha_fin IS NULL OR ar.fecha_fin >= CURDATE())
@@ -171,7 +171,7 @@ class AutorizadorRespaldo extends Model
         } else {
             $sql = "SELECT ar.*, cc.nombre as centro_nombre
                     FROM autorizador_respaldo ar
-                    INNER JOIN centro_de_costo cc ON ar.centro_costo_id = cc.id
+                    INNER JOIN unidad_de_negocio cc ON ar.unidad_negocio_id = cc.id
                     WHERE ar.estado = 'activo'
                     AND ar.fecha_inicio <= CURDATE()
                     AND (ar.fecha_fin IS NULL OR ar.fecha_fin >= CURDATE())
@@ -196,10 +196,10 @@ class AutorizadorRespaldo extends Model
             $sql = "SELECT ar.*,
                         GROUP_CONCAT(DISTINCT cc.nombre ORDER BY cc.nombre SEPARATOR ', ') as centros_nombres,
                         GROUP_CONCAT(DISTINCT cc.id ORDER BY cc.id SEPARATOR ',') as centros_ids,
-                        COUNT(DISTINCT arc.centro_costo_id) as total_centros
+                        COUNT(DISTINCT arc.unidad_negocio_id) as total_centros
                     FROM autorizador_respaldo ar
-                    LEFT JOIN autorizador_respaldo_centro arc ON arc.respaldo_id = ar.id
-                    LEFT JOIN centro_de_costo cc ON cc.id = arc.centro_costo_id
+                    LEFT JOIN autorizador_respaldo_unidad arc ON arc.respaldo_id = ar.id
+                    LEFT JOIN unidad_de_negocio cc ON cc.id = arc.unidad_negocio_id
                     GROUP BY ar.id
                     ORDER BY ar.fecha_inicio DESC, ar.id DESC";
         } else {
@@ -216,9 +216,9 @@ class AutorizadorRespaldo extends Model
                         ar.creado_por,
                         GROUP_CONCAT(DISTINCT cc.nombre ORDER BY cc.nombre SEPARATOR ', ') as centros_nombres,
                         GROUP_CONCAT(DISTINCT cc.id ORDER BY cc.id SEPARATOR ',') as centros_ids,
-                        COUNT(DISTINCT ar.centro_costo_id) as total_centros
+                        COUNT(DISTINCT ar.unidad_negocio_id) as total_centros
                     FROM autorizador_respaldo ar
-                    LEFT JOIN centro_de_costo cc ON ar.centro_costo_id = cc.id
+                    LEFT JOIN unidad_de_negocio cc ON ar.unidad_negocio_id = cc.id
                     GROUP BY
                         ar.autorizador_principal_email,
                         ar.autorizador_respaldo_email,
@@ -272,10 +272,10 @@ class AutorizadorRespaldo extends Model
             $sql = "SELECT ar.*,
                         cc.nombre as centro_nombre,
                         cc.codigo as centro_codigo,
-                        arc.centro_costo_id
+                        arc.unidad_negocio_id
                     FROM autorizador_respaldo ar
-                    INNER JOIN autorizador_respaldo_centro arc ON arc.respaldo_id = ar.id
-                    INNER JOIN centro_de_costo cc ON cc.id = arc.centro_costo_id
+                    INNER JOIN autorizador_respaldo_unidad arc ON arc.respaldo_id = ar.id
+                    INNER JOIN unidad_de_negocio cc ON cc.id = arc.unidad_negocio_id
                     WHERE ar.autorizador_respaldo_email = ?
                     AND ar.estado = 'activo'
                     AND ar.fecha_inicio <= CURDATE()
@@ -284,7 +284,7 @@ class AutorizadorRespaldo extends Model
         } else {
             $sql = "SELECT ar.*, cc.nombre as centro_nombre, cc.codigo as centro_codigo
                     FROM autorizador_respaldo ar
-                    INNER JOIN centro_de_costo cc ON ar.centro_costo_id = cc.id
+                    INNER JOIN unidad_de_negocio cc ON ar.unidad_negocio_id = cc.id
                     WHERE ar.autorizador_respaldo_email = ?
                     AND ar.estado = 'activo'
                     AND ar.fecha_inicio <= CURDATE()
@@ -301,11 +301,11 @@ class AutorizadorRespaldo extends Model
     /**
      * Verifica si hay respaldo activo para un centro en una fecha
      *
-     * @param int $centroCostoId
+     * @param int $unidadNegocioId
      * @param string $fecha
      * @return bool
      */
-    public static function hayRespaldoEnFecha($centroCostoId, $fecha = null)
+    public static function hayRespaldoEnFecha($unidadNegocioId, $fecha = null)
     {
         if (!$fecha) {
             $fecha = date('Y-m-d');
@@ -314,22 +314,22 @@ class AutorizadorRespaldo extends Model
         if (self::tieneNuevaEstructura()) {
             $sql = "SELECT COUNT(*) as total
                     FROM autorizador_respaldo ar
-                    INNER JOIN autorizador_respaldo_centro arc ON arc.respaldo_id = ar.id
-                    WHERE arc.centro_costo_id = ?
+                    INNER JOIN autorizador_respaldo_unidad arc ON arc.respaldo_id = ar.id
+                    WHERE arc.unidad_negocio_id = ?
                     AND ar.estado = 'activo'
                     AND ar.fecha_inicio <= ?
                     AND (ar.fecha_fin IS NULL OR ar.fecha_fin >= ?)";
         } else {
             $sql = "SELECT COUNT(*) as total
                     FROM autorizador_respaldo
-                    WHERE centro_costo_id = ?
+                    WHERE unidad_negocio_id = ?
                     AND estado = 'activo'
                     AND fecha_inicio <= ?
                     AND (fecha_fin IS NULL OR fecha_fin >= ?)";
         }
 
         $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$centroCostoId, $fecha, $fecha]);
+        $stmt->execute([$unidadNegocioId, $fecha, $fecha]);
 
         $result = $stmt->fetch(\PDO::FETCH_ASSOC);
         return ($result['total'] ?? 0) > 0;
@@ -337,7 +337,7 @@ class AutorizadorRespaldo extends Model
 
     /**
      * Verifica si ya existe un respaldo activo/programado con fechas solapadas
-     * para la misma combinación de autorizador principal + centro de costo.
+     * para la misma combinación de autorizador principal + unidad de negocio.
      *
      * Solapamiento ocurre cuando los rangos [A_inicio, A_fin] y [B_inicio, B_fin]
      * se intersecan: A_inicio <= B_fin AND (A_fin IS NULL OR A_fin >= B_inicio)
@@ -347,7 +347,7 @@ class AutorizadorRespaldo extends Model
      * @param string|null $fechaFin    Fin del nuevo rango (Y-m-d) o null = abierto
      * @param array $centrosCostoIds   Centros de costo a verificar
      * @param int|null $excluirId      ID de respaldo a excluir (para edición)
-     * @return array  Lista de centro_costo_id que ya tienen un respaldo solapado
+     * @return array  Lista de unidad_negocio_id que ya tienen un respaldo solapado
      */
     public static function hayDuplicadoActivo(
         string $principalEmail,
@@ -367,20 +367,20 @@ class AutorizadorRespaldo extends Model
         //   nuevo_inicio <= existente_fin (o existente_fin es NULL)
         //   AND (nuevo_fin IS NULL OR nuevo_fin >= existente_inicio)
         if (self::tieneNuevaEstructura()) {
-            $sql = "SELECT arc.centro_costo_id
+            $sql = "SELECT arc.unidad_negocio_id
                     FROM autorizador_respaldo ar
-                    INNER JOIN autorizador_respaldo_centro arc ON arc.respaldo_id = ar.id
+                    INNER JOIN autorizador_respaldo_unidad arc ON arc.respaldo_id = ar.id
                     WHERE ar.autorizador_principal_email = ?
                     AND ar.estado IN ('activo', 'programado')
-                    AND arc.centro_costo_id IN ($placeholders)
+                    AND arc.unidad_negocio_id IN ($placeholders)
                     AND ar.fecha_inicio <= ?
                     AND (ar.fecha_fin IS NULL OR ar.fecha_fin >= ?)";
         } else {
-            $sql = "SELECT centro_costo_id
+            $sql = "SELECT unidad_negocio_id
                     FROM autorizador_respaldo
                     WHERE autorizador_principal_email = ?
                     AND estado IN ('activo', 'programado')
-                    AND centro_costo_id IN ($placeholders)
+                    AND unidad_negocio_id IN ($placeholders)
                     AND fecha_inicio <= ?
                     AND (fecha_fin IS NULL OR fecha_fin >= ?)";
         }
@@ -404,14 +404,14 @@ class AutorizadorRespaldo extends Model
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
 
-        return array_column($stmt->fetchAll(\PDO::FETCH_ASSOC), 'centro_costo_id');
+        return array_column($stmt->fetchAll(\PDO::FETCH_ASSOC), 'unidad_negocio_id');
     }
 
     /**
-     * Crea un respaldo con múltiples centros de costo
+     * Crea un respaldo con múltiples unidades de negocio
      *
      * @param array $data Datos del respaldo
-     * @param array $centrosCostoIds IDs de centros de costo
+     * @param array $centrosCostoIds IDs de unidades de negocio
      * @return int|false ID del respaldo creado o false si falla
      * @throws \RuntimeException si hay respaldos activos solapados para algún centro
      */
@@ -429,7 +429,7 @@ class AutorizadorRespaldo extends Model
 
         if (!empty($solapados)) {
             throw new \RuntimeException(
-                'Ya existe un respaldo activo o programado con fechas solapadas para los centros de costo: '
+                'Ya existe un respaldo activo o programado con fechas solapadas para los unidades de negocio: '
                 . implode(', ', $solapados)
             );
         }
@@ -457,7 +457,7 @@ class AutorizadorRespaldo extends Model
 
             // Si existe la tabla de relación, insertar los centros
             if (self::tieneNuevaEstructura() && !empty($centrosCostoIds)) {
-                $sqlCentro = "INSERT INTO autorizador_respaldo_centro (respaldo_id, centro_costo_id) VALUES (?, ?)";
+                $sqlCentro = "INSERT INTO autorizador_respaldo_unidad (respaldo_id, unidad_negocio_id) VALUES (?, ?)";
                 $stmtCentro = $pdo->prepare($sqlCentro);
 
                 foreach ($centrosCostoIds as $centroId) {
@@ -476,11 +476,11 @@ class AutorizadorRespaldo extends Model
     }
 
     /**
-     * Actualiza un respaldo y sus centros de costo
+     * Actualiza un respaldo y sus unidades de negocio
      *
      * @param int $id ID del respaldo
      * @param array $data Datos del respaldo
-     * @param array $centrosCostoIds IDs de centros de costo
+     * @param array $centrosCostoIds IDs de unidades de negocio
      * @return bool
      */
     public static function actualizarConCentros($id, array $data, array $centrosCostoIds)
@@ -498,7 +498,7 @@ class AutorizadorRespaldo extends Model
 
         if (!empty($solapados)) {
             throw new \RuntimeException(
-                'Ya existe un respaldo activo o programado con fechas solapadas para los centros de costo: '
+                'Ya existe un respaldo activo o programado con fechas solapadas para los unidades de negocio: '
                 . implode(', ', $solapados)
             );
         }
@@ -530,13 +530,13 @@ class AutorizadorRespaldo extends Model
             // Si existe la tabla de relación, actualizar centros
             if (self::tieneNuevaEstructura()) {
                 // Eliminar centros anteriores
-                $sqlDelete = "DELETE FROM autorizador_respaldo_centro WHERE respaldo_id = ?";
+                $sqlDelete = "DELETE FROM autorizador_respaldo_unidad WHERE respaldo_id = ?";
                 $stmtDelete = $pdo->prepare($sqlDelete);
                 $stmtDelete->execute([$id]);
 
                 // Insertar nuevos centros
                 if (!empty($centrosCostoIds)) {
-                    $sqlCentro = "INSERT INTO autorizador_respaldo_centro (respaldo_id, centro_costo_id) VALUES (?, ?)";
+                    $sqlCentro = "INSERT INTO autorizador_respaldo_unidad (respaldo_id, unidad_negocio_id) VALUES (?, ?)";
                     $stmtCentro = $pdo->prepare($sqlCentro);
 
                     foreach ($centrosCostoIds as $centroId) {
@@ -570,7 +570,7 @@ class AutorizadorRespaldo extends Model
 
             // Si existe la tabla de relación, eliminar centros primero
             if (self::tieneNuevaEstructura()) {
-                $sqlCentros = "DELETE FROM autorizador_respaldo_centro WHERE respaldo_id = ?";
+                $sqlCentros = "DELETE FROM autorizador_respaldo_unidad WHERE respaldo_id = ?";
                 $stmtCentros = $pdo->prepare($sqlCentros);
                 $stmtCentros->execute([$id]);
             }
@@ -591,7 +591,7 @@ class AutorizadorRespaldo extends Model
     }
 
     /**
-     * Obtiene los IDs de centros de costo de un respaldo
+     * Obtiene los IDs de unidades de negocio de un respaldo
      *
      * @param int $respaldoId
      * @return array
@@ -599,10 +599,10 @@ class AutorizadorRespaldo extends Model
     public static function obtenerCentrosIds($respaldoId)
     {
         if (self::tieneNuevaEstructura()) {
-            $sql = "SELECT centro_costo_id FROM autorizador_respaldo_centro WHERE respaldo_id = ?";
+            $sql = "SELECT unidad_negocio_id FROM autorizador_respaldo_unidad WHERE respaldo_id = ?";
             $stmt = self::getConnection()->prepare($sql);
             $stmt->execute([$respaldoId]);
-            return array_column($stmt->fetchAll(\PDO::FETCH_ASSOC), 'centro_costo_id');
+            return array_column($stmt->fetchAll(\PDO::FETCH_ASSOC), 'unidad_negocio_id');
         }
 
         // Estructura antigua: buscar todos los registros con mismos datos
@@ -613,7 +613,7 @@ class AutorizadorRespaldo extends Model
 
         $data = is_object($respaldo) ? $respaldo->toArray() : $respaldo;
 
-        $sql = "SELECT DISTINCT centro_costo_id FROM autorizador_respaldo
+        $sql = "SELECT DISTINCT unidad_negocio_id FROM autorizador_respaldo
                 WHERE autorizador_principal_email = ?
                 AND autorizador_respaldo_email = ?
                 AND fecha_inicio = ?
@@ -627,7 +627,7 @@ class AutorizadorRespaldo extends Model
             $data['fecha_fin']
         ]);
 
-        return array_column($stmt->fetchAll(\PDO::FETCH_ASSOC), 'centro_costo_id');
+        return array_column($stmt->fetchAll(\PDO::FETCH_ASSOC), 'unidad_negocio_id');
     }
 
     /**
@@ -752,8 +752,8 @@ class AutorizadorRespaldo extends Model
             $sql = "SELECT ar.*,
                         GROUP_CONCAT(DISTINCT cc.nombre ORDER BY cc.nombre SEPARATOR ', ') as centros_nombres
                     FROM autorizador_respaldo ar
-                    LEFT JOIN autorizador_respaldo_centro arc ON arc.respaldo_id = ar.id
-                    LEFT JOIN centro_de_costo cc ON cc.id = arc.centro_costo_id
+                    LEFT JOIN autorizador_respaldo_unidad arc ON arc.respaldo_id = ar.id
+                    LEFT JOIN unidad_de_negocio cc ON cc.id = arc.unidad_negocio_id
                     WHERE ar.estado = 'activo'
                     AND ar.fecha_fin BETWEEN CURRENT_DATE AND DATE_ADD(CURRENT_DATE, INTERVAL ? DAY)
                     GROUP BY ar.id
@@ -761,7 +761,7 @@ class AutorizadorRespaldo extends Model
         } else {
             $sql = "SELECT ar.*, cc.nombre as centro_nombre
                     FROM autorizador_respaldo ar
-                    INNER JOIN centro_de_costo cc ON ar.centro_costo_id = cc.id
+                    INNER JOIN unidad_de_negocio cc ON ar.unidad_negocio_id = cc.id
                     WHERE ar.estado = 'activo'
                     AND ar.fecha_fin BETWEEN CURRENT_DATE AND DATE_ADD(CURRENT_DATE, INTERVAL ? DAY)
                     ORDER BY ar.fecha_fin ASC";

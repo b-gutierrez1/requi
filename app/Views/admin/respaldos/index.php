@@ -29,7 +29,7 @@ View::startSection('content');
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>Centro de Costo</th>
+                            <th>Unidad de Negocio</th>
                             <th>Autorizador Respaldo</th>
                             <th>Período</th>
                             <th>Motivo</th>
@@ -42,8 +42,8 @@ View::startSection('content');
                             <?php foreach ($respaldos as $respaldo): ?>
                                 <tr>
                                     <td>
-                                        <strong><?php echo htmlspecialchars($respaldo->centro_costo_nombre ?? ''); ?></strong><br>
-                                        <small class="text-muted"><?php echo htmlspecialchars($respaldo->centro_costo_codigo ?? ''); ?></small>
+                                        <strong><?php echo htmlspecialchars($respaldo->unidad_negocio_nombre ?? ''); ?></strong><br>
+                                        <small class="text-muted"><?php echo htmlspecialchars($respaldo->unidad_negocio_codigo ?? ''); ?></small>
                                     </td>
                                     <td>
                                         <strong><?php echo htmlspecialchars($respaldo->autorizador_respaldo_nombre ?? ''); ?></strong><br>
@@ -103,9 +103,9 @@ View::startSection('content');
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="centro_costo_id" class="form-label">Centro de Costo *</label>
-                            <select class="form-select" id="centro_costo_id" name="centro_costo_id" required>
-                                <option value="">Seleccionar centro de costo</option>
+                            <label for="unidad_negocio_id" class="form-label">Unidad de Negocio *</label>
+                            <select class="form-select" id="unidad_negocio_id" name="unidad_negocio_id" required>
+                                <option value="">Seleccionar unidad de negocio</option>
                                 <?php if (!empty($centros)): ?>
                                     <?php foreach ($centros as $centro): ?>
                                         <option value="<?php echo $centro->id; ?>">

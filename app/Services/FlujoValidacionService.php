@@ -7,7 +7,7 @@
  * 
  * FLUJOS SOPORTADOS:
  * 1. Revisión inicial (SIEMPRE requerida)
- * 2. Autorización por centro de costo
+ * 2. Autorización por unidad de negocio
  * 3. Autorización especial por forma de pago
  * 4. Autorización especial por cuenta contable
  * 
@@ -150,8 +150,8 @@ class FlujoValidacionService extends Model
         // 1. SIEMPRE: Revisión inicial
         $tipos[] = 'revision';
         
-        // 2. SIEMPRE: Autorización por centro de costo (se crea después de aprobar revisión)
-        $tipos[] = 'centro_costo';
+        // 2. SIEMPRE: Autorización por unidad de negocio (se crea después de aprobar revisión)
+        $tipos[] = 'unidad_negocio';
         
         // 3. Autorización especial por forma de pago (si aplica)
         if (isset($flujo->requiere_autorizacion_especial_pago) && $flujo->requiere_autorizacion_especial_pago) {
@@ -184,7 +184,7 @@ class FlujoValidacionService extends Model
                 ];
             }
 
-            // Obtener autorizaciones por centro de costo (tabla unificada)
+            // Obtener autorizaciones por unidad de negocio (tabla unificada)
             $autorizaciones = $this->centrosRepo()->getByRequisicion((int) $ordenCompraId);
             
             $total = count($autorizaciones);
@@ -252,7 +252,7 @@ class FlujoValidacionService extends Model
                 ];
             }
 
-            // Obtener autorizaciones por centro de costo
+            // Obtener autorizaciones por unidad de negocio
             $autorizaciones = $this->centrosRepo()->getByRequisicion((int) $ordenCompraId);
             
             // Obtener historial

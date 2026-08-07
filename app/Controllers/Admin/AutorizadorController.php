@@ -2,7 +2,7 @@
 /**
  * AutorizadorController
  *
- * CRUD de autorizadores de centro de costo.
+ * CRUD de autorizadores de unidad de negocio.
  * Movido desde AdminController como parte del refactoring.
  *
  * @package RequisicionesMVC\Controllers\Admin
@@ -13,7 +13,7 @@ namespace App\Controllers\Admin;
 use App\Controllers\Controller;
 use App\Helpers\View;
 use App\Helpers\Redirect;
-use App\Models\CentroCosto;
+use App\Models\UnidadNegocio;
 use App\Models\PersonaAutorizada;
 use App\Models\AutorizadorMetodoPago;
 use App\Models\AutorizadorCuentaContable;
@@ -72,8 +72,8 @@ class AutorizadorController extends Controller
             $ph  = implode(',', array_fill(0, count($ids), '?'));
             $stmtCentros = $conn->prepare(
                 "SELECT acc.autorizador_id, cc.id, cc.nombre, NULL AS codigo, acc.orden
-                 FROM autorizador_centro_costo acc
-                 JOIN centro_de_costo cc ON cc.id = acc.centro_costo_id
+                 FROM autorizador_unidad_negocio acc
+                 JOIN unidad_de_negocio cc ON cc.id = acc.unidad_negocio_id
                  WHERE acc.autorizador_id IN ($ph) AND acc.activo = 1
                  ORDER BY acc.orden ASC, cc.nombre ASC"
             );
@@ -96,12 +96,12 @@ class AutorizadorController extends Controller
         $sql = "SELECT
                     acc.autorizador_id,
                     a.email,
-                    acc.centro_costo_id,
+                    acc.unidad_negocio_id,
                     COUNT(*) as total
-                FROM autorizador_centro_costo acc
+                FROM autorizador_unidad_negocio acc
                 INNER JOIN autorizadores a ON a.id = acc.autorizador_id
                 WHERE acc.activo = 1
-                GROUP BY acc.autorizador_id, acc.centro_costo_id
+                GROUP BY acc.autorizador_id, acc.unidad_negocio_id
                 HAVING COUNT(*) > 1";
 
         $stmt = $conn->prepare($sql);
@@ -117,7 +117,7 @@ class AutorizadorController extends Controller
             $duplicadosPorEmail[$email] += ($dup['total'] - 1);
         }
 
-        $centros = CentroCosto::all();
+        $centros = UnidadNegocio::all();
 
         View::render('admin/autorizadores/index_agrupado', [
             'autorizadores'          => $autorizadores,
@@ -155,8 +155,8 @@ class AutorizadorController extends Controller
         $centroPrincipal = null;
         if (!empty($centrosCosto)) {
             $centroPrincipal = $centrosCosto[0];
-        } elseif (isset($autorizador['centro_costo_id'])) {
-            $centroObj = CentroCosto::find($autorizador['centro_costo_id']);
+        } elseif (isset($autorizador['unidad_negocio_id'])) {
+            $centroObj = UnidadNegocio::find($autorizador['unidad_negocio_id']);
             $centroPrincipal = $centroObj ? $centroObj->toArray() : null;
         }
 
@@ -218,7 +218,7 @@ class AutorizadorController extends Controller
      */
     public function createAutorizador()
     {
-        $centros = CentroCosto::all();
+        $centros = UnidadNegocio::all();
 
         View::render('admin/autorizadores/create', [
             'centros' => $centros,
@@ -241,7 +241,7 @@ class AutorizadorController extends Controller
         $email  = $this->sanitize($_POST['email'] ?? '');
         $cargo  = $this->sanitize($_POST['cargo'] ?? '') ?: null;
         $centroIds = array_filter(
-            array_map('intval', $_POST['centro_costo_ids'] ?? []),
+            array_map('intval', $_POST['unidad_negocio_ids'] ?? []),
             fn($id) => $id > 0
         );
 
@@ -254,7 +254,7 @@ class AutorizadorController extends Controller
 
         if (empty($centroIds)) {
             Redirect::back()
-                ->withError('Debe seleccionar al menos un centro de costo')
+                ->withError('Debe seleccionar al menos un unidad de negocio')
                 ->withInput($_POST)
                 ->send();
         }
@@ -279,9 +279,9 @@ class AutorizadorController extends Controller
                 $autorizadorId = (int)$pdo->lastInsertId();
             }
 
-            // 2. Insertar relaciones centro de costo (evitar duplicados)
-            $stmtCheck  = $pdo->prepare("SELECT id FROM autorizador_centro_costo WHERE autorizador_id = ? AND centro_costo_id = ? AND activo = 1");
-            $stmtInsert = $pdo->prepare("INSERT INTO autorizador_centro_costo (autorizador_id, centro_costo_id, activo) VALUES (?, ?, 1)");
+            // 2. Insertar relaciones unidad de negocio (evitar duplicados)
+            $stmtCheck  = $pdo->prepare("SELECT id FROM autorizador_unidad_negocio WHERE autorizador_id = ? AND unidad_negocio_id = ? AND activo = 1");
+            $stmtInsert = $pdo->prepare("INSERT INTO autorizador_unidad_negocio (autorizador_id, unidad_negocio_id, activo) VALUES (?, ?, 1)");
             $creados = 0;
 
             foreach ($centroIds as $centroId) {
@@ -396,7 +396,7 @@ class AutorizadorController extends Controller
     }
 
     /**
-     * Muestra el formulario de gestión de centros de costo de un autorizador
+     * Muestra el formulario de gestión de unidades de negocio de un autorizador
      */
     public function editCentrosAutorizador($id)
     {
@@ -408,7 +408,7 @@ class AutorizadorController extends Controller
                 ->send();
         }
 
-        $todosLosCentros  = CentroCosto::all();
+        $todosLosCentros  = UnidadNegocio::all();
         $centrosAsignados = PersonaAutorizada::centrosCostoPorEmail($autorizador->email);
         $idsAsignados     = array_column($centrosAsignados, 'centro_id');
 
@@ -417,14 +417,14 @@ class AutorizadorController extends Controller
         if (!empty($autorizador->email)) {
             $pdo  = PersonaAutorizada::getConnection();
             $stmt = $pdo->prepare("
-                SELECT acc.centro_costo_id, acc.orden
-                FROM autorizador_centro_costo acc
+                SELECT acc.unidad_negocio_id, acc.orden
+                FROM autorizador_unidad_negocio acc
                 JOIN autorizadores a ON a.id = acc.autorizador_id
                 WHERE a.email = ? AND acc.activo = 1
             ");
             $stmt->execute([$autorizador->email]);
             foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
-                $ordenesPorCentro[(int)$row['centro_costo_id']] = (int)$row['orden'];
+                $ordenesPorCentro[(int)$row['unidad_negocio_id']] = (int)$row['orden'];
             }
         }
 
@@ -433,12 +433,12 @@ class AutorizadorController extends Controller
             'todosLosCentros'  => $todosLosCentros,
             'idsAsignados'     => $idsAsignados,
             'ordenesPorCentro' => $ordenesPorCentro,
-            'title'            => 'Asignar Centros de Costo'
+            'title'            => 'Asignar Unidades de Negocio'
         ]);
     }
 
     /**
-     * Guarda las asignaciones de centros de costo de un autorizador
+     * Guarda las asignaciones de unidades de negocio de un autorizador
      */
     public function updateCentrosAutorizador($id)
     {
@@ -455,8 +455,8 @@ class AutorizadorController extends Controller
                 ->send();
         }
 
-        // Recibir mapa [centro_costo_id => orden]: orden=0 significa "quitar asignación"
-        $ordenesPosted = $_POST['centro_costo_orden'] ?? [];
+        // Recibir mapa [unidad_negocio_id => orden]: orden=0 significa "quitar asignación"
+        $ordenesPosted = $_POST['unidad_negocio_orden'] ?? [];
         $centrosConOrden = [];
         foreach ($ordenesPosted as $centroId => $orden) {
             $centroId = (int)$centroId;
@@ -485,7 +485,7 @@ class AutorizadorController extends Controller
         $nuevos = array_diff($centrosSeleccionados, $idsActuales);
         if (!empty($nuevos)) {
             $stmtInsert = $pdo->prepare(
-                "INSERT IGNORE INTO autorizador_centro_costo (autorizador_id, centro_costo_id, orden, activo) VALUES (?, ?, ?, 1)"
+                "INSERT IGNORE INTO autorizador_unidad_negocio (autorizador_id, unidad_negocio_id, orden, activo) VALUES (?, ?, ?, 1)"
             );
             foreach ($nuevos as $centroId) {
                 $stmtInsert->execute([$autorizadorId, $centroId, $centrosConOrden[$centroId] ?? 1]);
@@ -496,7 +496,7 @@ class AutorizadorController extends Controller
         $existentes = array_intersect($centrosSeleccionados, $idsActuales);
         if (!empty($existentes)) {
             $stmtUpdate = $pdo->prepare(
-                "UPDATE autorizador_centro_costo SET orden = ? WHERE autorizador_id = ? AND centro_costo_id = ?"
+                "UPDATE autorizador_unidad_negocio SET orden = ? WHERE autorizador_id = ? AND unidad_negocio_id = ?"
             );
             foreach ($existentes as $centroId) {
                 $stmtUpdate->execute([$centrosConOrden[$centroId] ?? 1, $autorizadorId, $centroId]);
@@ -508,7 +508,7 @@ class AutorizadorController extends Controller
         if (!empty($removidos)) {
             $placeholders = implode(',', array_fill(0, count($removidos), '?'));
             $stmtDelete   = $pdo->prepare(
-                "DELETE FROM autorizador_centro_costo WHERE autorizador_id = ? AND centro_costo_id IN ({$placeholders})"
+                "DELETE FROM autorizador_unidad_negocio WHERE autorizador_id = ? AND unidad_negocio_id IN ({$placeholders})"
             );
             $stmtDelete->execute(array_merge([$autorizadorId], array_values($removidos)));
         }
@@ -547,7 +547,7 @@ class AutorizadorController extends Controller
             $autorizadorBase = $autorizadores[0];
             $centrosConsolidados = [];
             $permisosConsolidados = [
-                'puede_autorizar_centro_costo'   => false,
+                'puede_autorizar_unidad_negocio'   => false,
                 'puede_autorizar_flujo'          => false,
                 'puede_autorizar_cuenta_contable' => false,
                 'puede_autorizar_metodo_pago'    => false,
@@ -555,10 +555,10 @@ class AutorizadorController extends Controller
             ];
 
             foreach ($autorizadores as $autorizador) {
-                if (!empty($autorizador->centro_costo_id) && !in_array($autorizador->centro_costo_id, $centrosConsolidados)) {
-                    $centrosConsolidados[] = $autorizador->centro_costo_id;
+                if (!empty($autorizador->unidad_negocio_id) && !in_array($autorizador->unidad_negocio_id, $centrosConsolidados)) {
+                    $centrosConsolidados[] = $autorizador->unidad_negocio_id;
                 }
-                $permisosConsolidados['puede_autorizar_centro_costo']   = $permisosConsolidados['puede_autorizar_centro_costo']   || ($autorizador->puede_autorizar_centro_costo   ?? false);
+                $permisosConsolidados['puede_autorizar_unidad_negocio']   = $permisosConsolidados['puede_autorizar_unidad_negocio']   || ($autorizador->puede_autorizar_unidad_negocio   ?? false);
                 $permisosConsolidados['puede_autorizar_flujo']          = $permisosConsolidados['puede_autorizar_flujo']          || ($autorizador->puede_autorizar_flujo          ?? false);
                 $permisosConsolidados['puede_autorizar_cuenta_contable'] = $permisosConsolidados['puede_autorizar_cuenta_contable'] || ($autorizador->puede_autorizar_cuenta_contable ?? false);
                 $permisosConsolidados['puede_autorizar_metodo_pago']    = $permisosConsolidados['puede_autorizar_metodo_pago']    || ($autorizador->puede_autorizar_metodo_pago    ?? false);
@@ -589,12 +589,12 @@ class AutorizadorController extends Controller
                     ];
 
                     PersonaAutorizada::updateById($autorizadorBase->id, array_merge($baseData, [
-                        'centro_costo_id' => $centrosConsolidados[0]
+                        'unidad_negocio_id' => $centrosConsolidados[0]
                     ], $permisosConsolidados));
 
                     for ($i = 1; $i < count($centrosConsolidados); $i++) {
                         PersonaAutorizada::create(array_merge($baseData, [
-                            'centro_costo_id' => $centrosConsolidados[$i]
+                            'unidad_negocio_id' => $centrosConsolidados[$i]
                         ], $permisosConsolidados));
                     }
                 }
@@ -623,7 +623,7 @@ class AutorizadorController extends Controller
     }
 
     /**
-     * API: retorna centros de costo asignados a un autorizador por email
+     * API: retorna unidades de negocio asignados a un autorizador por email
      *
      * GET /admin/api/autorizadores/centros-costo?email=...
      */
@@ -648,7 +648,7 @@ class AutorizadorController extends Controller
 
         } catch (\Exception $e) {
             error_log("Error apiCentrosCostoAutorizador: " . $e->getMessage());
-            $this->jsonResponse(['success' => false, 'error' => 'Error al obtener centros de costo'], 500);
+            $this->jsonResponse(['success' => false, 'error' => 'Error al obtener unidades de negocio'], 500);
         }
     }
 
@@ -690,7 +690,7 @@ class AutorizadorController extends Controller
     /**
      * Busca un autorizador por autorizadores.id (el ID de la tabla base, no de la vista).
      *
-     * PersonaAutorizada::find() usa persona_autorizada view donde id = autorizador_centro_costo.id,
+     * PersonaAutorizada::find() usa persona_autorizada view donde id = autorizador_unidad_negocio.id,
      * pero las URLs del controlador pasan autorizadores.id. Este helper resuelve el mismatch.
      */
     private function findAutorizadorById(int $id): ?PersonaAutorizada

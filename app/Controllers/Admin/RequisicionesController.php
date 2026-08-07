@@ -173,7 +173,7 @@ class RequisicionesController extends Controller
                 ct.descripcion as cuenta_nombre,
                 ct.codigo as cuenta_codigo
             FROM distribucion_gasto dg
-            LEFT JOIN centro_de_costo cc ON dg.centro_costo_id = cc.id
+            LEFT JOIN unidad_de_negocio cc ON dg.unidad_negocio_id = cc.id
             LEFT JOIN cuenta_contable ct ON dg.cuenta_contable_id = ct.id
             WHERE dg.requisicion_id = ?
             ORDER BY dg.id
@@ -344,10 +344,10 @@ class RequisicionesController extends Controller
                     ELSE NULL
                 END as fecha_accion
             FROM autorizaciones a
-            LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
-            LEFT JOIN distribucion_gasto dg ON dg.requisicion_id = a.requisicion_id AND dg.centro_costo_id = a.centro_costo_id
+            LEFT JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
+            LEFT JOIN distribucion_gasto dg ON dg.requisicion_id = a.requisicion_id AND dg.unidad_negocio_id = a.unidad_negocio_id
             WHERE a.requisicion_id = ?
-              AND a.tipo = 'centro_costo'
+              AND a.tipo = 'unidad_negocio'
             ORDER BY a.id,
                 CASE WHEN JSON_EXTRACT(COALESCE(a.metadata, '{}'), '$.es_respaldo') = true THEN 1 ELSE 0 END
         ";
@@ -469,7 +469,7 @@ class RequisicionesController extends Controller
                     ar.*,
                     cc.nombre as centro_nombre
                 FROM autorizador_respaldo ar
-                LEFT JOIN centro_de_costo cc ON ar.centro_costo_id = cc.id
+                LEFT JOIN unidad_de_negocio cc ON ar.unidad_negocio_id = cc.id
                 WHERE ar.estado = 'activo'
                 AND CURRENT_DATE BETWEEN ar.fecha_inicio AND ar.fecha_fin
             ";
@@ -542,7 +542,7 @@ class RequisicionesController extends Controller
                         SUM(CASE WHEN estado = 'rechazada' THEN 1 ELSE 0 END) as rechazadas
                     FROM autorizaciones 
                     WHERE requisicion_id = ?
-                      AND tipo = 'centro_costo'
+                      AND tipo = 'unidad_negocio'
                 ";
                 $stmt = Model::getConnection()->prepare($sql);
                 $stmt->execute([$ordenId]);

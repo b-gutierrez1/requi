@@ -2,11 +2,11 @@
 /**
  * Modelo CentroCosto
  * 
- * Representa los centros de costo de la organización.
- * Cada centro de costo tiene autorizadores asignados y está vinculado a una Unidad de Negocio.
+ * Representa las centros de costo de la organización.
+ * Cada distribución de gasto está asociada a una centro de costo.
  * 
  * @package RequisicionesMVC\Models
- * @version 2.1
+ * @version 2.0
  */
 
 namespace App\Models;
@@ -19,112 +19,9 @@ class CentroCosto extends Model
 
     protected static $fillable = [
         'nombre',
-        'codigo',
-        'factura',
-        'unidad_negocio_id',
-        'requiere_asignacion_manual',
     ];
 
     protected static $guarded = ['id'];
-
-    /**
-     * Obtiene la unidad de negocio asociada a este centro de costo
-     * 
-     * @return array|null
-     */
-    public function getUnidadNegocio()
-    {
-        if (!isset($this->attributes['unidad_negocio_id']) || !$this->attributes['unidad_negocio_id']) {
-            return null;
-        }
-
-        return UnidadNegocio::find($this->attributes['unidad_negocio_id']);
-    }
-
-    /**
-     * Obtiene el ID de la unidad de negocio
-     * 
-     * @return int|null
-     */
-    public function getUnidadNegocioId()
-    {
-        return $this->attributes['unidad_negocio_id'] ?? null;
-    }
-
-    /**
-     * Obtiene las personas autorizadas de este centro de costo
-     * 
-     * @return array
-     */
-    public function personasAutorizadas()
-    {
-        $table = \App\Models\PersonaAutorizada::getTable();
-        $sql = "SELECT * FROM {$table} WHERE centro_costo_id = ?";
-        $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute([$this->attributes['id']]);
-        
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
-    }
-
-    /**
-     * Obtiene el autorizador principal activo
-     * 
-     * @return array|null
-     */
-    public function getAutorizadorPrincipal()
-    {
-        $table = \App\Models\PersonaAutorizada::getTable();
-        $sql = "SELECT * FROM {$table} 
-                WHERE centro_costo_id = ? 
-                ORDER BY id ASC 
-                LIMIT 1";
-        
-        $stmt = self::getConnection()->prepare($sql);
-        $centroId = $this->attributes['id'] ?? $this->id ?? null;
-        if (!$centroId) {
-            return null;
-        }
-        $stmt->execute([$centroId]);
-        
-        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
-    }
-
-    /**
-     * Obtiene el autorizador de respaldo activo actual
-     *
-     * @return array|null
-     */
-    public function getAutorizadorRespaldoActivo()
-    {
-        $centroId = $this->attributes['id'] ?? $this->id ?? null;
-        if (!$centroId) {
-            return null;
-        }
-
-        return AutorizadorRespaldo::activoPorCentro($centroId);
-    }
-
-    /**
-     * Obtiene el email del autorizador (respaldo o principal)
-     * 
-     * @return string|null
-     */
-    public function getEmailAutorizador()
-    {
-        // Primero buscar respaldo activo
-        $respaldo = $this->getAutorizadorRespaldoActivo();
-        if ($respaldo) {
-            return $respaldo['autorizador_respaldo_email'];
-        }
-
-        // Si no hay respaldo, buscar principal
-        $principal = $this->getAutorizadorPrincipal();
-        if ($principal) {
-            return $principal['email'];
-        }
-
-        return null;
-    }
 
     /**
      * Obtiene las distribuciones de gasto asociadas
@@ -141,31 +38,43 @@ class CentroCosto extends Model
     }
 
     /**
-     * Obtiene todos los centros de costo activos con su unidad de negocio y factura
+     * Obtiene todas las centros de costo activas
      * 
      * @return array
      */
-    public static function activos()
+    public static function activas()
     {
         $table = static::$table;
         
-        // Nota: cc.* ya incluye cc.factura, pero agregamos COALESCE para asegurar un valor por defecto
-        $sql = "SELECT cc.*, 
-                       un.id as rel_unidad_negocio_id,
-                       un.nombre as unidad_negocio_nombre,
-                       cc.factura as factura_numero
-                FROM {$table} cc
-                LEFT JOIN unidad_de_negocio un ON cc.unidad_negocio_id = un.id
-                WHERE cc.activo = 1
-                ORDER BY cc.nombre ASC";
+        $sql = "SELECT * FROM {$table} WHERE activo = 1 ORDER BY nombre ASC";
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute();
-
+        
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     /**
-     * Busca centros de costo por nombre o código
+     * Busca por nombre
+     * 
+     * @param string $nombre
+     * @return array|null
+     */
+    public static function buscarPorNombre($nombre)
+    {
+        $table = static::$table;
+        
+        $sql = "SELECT * FROM {$table} 
+                WHERE nombre = ? 
+                LIMIT 1";
+        
+        $stmt = self::getConnection()->prepare($sql);
+        $stmt->execute([$nombre]);
+        
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+    }
+
+    /**
+     * Busca centros de costo por término
      * 
      * @param string $termino
      * @return array
@@ -186,7 +95,31 @@ class CentroCosto extends Model
     }
 
     /**
-     * Obtiene el total gastado en este centro de costo
+     * Obtiene centro de costo por código (no disponible - tabla solo tiene nombre)
+     * 
+     * @param string $codigo
+     * @return array|null
+     */
+    public static function porCodigo($codigo)
+    {
+        // La tabla centro_de_costo no tiene columna codigo
+        return null;
+    }
+
+    /**
+     * Activa o desactiva la centro de costo (no disponible - tabla no tiene columna activo)
+     * 
+     * @param bool $activo
+     * @return bool
+     */
+    public function setActivo($activo = true)
+    {
+        // La tabla centro_de_costo no tiene columna activo
+        return false;
+    }
+
+    /**
+     * Obtiene el total gastado en esta centro de costo
      * 
      * @param string $fechaInicio
      * @param string $fechaFin
@@ -215,47 +148,46 @@ class CentroCosto extends Model
     }
 
     /**
-     * Obtiene centros que requieren asignación manual de autorizador en revisión
-     */
-    public static function conAsignacionManual(): array
-    {
-        $table = static::$table;
-        $sql = "SELECT id, nombre FROM {$table} WHERE requiere_asignacion_manual = 1 AND activo = 1 ORDER BY nombre ASC";
-        $stmt = self::getConnection()->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
-    }
-
-    /**
-     * Contar total de centros de costo
-     *
+     * Cuenta requisiciones por centro de costo
+     * 
      * @return int
      */
-    public static function count()
+    public function contarRequisiciones()
     {
-        $stmt = self::query("SELECT COUNT(*) as total FROM " . self::getTable());
+        $sql = "SELECT COUNT(DISTINCT dg.requisicion_id) as total
+                FROM distribucion_gasto dg
+                WHERE dg.centro_costo_id = ?";
+        
+        $stmt = self::getConnection()->prepare($sql);
+        $stmt->execute([$this->attributes['id']]);
+        
         $result = $stmt->fetch(\PDO::FETCH_ASSOC);
-        return (int)($result['total'] ?? 0);
+        return $result['total'] ?? 0;
     }
 
     /**
-     * Verifica si tiene autorizador asignado
+     * Obtiene estadísticas de la centro de costo
      * 
-     * @return bool
+     * @return array
      */
-    public function tieneAutorizador()
+    public function getEstadisticas()
     {
-        return $this->getEmailAutorizador() !== null;
-    }
-
-    /**
-     * Activa o desactiva el centro de costo
-     * 
-     * @param bool $activo
-     * @return bool
-     */
-    public function setActivo($activo = true)
-    {
-        return self::update($this->attributes['id'], ['activo' => $activo ? 1 : 0]);
+        $sql = "SELECT 
+                    COUNT(DISTINCT dg.requisicion_id) as total_requisiciones,
+                    SUM(dg.cantidad) as monto_total,
+                    AVG(dg.cantidad) as monto_promedio,
+                    COUNT(DISTINCT dg.unidad_negocio_id) as unidades_negocio_utilizados
+                FROM distribucion_gasto dg
+                WHERE dg.centro_costo_id = ?";
+        
+        $stmt = self::getConnection()->prepare($sql);
+        $stmt->execute([$this->attributes['id']]);
+        
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: [
+            'total_requisiciones' => 0,
+            'monto_total' => 0,
+            'monto_promedio' => 0,
+            'unidades_negocio_utilizados' => 0
+        ];
     }
 }

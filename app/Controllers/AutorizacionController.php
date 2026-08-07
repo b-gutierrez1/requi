@@ -83,7 +83,7 @@ class AutorizacionController extends Controller
             error_log("Requisiciones: " . json_encode($requisicionesPendientesRevision));
         }
         
-        // Obtener autorizaciones pendientes (para autorizadores por centro de costo)
+        // Obtener autorizaciones pendientes (para autorizadores por unidad de negocio)
         $autorizacionesPendientes = $this->autorizacionService->getAutorizacionesPendientes($usuarioEmail);
         
         // Obtener TODAS las autorizaciones unificadas (centro + especiales + respaldos)
@@ -308,7 +308,7 @@ class AutorizacionController extends Controller
             $progreso = $this->autorizacionService->getProgresoAutorizacion($flujoId);
         }
 
-        // Obtener autorizaciones por centro de costo
+        // Obtener autorizaciones por unidad de negocio
         $autorizacionesCentro = [];
         // Usar el ID de la requisiciÃ³n directamente, no el flujoId
         $autorizacionesCentro = $this->autorizacionCentroRepo->getByRequisicion($id);
@@ -318,11 +318,11 @@ class AutorizacionController extends Controller
         $distribuciones  = $requisicion['distribuciones'] ?? [];
         if (!empty($distribuciones)) {
             $pdo = \App\Models\Model::getConnection();
-            $centroIdsDistrib = array_values(array_unique(array_filter(array_column($distribuciones, 'centro_costo_id'))));
+            $centroIdsDistrib = array_values(array_unique(array_filter(array_column($distribuciones, 'unidad_negocio_id'))));
             if (!empty($centroIdsDistrib)) {
                 $placeholders = implode(',', array_fill(0, count($centroIdsDistrib), '?'));
                 $stmtManuales = $pdo->prepare("
-                    SELECT id, nombre FROM centro_de_costo
+                    SELECT id, nombre FROM unidad_de_negocio
                     WHERE id IN ($placeholders) AND requiere_asignacion_manual = 1 AND activo = 1
                 ");
                 $stmtManuales->execute($centroIdsDistrib);
@@ -600,14 +600,14 @@ class AutorizacionController extends Controller
     }
 
     // ========================================================================
-    // AUTORIZACIÃ“N POR CENTRO DE COSTO (Nivel 4)
+    // AUTORIZACIÃ“N POR UNIDAD DE NEGOCIO (Nivel 4)
     // ========================================================================
 
 
     /**
-     * Autoriza un centro de costo
+     * Autoriza un unidad de negocio
      * 
-     * @param int $id ID de la autorizaciÃ³n de centro de costo
+     * @param int $id ID de la autorizaciÃ³n de unidad de negocio
      * @return void
      */
     public function autorizarCentro($id)
@@ -672,7 +672,7 @@ class AutorizacionController extends Controller
                         if ($this->autorizacionService->existenAutorizacionesEspecialesPendientes((int)$ordenId)) {
                             $response = [
                                 'success' => false,
-                                'error' => 'AÃºn existen autorizaciones especiales pendientes. Deben completarse antes de autorizar los centros de costo.'
+                                'error' => 'AÃºn existen autorizaciones especiales pendientes. Deben completarse antes de autorizar los unidades de negocio.'
                             ];
                             $this->sendAjaxResponse($response);
                             return;
@@ -700,18 +700,18 @@ class AutorizacionController extends Controller
                         
                         foreach ($autorizacionesAAutorizar as $i => $authPendiente) {
                             error_log("=== AUTORIZANDO CENTRO [$i] ===");
-                            error_log("ID: {$authPendiente['id']}, Centro: {$authPendiente['centro_costo_id']}");
+                            error_log("ID: {$authPendiente['id']}, Centro: {$authPendiente['unidad_negocio_id']}");
                             
                             $usuarioEmail = $this->requireUsuarioEmail();
                             error_log("Usuario email obtenido: $usuarioEmail");
                             
-                            error_log("=== LLAMANDO autorizarCentroCosto ===");
+                            error_log("=== LLAMANDO autorizarUnidadNegocio ===");
                             try {
-                                $resultado = $this->autorizacionService->autorizarCentroCosto($authPendiente['id'], $usuarioEmail, $comentario);
-                                error_log("=== RESULTADO autorizarCentroCosto ===");
+                                $resultado = $this->autorizacionService->autorizarUnidadNegocio($authPendiente['id'], $usuarioEmail, $comentario);
+                                error_log("=== RESULTADO autorizarUnidadNegocio ===");
                                 error_log("Resultado: " . json_encode($resultado));
                             } catch (\Exception $e) {
-                                error_log("EXCEPCIÃ“N en autorizarCentroCosto: " . $e->getMessage());
+                                error_log("EXCEPCIÃ“N en autorizarUnidadNegocio: " . $e->getMessage());
                                 error_log("Archivo: " . $e->getFile() . " LÃ­nea: " . $e->getLine());
                                 $resultado = [
                                     'success' => false,
@@ -720,7 +720,7 @@ class AutorizacionController extends Controller
                             }
                             
                             if ($resultado['success']) {
-                                $response['centros_autorizados'][] = $authPendiente['centro_nombre'] ?? 'Centro #' . $authPendiente['centro_costo_id'];
+                                $response['centros_autorizados'][] = $authPendiente['centro_nombre'] ?? 'Centro #' . $authPendiente['unidad_negocio_id'];
                                 error_log("Centro autorizado exitosamente");
                             } else {
                                 error_log("ERROR autorizando centro: " . ($resultado['error'] ?? 'Error desconocido'));
@@ -803,7 +803,7 @@ class AutorizacionController extends Controller
 
             if ($this->autorizacionService->existenAutorizacionesEspecialesPendientes((int)$ordenId)) {
                 Redirect::back()
-                    ->withError('AÃºn existen autorizaciones especiales pendientes. Deben completarse antes de autorizar los centros de costo.')
+                    ->withError('AÃºn existen autorizaciones especiales pendientes. Deben completarse antes de autorizar los unidades de negocio.')
                     ->send();
                 return;
             }
@@ -823,7 +823,7 @@ class AutorizacionController extends Controller
             $exitosas = 0;
             $usuarioEmail = $this->requireUsuarioEmail();
             foreach ($autorizacionesAAutorizar as $authPendiente) {
-                $resultado = $this->autorizacionService->autorizarCentroCosto($authPendiente['id'], $usuarioEmail, $comentario);
+                $resultado = $this->autorizacionService->autorizarUnidadNegocio($authPendiente['id'], $usuarioEmail, $comentario);
                 if ($resultado['success']) {
                     $exitosas++;
                 }
@@ -856,9 +856,9 @@ class AutorizacionController extends Controller
     }
 
     /**
-     * Rechaza un centro de costo
+     * Rechaza un unidad de negocio
      * 
-     * @param int $id ID de la autorizaciÃ³n de centro de costo
+     * @param int $id ID de la autorizaciÃ³n de unidad de negocio
      * @return void
      */
     public function rechazarCentro($id)
@@ -901,7 +901,7 @@ class AutorizacionController extends Controller
 
         $ordenId = $autorizacion['requisicion_id'] ?? null;
         if ($ordenId && $this->autorizacionService->existenAutorizacionesEspecialesPendientes((int)$ordenId)) {
-            $mensajePendientes = 'Aún existen autorizaciones especiales pendientes. Deben completarse antes de autorizar o rechazar los centros de costo.';
+            $mensajePendientes = 'Aún existen autorizaciones especiales pendientes. Deben completarse antes de autorizar o rechazar los unidades de negocio.';
             if ($this->isAjaxRequest()) {
                 $this->jsonResponse([
                     'success' => false,
@@ -915,7 +915,7 @@ class AutorizacionController extends Controller
             return;
         }
 
-        $resultado = $this->autorizacionService->rechazarCentroCosto($id, $usuarioId, $motivo);
+        $resultado = $this->autorizacionService->rechazarUnidadNegocio($id, $usuarioId, $motivo);
 
         if ($this->isAjaxRequest()) {
             $this->jsonResponse($resultado);
@@ -1021,7 +1021,7 @@ class AutorizacionController extends Controller
         $usuarioEmail = $this->requireUsuarioEmail();
         $count = 0;
 
-        // Autorizaciones de centros de costo
+        // Autorizaciones de unidades de negocio
         $count += $this->autorizacionService->contarPendientes($usuarioEmail);
 
         // Autorizaciones especiales (pago y cuenta contable)
@@ -1040,10 +1040,10 @@ class AutorizacionController extends Controller
     }
 
     /**
-     * API: Retorna los autorizadores disponibles para un centro de costo.
+     * API: Retorna los autorizadores disponibles para un unidad de negocio.
      * Devuelve las personas_autorizadas del centro; si no hay, devuelve usuarios con is_autorizador=1.
      *
-     * @param int $id ID del centro de costo
+     * @param int $id ID del unidad de negocio
      */
     public function apiAutorizadoresCentro($id)
     {
@@ -1052,7 +1052,7 @@ class AutorizacionController extends Controller
         $stmt = $pdo->prepare("
             SELECT nombre, email
             FROM persona_autorizada
-            WHERE centro_costo_id = ?
+            WHERE unidad_negocio_id = ?
             ORDER BY nombre ASC
         ");
         $stmt->execute([(int)$id]);
@@ -1073,7 +1073,7 @@ class AutorizacionController extends Controller
     }
 
     /**
-     * API: Autoriza mÃºltiples centros de costo a la vez
+     * API: Autoriza mÃºltiples unidades de negocio a la vez
      * 
      * @return void
      */
@@ -1104,7 +1104,7 @@ class AutorizacionController extends Controller
 
         $resultados = [];
         foreach ($idsOrdenados as $id) {
-            $resultado = $this->autorizacionService->autorizarCentroCosto((int)$id, $usuarioEmail, $comentario);
+            $resultado = $this->autorizacionService->autorizarUnidadNegocio((int)$id, $usuarioEmail, $comentario);
             $resultados[] = [
                 'id'      => $id,
                 'success' => $resultado['success'],

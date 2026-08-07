@@ -222,7 +222,7 @@ $title = 'Detalle del Autorizador de Respaldo';
                 <div class="row align-items-center">
                     <div class="col-md-8">
                         <h3><i class="fas fa-hands-helping me-2"></i>Respaldo ID: #<?= View::e($respaldo['id'] ?? 'N/A') ?></h3>
-                        <p class="mb-0">Centro de Costo: <?= View::e($respaldo['centro_nombre'] ?? 'No especificado') ?></p>
+                        <p class="mb-0">Unidad de Negocio: <?= View::e($respaldo['centro_nombre'] ?? 'No especificado') ?></p>
                     </div>
                     <div class="col-md-4 text-end">
                         <?php
@@ -371,7 +371,7 @@ $title = 'Detalle del Autorizador de Respaldo';
                 </div>
                 
                 <div class="detail-row">
-                    <div class="detail-label">Centro de Costo</div>
+                    <div class="detail-label">Unidad de Negocio</div>
                     <div class="detail-value">
                         <?php if (!empty($respaldo['centro_nombre'])): ?>
                             <i class="fas fa-building text-primary me-2"></i>

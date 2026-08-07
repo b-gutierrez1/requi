@@ -20,9 +20,9 @@ use App\Services\RequisicionService;
 use App\Services\AutorizacionService;
 use App\Models\Requisicion;
 use App\Models\AutorizacionFlujo;
-use App\Models\CentroCosto;
-use App\Models\CuentaContable;
 use App\Models\UnidadNegocio;
+use App\Models\CuentaContable;
+use App\Models\CentroCosto;
 
 class RequisicionController extends Controller
 {
@@ -198,9 +198,9 @@ class RequisicionController extends Controller
             'historial' => $requisicion['historial'],
             'autorizaciones_pendientes' => $autorizacionesPendientes,
             'autorizaciones' => $autorizacionesPendientes,
-            'centros_costo' => $catalogos['centros_costo'] ?? [],
-            'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
             'unidades_negocio' => $catalogos['unidades_negocio'] ?? [],
+            'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
+            'centros_costo' => $catalogos['centros_costo'] ?? [],
             'unidades_requirentes' => \App\Models\UnidadRequirente::activas(),
             'title' => 'Requisición #' . $id,
             'timestamp' => time() // Para anti-caché
@@ -222,9 +222,9 @@ class RequisicionController extends Controller
         $catalogos = $this->getCatalogos();
 
         View::render('requisiciones/create', [
-            'centros_costo' => $catalogos['centros_costo'] ?? [],
-            'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
             'unidades_negocio' => $catalogos['unidades_negocio'] ?? [],
+            'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
+            'centros_costo' => $catalogos['centros_costo'] ?? [],
             'unidades_requirentes' => \App\Models\UnidadRequirente::activas(),
             'title' => 'Nueva Requisición'
         ]);
@@ -267,7 +267,7 @@ class RequisicionController extends Controller
                     ];
                 } else {
                     $data = $_POST;
-                    $data['centro_costo_ids'] = array_map('intval', $_POST['centro_costo_ids'] ?? []);
+                    $data['unidad_negocio_ids'] = array_map('intval', $_POST['unidad_negocio_ids'] ?? []);
                     $usuarioId = $this->getUsuarioId();
                     
                     // Verificar que el usuario esté autenticado
@@ -407,7 +407,7 @@ class RequisicionController extends Controller
         }
 
         $data = $_POST;
-        $data['centro_costo_ids'] = array_map('intval', $_POST['centro_costo_ids'] ?? []);
+        $data['unidad_negocio_ids'] = array_map('intval', $_POST['unidad_negocio_ids'] ?? []);
         $usuarioId = $this->getUsuarioId();
 
         // Verificar que el usuario esté autenticado
@@ -496,9 +496,9 @@ class RequisicionController extends Controller
 
         View::render('requisiciones/edit', [
             'requisicion' => $requisicion,
-            'centros_costo' => $catalogos['centros_costo'] ?? [],
-            'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
             'unidades_negocio' => $catalogos['unidades_negocio'] ?? [],
+            'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
+            'centros_costo' => $catalogos['centros_costo'] ?? [],
             'unidades_requirentes' => \App\Models\UnidadRequirente::activas(),
             'title' => 'Editar Requisición #' . $id
         ]);
@@ -527,7 +527,7 @@ class RequisicionController extends Controller
         }
 
         $data = $_POST;
-        $data['centro_costo_ids'] = array_map('intval', $_POST['centro_costo_ids'] ?? []);
+        $data['unidad_negocio_ids'] = array_map('intval', $_POST['unidad_negocio_ids'] ?? []);
         $usuarioId = $this->getUsuarioId();
 
         $resultado = $this->requisicionService->editarRequisicion($id, $data, $usuarioId);
@@ -762,7 +762,7 @@ class RequisicionController extends Controller
             $stmt = $pdo->prepare("
                 SELECT pa.nombre
                 FROM persona_autorizada pa
-                INNER JOIN unidad_requirente ur ON ur.centro_costo_id = pa.centro_costo_id
+                INNER JOIN unidad_requirente ur ON ur.unidad_negocio_id = pa.unidad_negocio_id
                 WHERE ur.id = ?
                 LIMIT 1
             ");
@@ -1005,9 +1005,9 @@ class RequisicionController extends Controller
     private function getCatalogos()
     {
         return [
-            'centros_costo' => CentroCosto::activos(),
+            'unidades_negocio' => UnidadNegocio::activos(),
             'cuentas_contables' => CuentaContable::activas(),
-            'unidades_negocio' => UnidadNegocio::activas(),
+            'centros_costo' => CentroCosto::activas(),
             'formas_pago' => [
                 'efectivo' => 'Efectivo',
                 'transferencia' => 'Transferencia',
@@ -1085,15 +1085,15 @@ class RequisicionController extends Controller
     }
 
     /**
-     * API: Obtiene la unidad de negocio y autorizadores para un centro de costo
+     * API: Obtiene la centro de costo y autorizadores para un unidad de negocio
      * 
      * @return void
      */
-    public function apiObtenerUnidadNegocio()
+    public function apiObtenerCentroCosto()
     {
-        $centroCostoId = $_GET['centro_costo_id'] ?? null;
+        $unidadNegocioId = $_GET['unidad_negocio_id'] ?? null;
 
-        if (!$centroCostoId) {
+        if (!$unidadNegocioId) {
             $this->jsonResponse([
                 'success' => false,
                 'error' => 'Centro de costo no especificado'
@@ -1101,9 +1101,9 @@ class RequisicionController extends Controller
             return;
         }
 
-        $centroCosto = CentroCosto::find($centroCostoId);
+        $unidadNegocio = UnidadNegocio::find($unidadNegocioId);
 
-        if (!$centroCosto) {
+        if (!$unidadNegocio) {
             $this->jsonResponse([
                 'success' => false,
                 'error' => 'Centro de costo no encontrado'
@@ -1111,15 +1111,15 @@ class RequisicionController extends Controller
             return;
         }
 
-        // Obtener unidad de negocio desde la relación en BD
-        $unidadNegocioId = $centroCosto->unidad_negocio_id;
-        $unidadNegocio = $unidadNegocioId ? UnidadNegocio::find($unidadNegocioId) : null;
+        // Obtener centro de costo desde la relación en BD
+        $centroCostoId = $unidadNegocio->centro_costo_id;
+        $centroCosto = $centroCostoId ? CentroCosto::find($centroCostoId) : null;
 
         $this->jsonResponse([
             'success' => true,
-            'unidad_negocio_id' => $unidadNegocio->id ?? null,
-            'unidad_negocio_nombre' => $unidadNegocio->nombre ?? null,
-            'factura' => $centroCosto->factura ?? 1
+            'centro_costo_id' => $centroCosto->id ?? null,
+            'centro_costo_nombre' => $centroCosto->nombre ?? null,
+            'factura' => $unidadNegocio->factura ?? 1
         ]);
     }
 

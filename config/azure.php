@@ -226,7 +226,7 @@ return [
         ],
         'autorizador' => [
             'name' => 'Autorizador',
-            'description' => 'Autoriza requisiciones por centro de costo',
+            'description' => 'Autoriza requisiciones por unidad de negocio',
             'permissions' => [
                 'requisiciones.autorizar',
                 'requisiciones.ver',

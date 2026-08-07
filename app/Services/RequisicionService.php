@@ -18,7 +18,7 @@ use App\Models\Factura;
 use App\Models\ArchivoAdjunto;
 use App\Models\HistorialRequisicion;
 use App\Models\Usuario;
-use App\Models\CentroCosto;
+use App\Models\UnidadNegocio;
 use App\Models\CuentaContable;
 use App\Models\AutorizacionFlujo;
 use App\Models\UnidadRequirente;
@@ -397,9 +397,9 @@ class RequisicionService
             foreach ($distribucionConMontos as $dist) {
                 DistribucionGasto::create([
                     'requisicion_id' => $ordenId,
-                    'centro_costo_id' => $dist['centro_costo_id'],
+                    'unidad_negocio_id' => $dist['unidad_negocio_id'],
                     'cuenta_contable_id' => $dist['cuenta_contable_id'],
-                    'unidad_negocio_id' => $dist['unidad_negocio_id'] ?? null,
+                    'centro_costo_id' => $dist['centro_costo_id'] ?? null,
                     'porcentaje' => $dist['porcentaje'],
                     'cantidad' => $dist['cantidad']
                 ]);
@@ -437,10 +437,10 @@ class RequisicionService
 
         foreach ($distribucion as $index => $dist) {
             // Validar campos obligatorios
-            if (empty($dist['centro_costo_id'])) {
+            if (empty($dist['unidad_negocio_id'])) {
                 return [
                     'success' => false,
-                    'error' => "Distribución " . ($index + 1) . ": El centro de costo es obligatorio"
+                    'error' => "Distribución " . ($index + 1) . ": El unidad de negocio es obligatorio"
                 ];
             }
 
@@ -1078,7 +1078,7 @@ class RequisicionService
             $stmt = $pdo->prepare("
                 SELECT a.*, cc.nombre as centro_nombre, ct.descripcion as cuenta_nombre
                 FROM autorizaciones a
-                LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+                LEFT JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
                 LEFT JOIN cuenta_contable ct ON a.cuenta_contable_id = ct.id
                 WHERE a.requisicion_id = ?
                 ORDER BY a.tipo, a.id
@@ -1352,11 +1352,11 @@ class RequisicionService
                 }
                 
                 // Limpiar IDs vacíos
-                $unidadNegocioId = (!empty($dist['unidad_negocio_id']) && $dist['unidad_negocio_id'] !== '') ? $dist['unidad_negocio_id'] : null;
+                $centroCostoId = (!empty($dist['centro_costo_id']) && $dist['centro_costo_id'] !== '') ? $dist['centro_costo_id'] : null;
                 
                 // Limpiar y validar IDs de cuenta y centro
                 $cuentaContableId = (!empty($dist['cuenta_contable_id']) && $dist['cuenta_contable_id'] !== '' && $dist['cuenta_contable_id'] !== '0') ? $dist['cuenta_contable_id'] : null;
-                $centroCostoId = (!empty($dist['centro_costo_id']) && $dist['centro_costo_id'] !== '' && $dist['centro_costo_id'] !== '0') ? $dist['centro_costo_id'] : null;
+                $unidadNegocioId = (!empty($dist['unidad_negocio_id']) && $dist['unidad_negocio_id'] !== '' && $dist['unidad_negocio_id'] !== '0') ? $dist['unidad_negocio_id'] : null;
                 
                 // Procesar número de factura - asegurar que sea un entero válido (1, 2, 3 o 4)
                 $facturaTipo = 1; // Default a factura 1
@@ -1370,8 +1370,8 @@ class RequisicionService
                 
                 $distribucion[] = [
                     'cuenta_contable_id' => $cuentaContableId,
-                    'centro_costo_id' => $centroCostoId,
                     'unidad_negocio_id' => $unidadNegocioId,
+                    'centro_costo_id' => $centroCostoId,
                     'porcentaje' => $porcentaje,
                     'cantidad' => $cantidad,
                     'factura' => $facturaTipo
@@ -1383,7 +1383,7 @@ class RequisicionService
         
         // Debug: mostrar las facturas asignadas a cada distribución
         foreach ($distribucion as $index => $dist) {
-            error_log("Distribución $index - Centro: {$dist['centro_costo_id']}, Factura: {$dist['factura']}, Porcentaje: {$dist['porcentaje']}%");
+            error_log("Distribución $index - Centro: {$dist['unidad_negocio_id']}, Factura: {$dist['factura']}, Porcentaje: {$dist['porcentaje']}%");
         }
         
         error_log("Datos procesados - Total: " . $montoTotal . ", Items: " . count($items) . ", Distribuciones: " . count($distribucion));
@@ -1455,19 +1455,19 @@ class RequisicionService
 
             // Guardar cada línea de distribución
             foreach ($distribucion as $dist) {
-                // Validar que tenga centro de costo y cuenta contable
-                if (empty($dist['centro_costo_id']) || empty($dist['cuenta_contable_id'])) {
-                    throw new \Exception("Todas las distribuciones deben tener centro de costo y cuenta contable asignados");
+                // Validar que tenga unidad de negocio y cuenta contable
+                if (empty($dist['unidad_negocio_id']) || empty($dist['cuenta_contable_id'])) {
+                    throw new \Exception("Todas las distribuciones deben tener unidad de negocio y cuenta contable asignados");
                 }
                 
                 // Limpiar valores vacíos y convertir a null
-                $unidadNegocioId = (!empty($dist['unidad_negocio_id']) && $dist['unidad_negocio_id'] !== '') ? $dist['unidad_negocio_id'] : null;
+                $centroCostoId = (!empty($dist['centro_costo_id']) && $dist['centro_costo_id'] !== '') ? $dist['centro_costo_id'] : null;
                 
                 $distribucionGasto = new DistribucionGasto([
                     'requisicion_id' => $ordenId,
-                    'centro_costo_id' => $dist['centro_costo_id'],
+                    'unidad_negocio_id' => $dist['unidad_negocio_id'],
                     'cuenta_contable_id' => $dist['cuenta_contable_id'],
-                    'unidad_negocio_id' => $unidadNegocioId,
+                    'centro_costo_id' => $centroCostoId,
                     'porcentaje' => $dist['porcentaje'],
                     'cantidad' => $dist['cantidad'],
                     'factura' => $dist['factura'] ?? 1

@@ -4,7 +4,7 @@
  * 
  * Gestiona autorizadores especiales según la cuenta contable.
  * Algunas cuentas (como donaciones) requieren autorización especial
- * y se ignora el centro de costo asociado.
+ * y se ignora el unidad de negocio asociado.
  * 
  * @package RequisicionesMVC\Models
  * @version 2.0
@@ -25,7 +25,7 @@ class AutorizadorCuentaContable extends Model
         'descripcion',
         'activo',
         'prioridad',
-        'ignora_centro_costo',
+        'ignora_unidad_negocio',
     ];
 
     protected static $guarded = ['id'];
@@ -83,12 +83,12 @@ class AutorizadorCuentaContable extends Model
     }
 
     /**
-     * Verifica si se debe ignorar el centro de costo
+     * Verifica si se debe ignorar el unidad de negocio
      * 
      * @param int $cuentaContableId
      * @return bool
      */
-    public static function ignoraCentroCosto($cuentaContableId)
+    public static function ignoraUnidadNegocio($cuentaContableId)
     {
         try {
             $autorizador = self::porCuentaContable($cuentaContableId);
@@ -97,7 +97,7 @@ class AutorizadorCuentaContable extends Model
                 return false;
             }
             
-            return ($autorizador['ignora_centro_costo'] ?? 0) == 1;
+            return ($autorizador['ignora_unidad_negocio'] ?? 0) == 1;
         } catch (\Exception $e) {
             // Si la columna no existe, asumir que no ignora centros
             return false;
@@ -262,7 +262,7 @@ class AutorizadorCuentaContable extends Model
                     cc.descripcion as cuenta_descripcion
                 FROM " . static::$table . " acc
                 INNER JOIN cuenta_contable cc ON acc.cuenta_contable_id = cc.id
-                WHERE acc.ignora_centro_costo = 1
+                WHERE acc.ignora_unidad_negocio = 1
                 ORDER BY cc.codigo ASC";
         
         $stmt = self::getConnection()->prepare($sql);
@@ -314,7 +314,7 @@ class AutorizadorCuentaContable extends Model
                     cc.descripcion as cuenta_nombre,
                     GROUP_CONCAT(acc.autorizador_email ORDER BY acc.id) as autorizadores,
                     COUNT(*) as cantidad_autorizadores,
-                    MAX(acc.ignora_centro_costo) as ignora_centro_costo
+                    MAX(acc.ignora_unidad_negocio) as ignora_unidad_negocio
                 FROM " . static::$table . " acc
                 INNER JOIN cuenta_contable cc ON acc.cuenta_contable_id = cc.id
                 GROUP BY cc.id, cc.codigo, cc.descripcion

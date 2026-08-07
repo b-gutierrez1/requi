@@ -117,7 +117,7 @@ View::startSection('content');
                                                 <i class="fas fa-check-double text-success me-2"></i>
                                                 Autorizador
                                             </div>
-                                            <div class="field-description">Puede autorizar requisiciones y compras según su centro de costo</div>
+                                            <div class="field-description">Puede autorizar requisiciones y compras según su unidad de negocio</div>
                                         </div>
                                         <div class="modern-switch">
                                             <input type="checkbox" id="is_autorizador" name="is_autorizador" value="1"
@@ -224,7 +224,7 @@ View::startSection('content');
                     <div class="small">
                         <p><strong>Administrador:</strong> Acceso completo al sistema, incluyendo panel de administración.</p>
                         <p><strong>Revisor:</strong> Puede revisar y aprobar requisiciones.</p>
-                        <p><strong>Autorizador:</strong> Puede autorizar requisiciones por centro de costo.</p>
+                        <p><strong>Autorizador:</strong> Puede autorizar requisiciones por unidad de negocio.</p>
                         <p><strong>Activo:</strong> El usuario puede iniciar sesión y usar el sistema.</p>
                     </div>
                 </div>

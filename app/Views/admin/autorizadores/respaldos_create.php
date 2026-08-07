@@ -168,7 +168,7 @@ $title = 'Crear Autorizador de Respaldo';
         font-style: italic;
     }
 
-    /* ── Tarjetas de centros de costo ── */
+    /* ── Tarjetas de unidades de negocio ── */
     .centros-grid {
         display: flex;
         flex-wrap: wrap;
@@ -284,8 +284,8 @@ $title = 'Crear Autorizador de Respaldo';
                             </div>
                             
                             <div class="col-md-6">
-                                <label for="centros_costo_ids" class="form-label">
-                                    Centros de Costo <span class="required">*</span>
+                                <label for="unidades_negocio_ids" class="form-label">
+                                    Unidades de Negocio <span class="required">*</span>
                                 </label>
                                 <div id="centros_container" style="border: 2px solid #e9ecef; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; background: #f8f9fa;">
                                     <div class="mb-2">
@@ -297,10 +297,10 @@ $title = 'Crear Autorizador de Respaldo';
                                         </button>
                                     </div>
                                     <div id="centros_list">
-                                        <p class="text-muted">Seleccione un autorizador principal para cargar sus centros de costo</p>
+                                        <p class="text-muted">Seleccione un autorizador principal para cargar sus unidades de negocio</p>
                                     </div>
                                 </div>
-                                <div class="help-text">Seleccione uno o más centros de costo para aplicar el respaldo</div>
+                                <div class="help-text">Seleccione uno o más unidades de negocio para aplicar el respaldo</div>
                                 <div id="centros_count" class="mt-2" style="display: none;">
                                     <span class="badge bg-primary"><span id="selected_count">0</span> seleccionados</span>
                                 </div>
@@ -557,22 +557,22 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // ========================================================================
-    // CARGAR CENTROS DE COSTO DEL AUTORIZADOR PRINCIPAL
+    // CARGAR UNIDADES DE NEGOCIO DEL AUTORIZADOR PRINCIPAL
     // ========================================================================
     
-    // Cargar centros de costo del autorizador principal
+    // Cargar unidades de negocio del autorizador principal
     principalSelect.addEventListener('change', function() {
         const email = this.value;
         
         if (!email) {
-            centrosList.innerHTML = '<p class="text-muted">Seleccione un autorizador principal para cargar sus centros de costo</p>';
+            centrosList.innerHTML = '<p class="text-muted">Seleccione un autorizador principal para cargar sus unidades de negocio</p>';
             centrosCount.style.display = 'none';
             centrosDisponibles = [];
             return;
         }
         
         // Mostrar loading
-        centrosList.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Cargando centros de costo...</p>';
+        centrosList.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Cargando unidades de negocio...</p>';
         
         // Hacer petición AJAX
         fetch(`<?= url('/admin/api/autorizadores/centros-costo') ?>?email=${encodeURIComponent(email)}`)
@@ -584,14 +584,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     centrosCount.style.display = 'block';
                     updateSelectedCount();
                 } else {
-                    centrosList.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle"></i> El autorizador seleccionado no tiene centros de costo asignados</p>';
+                    centrosList.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle"></i> El autorizador seleccionado no tiene unidades de negocio asignados</p>';
                     centrosCount.style.display = 'none';
                     centrosDisponibles = [];
                 }
             })
             .catch(error => {
-                console.error('Error al cargar centros de costo:', error);
-                centrosList.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle"></i> Error al cargar los centros de costo</p>';
+                console.error('Error al cargar unidades de negocio:', error);
+                centrosList.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle"></i> Error al cargar los unidades de negocio</p>';
                 centrosCount.style.display = 'none';
                 centrosDisponibles = [];
             });
@@ -605,7 +605,7 @@ document.addEventListener('DOMContentLoaded', function() {
             html += `
                 <label class="centro-card" for="centro_${centro.id}">
                     <input class="centro-checkbox" type="checkbox"
-                           name="centros_costo_ids[]" value="${centro.id}"
+                           name="unidades_negocio_ids[]" value="${centro.id}"
                            id="centro_${centro.id}">
                     <span class="centro-card-inner">
                         <i class="fas fa-building centro-card-icon"></i>
@@ -686,7 +686,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (centrosSeleccionados === 0 && principalSelect.value) {
             e.preventDefault();
-            alert('Debe seleccionar al menos un centro de costo');
+            alert('Debe seleccionar al menos un unidad de negocio');
             return false;
         }
         
@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Confirmar creación múltiple
         if (centrosSeleccionados > 1) {
-            if (!confirm(`Se asignarán ${centrosSeleccionados} centros de costo a este respaldo. ¿Desea continuar?`)) {
+            if (!confirm(`Se asignarán ${centrosSeleccionados} unidades de negocio a este respaldo. ¿Desea continuar?`)) {
                 e.preventDefault();
                 return false;
             }

@@ -8,7 +8,7 @@ use App\Models\AutorizadorRespaldo;
 use PDO;
 
 /**
- * Repositorio centralizado para manejar autorizaciones de centros de costo
+ * Repositorio centralizado para manejar autorizaciones de unidades de negocio
  * utilizando exclusivamente la tabla unificada `autorizaciones`.
  */
 class AutorizacionCentroRepository
@@ -35,9 +35,9 @@ class AutorizacionCentroRepository
                     ELSE NULL
                 END AS porcentaje
             FROM autorizaciones a
-            LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+            LEFT JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
             WHERE a.requisicion_id = ?
-              AND a.tipo = 'centro_costo'
+              AND a.tipo = 'unidad_negocio'
             ORDER BY cc.nombre ASC, a.id ASC
         ";
 
@@ -72,16 +72,16 @@ class AutorizacionCentroRepository
             FROM autorizaciones a
             INNER JOIN requisiciones r ON a.requisicion_id = r.id
             INNER JOIN autorizacion_flujo af ON af.requisicion_id = a.requisicion_id
-            LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+            LEFT JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
             WHERE a.autorizador_email = ?
-              AND a.tipo = 'centro_costo'
+              AND a.tipo = 'unidad_negocio'
               AND a.estado = 'pendiente'
               AND af.estado NOT IN ('rechazado', 'cancelado')
               AND NOT EXISTS (
                   SELECT 1 FROM autorizaciones a2
                   WHERE a2.requisicion_id = a.requisicion_id
-                    AND a2.centro_costo_id = a.centro_costo_id
-                    AND a2.tipo = 'centro_costo'
+                    AND a2.unidad_negocio_id = a.unidad_negocio_id
+                    AND a2.tipo = 'unidad_negocio'
                     AND a2.nivel < a.nivel
                     AND a2.estado = 'pendiente'
               )
@@ -104,7 +104,7 @@ class AutorizacionCentroRepository
             FROM autorizaciones a
             INNER JOIN autorizacion_flujo af ON af.requisicion_id = a.requisicion_id
             WHERE a.autorizador_email = ?
-              AND a.tipo = 'centro_costo'
+              AND a.tipo = 'unidad_negocio'
               AND a.estado = 'pendiente'
               AND af.estado NOT IN ('rechazado', 'cancelado')
         ";
@@ -124,7 +124,7 @@ class AutorizacionCentroRepository
             SELECT 1
             FROM autorizaciones
             WHERE autorizador_email = ?
-              AND tipo = 'centro_costo'
+              AND tipo = 'unidad_negocio'
             LIMIT 1
         ";
 
@@ -152,10 +152,10 @@ class AutorizacionCentroRepository
                     ELSE NULL
                 END AS porcentaje
             FROM autorizaciones a
-            LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+            LEFT JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
             LEFT JOIN requisiciones r ON a.requisicion_id = r.id
             WHERE a.id = ?
-              AND a.tipo = 'centro_costo'
+              AND a.tipo = 'unidad_negocio'
         ";
 
         $stmt = $this->pdo->prepare($sql);
@@ -179,15 +179,15 @@ class AutorizacionCentroRepository
             FROM autorizaciones a2
             INNER JOIN autorizaciones a1 ON a1.id = ?
             WHERE a2.requisicion_id = a1.requisicion_id
-              AND a2.centro_costo_id = a1.centro_costo_id
-              AND a2.tipo = 'centro_costo'
+              AND a2.unidad_negocio_id = a1.unidad_negocio_id
+              AND a2.tipo = 'unidad_negocio'
               AND a2.nivel < a1.nivel
               AND a2.estado = 'pendiente'
         ";
         $stmtGuard = $this->pdo->prepare($sqlGuard);
         $stmtGuard->execute([$id]);
         if ((int)$stmtGuard->fetchColumn() > 0) {
-            throw new \RuntimeException('El autorizador de nivel anterior aún no ha aprobado este centro de costo.');
+            throw new \RuntimeException('El autorizador de nivel anterior aún no ha aprobado este unidad de negocio.');
         }
 
         $sql = "
@@ -197,7 +197,7 @@ class AutorizacionCentroRepository
                 fecha_respuesta = NOW()
             WHERE id = ?
               AND autorizador_email = ?
-              AND tipo = 'centro_costo'
+              AND tipo = 'unidad_negocio'
               AND estado = 'pendiente'
         ";
 
@@ -217,7 +217,7 @@ class AutorizacionCentroRepository
                 fecha_respuesta = NOW()
             WHERE id = ?
               AND autorizador_email = ?
-              AND tipo = 'centro_costo'
+              AND tipo = 'unidad_negocio'
               AND estado = 'pendiente'
         ";
 
@@ -236,7 +236,7 @@ class AutorizacionCentroRepository
                 COUNT(*) AS total
             FROM autorizaciones
             WHERE requisicion_id = ?
-              AND tipo = 'centro_costo'
+              AND tipo = 'unidad_negocio'
         ";
 
         $stmt = $this->pdo->prepare($sql);
@@ -259,7 +259,7 @@ class AutorizacionCentroRepository
             SELECT COUNT(*)
             FROM autorizaciones
             WHERE requisicion_id = ?
-              AND tipo = 'centro_costo'
+              AND tipo = 'unidad_negocio'
               AND estado = 'rechazada'
         ";
 
@@ -282,7 +282,7 @@ class AutorizacionCentroRepository
                 SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) AS pendientes
             FROM autorizaciones
             WHERE requisicion_id = ?
-              AND tipo = 'centro_costo'
+              AND tipo = 'unidad_negocio'
         ";
 
         $stmt = $this->pdo->prepare($sql);
@@ -317,9 +317,9 @@ class AutorizacionCentroRepository
                     ELSE NULL
                 END AS porcentaje
             FROM autorizaciones a
-            LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+            LEFT JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
             WHERE a.requisicion_id = ?
-              AND a.tipo = 'centro_costo'
+              AND a.tipo = 'unidad_negocio'
               AND a.estado = ?
             ORDER BY cc.nombre ASC
         ";
@@ -331,9 +331,9 @@ class AutorizacionCentroRepository
     }
 
     /**
-     * Obtiene estadísticas agregadas para un centro de costo.
+     * Obtiene estadísticas agregadas para un unidad de negocio.
      */
-    public function getStatsByCentro(int $centroCostoId): array
+    public function getStatsByCentro(int $unidadNegocioId): array
     {
         $sql = "
             SELECT 
@@ -347,12 +347,12 @@ class AutorizacionCentroRepository
                     )
                 ) AS porcentaje_promedio
             FROM autorizaciones
-            WHERE centro_costo_id = ?
-              AND tipo = 'centro_costo'
+            WHERE unidad_negocio_id = ?
+              AND tipo = 'unidad_negocio'
         ";
 
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$centroCostoId]);
+        $stmt->execute([$unidadNegocioId]);
 
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: [
             'total_autorizaciones' => 0,
@@ -364,15 +364,15 @@ class AutorizacionCentroRepository
     }
 
     /**
-     * Crea autorizaciones de centro de costo a partir de la distribución de gastos.
+     * Crea autorizaciones de unidad de negocio a partir de la distribución de gastos.
      *
      * Soporta múltiples autorizadores secuenciales por centro: el campo `nivel` en
-     * autorizaciones se popula con `acc.orden` de autorizador_centro_costo, de modo
+     * autorizaciones se popula con `acc.orden` de autorizador_unidad_negocio, de modo
      * que nivel=1 aprueba primero y nivel=2 no puede actuar hasta que nivel=1 apruebe.
      * Cada autorizador en la secuencia trae su propio respaldo activo (mismo nivel).
      *
      * @param int   $requisicionId
-     * @param array $asignaciones  Mapa [centro_costo_id => autorizador_email] para asignación
+     * @param array $asignaciones  Mapa [unidad_negocio_id => autorizador_email] para asignación
      *                             manual por el revisor. Cuando se usa, se inserta un único
      *                             registro con nivel=1 (sin secuencia).
      */
@@ -380,16 +380,16 @@ class AutorizacionCentroRepository
     {
         // Centros de costo presentes en la distribución
         $stmtDist = $this->pdo->prepare(
-            "SELECT DISTINCT centro_costo_id FROM distribucion_gasto WHERE requisicion_id = ?"
+            "SELECT DISTINCT unidad_negocio_id FROM distribucion_gasto WHERE requisicion_id = ?"
         );
         $stmtDist->execute([$requisicionId]);
         $centrosDistribucion = array_map('intval', $stmtDist->fetchAll(PDO::FETCH_COLUMN));
 
-        // Autorizaciones ya existentes: comparar pares (centro_costo_id, autorizador_email)
+        // Autorizaciones ya existentes: comparar pares (unidad_negocio_id, autorizador_email)
         $stmtCheck = $this->pdo->prepare(
-            "SELECT DISTINCT centro_costo_id
+            "SELECT DISTINCT unidad_negocio_id
              FROM autorizaciones
-             WHERE requisicion_id = ? AND tipo = 'centro_costo'"
+             WHERE requisicion_id = ? AND tipo = 'unidad_negocio'"
         );
         $stmtCheck->execute([$requisicionId]);
         $centrosExistentes = array_map('intval', $stmtCheck->fetchAll(PDO::FETCH_COLUMN));
@@ -407,47 +407,47 @@ class AutorizacionCentroRepository
 
             error_log("AutorizacionCentroRepository: centros no coinciden, recreando para requisición $requisicionId");
             $this->pdo->prepare(
-                "DELETE FROM autorizaciones WHERE requisicion_id = ? AND tipo = 'centro_costo'"
+                "DELETE FROM autorizaciones WHERE requisicion_id = ? AND tipo = 'unidad_negocio'"
             )->execute([$requisicionId]);
         }
 
         // Porcentaje por centro
         $stmtCentros = $this->pdo->prepare("
-            SELECT centro_costo_id, SUM(porcentaje) AS porcentaje_total
+            SELECT unidad_negocio_id, SUM(porcentaje) AS porcentaje_total
             FROM distribucion_gasto
             WHERE requisicion_id = ?
-            GROUP BY centro_costo_id
+            GROUP BY unidad_negocio_id
         ");
         $stmtCentros->execute([$requisicionId]);
         $centros = $stmtCentros->fetchAll(PDO::FETCH_ASSOC);
 
         $sqlInsert = "
             INSERT INTO autorizaciones
-                (requisicion_id, tipo, centro_costo_id, autorizador_email, autorizador_nombre,
+                (requisicion_id, tipo, unidad_negocio_id, autorizador_email, autorizador_nombre,
                  estado, nivel, metadata, created_at)
-            VALUES (?, 'centro_costo', ?, ?, ?, 'pendiente', ?, ?, NOW())
+            VALUES (?, 'unidad_negocio', ?, ?, ?, 'pendiente', ?, ?, NOW())
         ";
         $stmtInsert = $this->pdo->prepare($sqlInsert);
 
         foreach ($centros as $centro) {
-            $centroCostoId = (int)$centro['centro_costo_id'];
+            $unidadNegocioId = (int)$centro['unidad_negocio_id'];
             $porcentaje    = (float)$centro['porcentaje_total'];
 
             // Asignación manual del revisor: nivel=1, sin secuencia
-            if (!empty($asignaciones[$centroCostoId])) {
-                $emailManual = $asignaciones[$centroCostoId];
+            if (!empty($asignaciones[$unidadNegocioId])) {
+                $emailManual = $asignaciones[$unidadNegocioId];
                 $metadata = json_encode([
                     'es_respaldo'       => false,
                     'motivo_respaldo'   => null,
                     'porcentaje'        => $porcentaje,
                     'asignacion_manual' => true,
                 ]);
-                $stmtInsert->execute([$requisicionId, $centroCostoId, $emailManual, null, 1, $metadata]);
+                $stmtInsert->execute([$requisicionId, $unidadNegocioId, $emailManual, null, 1, $metadata]);
                 continue;
             }
 
             // Autorizadores configurados para este centro, ordenados por acc.orden
-            $autorizadoresOrdenados = PersonaAutorizada::todosPorCentro($centroCostoId);
+            $autorizadoresOrdenados = PersonaAutorizada::todosPorCentro($unidadNegocioId);
 
             foreach ($autorizadoresOrdenados as $autorizador) {
                 $nivel = (int)$autorizador['orden'];
@@ -460,7 +460,7 @@ class AutorizacionCentroRepository
                 ]);
                 $stmtInsert->execute([
                     $requisicionId,
-                    $centroCostoId,
+                    $unidadNegocioId,
                     $autorizador['email'],
                     $autorizador['nombre'],
                     $nivel,
@@ -469,7 +469,7 @@ class AutorizacionCentroRepository
             }
 
             // El respaldo es por centro (reemplaza al autorizador de nivel=1)
-            $respaldo = AutorizadorRespaldo::activoPorCentro($centroCostoId);
+            $respaldo = AutorizadorRespaldo::activoPorCentro($unidadNegocioId);
             if ($respaldo && !empty($respaldo['autorizador_respaldo_email'])) {
                 $metadataRespaldo = json_encode([
                     'es_respaldo'     => true,
@@ -479,7 +479,7 @@ class AutorizacionCentroRepository
                 ]);
                 $stmtInsert->execute([
                     $requisicionId,
-                    $centroCostoId,
+                    $unidadNegocioId,
                     $respaldo['autorizador_respaldo_email'],
                     null,
                     1,

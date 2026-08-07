@@ -10,16 +10,16 @@ $coloresFactura = [
     3 => '#28a745'   // Verde - Factura 3
 ];
 
-// Agrupar centros de costo por unidad de negocio
+// Agrupar unidades de negocio por centro de costo
 $relaciones = [];
-foreach ($centros_costo as $centro) {
-    $unidadNombre = $centro['unidad_negocio_nombre'] ?? 'SIN ASIGNAR';
+foreach ($unidades_negocio as $centro) {
+    $unidadNombre = $centro['centro_costo_nombre'] ?? 'SIN ASIGNAR';
     $factura = $centro['factura_numero'] ?? 1;
     
     if (!isset($relaciones[$unidadNombre])) {
         $relaciones[$unidadNombre] = [
-            'unidad_negocio' => $unidadNombre,
-            'unidad_negocio_id' => $centro['rel_unidad_negocio_id'] ?? $centro['unidad_negocio_id'] ?? null,
+            'centro_costo' => $unidadNombre,
+            'centro_costo_id' => $centro['rel_centro_costo_id'] ?? $centro['centro_costo_id'] ?? null,
             'factura' => $factura,
             'centros' => []
         ];
@@ -132,7 +132,7 @@ uasort($relaciones, function($a, $b) {
         <div>
             <h1 class="h3 mb-0">
                 <i class="fas fa-project-diagram me-2"></i>
-                Relaciones Centro de Costo - Unidad de Negocio
+                Relaciones Unidad de Negocio - Centro de Costo
             </h1>
             <p class="text-muted mb-0">Mapeo automático desde la base de datos</p>
         </div>
@@ -175,10 +175,10 @@ uasort($relaciones, function($a, $b) {
             <div class="col-md-8">
                 <h4><i class="fas fa-info-circle me-2"></i>¿Cómo funciona?</h4>
                 <p class="mb-0">
-                    Cuando seleccionas un <strong>Centro de Costo</strong> en una requisición, el sistema 
-                    automáticamente asigna la <strong>Unidad de Negocio</strong> y el tipo de <strong>Factura</strong> 
+                    Cuando seleccionas un <strong>Unidad de Negocio</strong> en una requisición, el sistema 
+                    automáticamente asigna la <strong>Centro de Costo</strong> y el tipo de <strong>Factura</strong> 
                     según las relaciones definidas en la base de datos. Los datos se leen directamente de las tablas
-                    <code>centro_de_costo</code> y <code>unidad_de_negocio</code>.
+                    <code>unidad_de_negocio</code> y <code>centro_de_costo</code>.
                 </p>
             </div>
             <div class="col-md-4 text-center">
@@ -193,7 +193,7 @@ uasort($relaciones, function($a, $b) {
         <div class="diagram-flow">
             <div class="diagram-box">
                 <i class="fas fa-building fa-2x text-primary mb-2"></i>
-                <div class="fw-bold">Centro de Costo</div>
+                <div class="fw-bold">Unidad de Negocio</div>
                 <small class="text-muted">Seleccionado por usuario</small>
             </div>
             <div class="diagram-arrow">
@@ -209,7 +209,7 @@ uasort($relaciones, function($a, $b) {
             </div>
             <div class="diagram-box">
                 <i class="fas fa-tag fa-2x text-warning mb-2"></i>
-                <div class="fw-bold">Unidad de Negocio</div>
+                <div class="fw-bold">Centro de Costo</div>
                 <small class="text-muted">Asignada automáticamente</small>
             </div>
             <div class="diagram-arrow">
@@ -224,7 +224,7 @@ uasort($relaciones, function($a, $b) {
     </div>
 
     <!-- Relaciones -->
-    <h4 class="mb-4"><i class="fas fa-list me-2"></i>Relaciones por Unidad de Negocio (<?= count($relaciones) ?> unidades)</h4>
+    <h4 class="mb-4"><i class="fas fa-list me-2"></i>Relaciones por Centro de Costo (<?= count($relaciones) ?> unidades)</h4>
     
     <div class="row">
         <?php foreach ($relaciones as $relacion): ?>
@@ -236,10 +236,10 @@ uasort($relaciones, function($a, $b) {
                             <div>
                                 <div class="unidad-title" style="color: <?= $colorFactura ?>">
                                     <i class="fas fa-tag me-2"></i>
-                                    <?= htmlspecialchars($relacion['unidad_negocio']) ?>
+                                    <?= htmlspecialchars($relacion['centro_costo']) ?>
                                 </div>
-                                <?php if ($relacion['unidad_negocio_id']): ?>
-                                    <small class="text-muted">ID: <?= $relacion['unidad_negocio_id'] ?></small>
+                                <?php if ($relacion['centro_costo_id']): ?>
+                                    <small class="text-muted">ID: <?= $relacion['centro_costo_id'] ?></small>
                                 <?php endif; ?>
                             </div>
                             <span class="badge factura-badge factura-<?= $relacion['factura'] ?>">
@@ -251,7 +251,7 @@ uasort($relaciones, function($a, $b) {
                         <div class="mb-3">
                             <small class="text-muted d-block mb-2">
                                 <i class="fas fa-building me-1"></i>
-                                Centros de Costo asignados (<?= count($relacion['centros']) ?>):
+                                Unidades de Negocio asignados (<?= count($relacion['centros']) ?>):
                             </small>
                             <div>
                                 <?php foreach ($relacion['centros'] as $centro): ?>
@@ -272,7 +272,7 @@ uasort($relaciones, function($a, $b) {
         <div class="card-header">
             <h5 class="mb-0">
                 <i class="fas fa-table me-2"></i>
-                Tabla Completa de Relaciones (<?= count($centros_costo) ?> centros de costo)
+                Tabla Completa de Relaciones (<?= count($unidades_negocio) ?> unidades de negocio)
             </h5>
         </div>
         <div class="card-body">
@@ -281,20 +281,20 @@ uasort($relaciones, function($a, $b) {
                     <thead class="table-dark">
                         <tr>
                             <th>ID</th>
-                            <th>Centro de Costo</th>
                             <th>Unidad de Negocio</th>
+                            <th>Centro de Costo</th>
                             <th>Factura</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($centros_costo as $centro): ?>
+                        <?php foreach ($unidades_negocio as $centro): ?>
                             <?php $factura = $centro['factura_numero'] ?? 1; ?>
                             <tr class="<?= $factura == 2 ? 'table-warning' : ($factura == 3 ? 'table-success' : '') ?>">
                                 <td><?= $centro['id'] ?></td>
                                 <td><strong><?= htmlspecialchars($centro['nombre']) ?></strong></td>
                                 <td>
                                     <span class="badge" style="background-color: <?= $coloresFactura[$factura] ?? '#6c757d' ?>; <?= $factura == 2 ? 'color:#333' : '' ?>">
-                                        <?= htmlspecialchars($centro['unidad_negocio_nombre'] ?? 'SIN ASIGNAR') ?>
+                                        <?= htmlspecialchars($centro['centro_costo_nombre'] ?? 'SIN ASIGNAR') ?>
                                     </span>
                                 </td>
                                 <td>
@@ -312,10 +312,10 @@ uasort($relaciones, function($a, $b) {
     <div class="alert alert-success mt-4">
         <h5><i class="fas fa-check-circle me-2"></i>Implementación con Base de Datos</h5>
         <p class="mb-2">
-            Las relaciones ahora se almacenan directamente en la tabla <code>centro_de_costo</code> con las columnas:
+            Las relaciones ahora se almacenan directamente en la tabla <code>unidad_de_negocio</code> con las columnas:
         </p>
         <ul class="mb-2">
-            <li><code>unidad_negocio_id</code> - Referencia a la tabla <code>unidad_de_negocio</code></li>
+            <li><code>centro_costo_id</code> - Referencia a la tabla <code>centro_de_costo</code></li>
             <li><code>factura</code> - Número de factura (1, 2, o 3)</li>
         </ul>
         <p class="mb-0">

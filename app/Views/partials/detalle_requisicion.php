@@ -178,18 +178,18 @@ $badge = EstadoHelper::getBadge($estadoReal);
 </div>
 <?php endif; ?>
 
-<!-- Distribución por Centro de Costo -->
+<!-- Distribución por Unidad de Negocio -->
 <?php if (!empty($distribucion)): ?>
 <div class="detalle-section">
     <div class="detalle-section-header">
-        <i class="fas fa-chart-pie me-2"></i>Distribución por Centro de Costo
+        <i class="fas fa-chart-pie me-2"></i>Distribución por Unidad de Negocio
     </div>
     <div class="detalle-section-content">
         <div class="table-responsive">
             <table class="table table-sm table-hover">
                 <thead>
                     <tr>
-                        <th>Centro de Costo</th>
+                        <th>Unidad de Negocio</th>
                         <th>Cuenta Contable</th>
                         <th class="text-center">%</th>
                         <th class="text-end">Monto</th>
@@ -204,13 +204,13 @@ $badge = EstadoHelper::getBadge($estadoReal);
                         $totalDistribucion += $cantidad;
                         
                         // Buscar nombres en catálogos
-                        $centroCostoNombre = 'Centro ' . getData($dist, 'centro_costo_id');
+                        $unidadNegocioNombre = 'Centro ' . getData($dist, 'unidad_negocio_id');
                         $cuentaContableNombre = 'Cuenta ' . getData($dist, 'cuenta_contable_id');
                         
-                        if (!empty($catalogos['centros_costo'])) {
-                            foreach ($catalogos['centros_costo'] as $centro) {
-                                if (getData($centro, 'id') == getData($dist, 'centro_costo_id')) {
-                                    $centroCostoNombre = getData($centro, 'nombre') ?: getData($centro, 'descripcion');
+                        if (!empty($catalogos['unidades_negocio'])) {
+                            foreach ($catalogos['unidades_negocio'] as $centro) {
+                                if (getData($centro, 'id') == getData($dist, 'unidad_negocio_id')) {
+                                    $unidadNegocioNombre = getData($centro, 'nombre') ?: getData($centro, 'descripcion');
                                     break;
                                 }
                             }
@@ -226,7 +226,7 @@ $badge = EstadoHelper::getBadge($estadoReal);
                         }
                     ?>
                     <tr>
-                        <td><?= htmlspecialchars($centroCostoNombre) ?></td>
+                        <td><?= htmlspecialchars($unidadNegocioNombre) ?></td>
                         <td><?= htmlspecialchars($cuentaContableNombre) ?></td>
                         <td class="text-center"><?= number_format($porcentaje, 1) ?>%</td>
                         <td class="text-end">Q <?= number_format($cantidad, 2) ?></td>

@@ -184,7 +184,7 @@ class FlujoDashboardService extends Model
                     fecha_respuesta,
                     comentarios,
                     motivo_rechazo,
-                    centro_costo_id,
+                    unidad_negocio_id,
                     cuenta_contable_id,
                     metadata
                 FROM autorizaciones 
@@ -203,8 +203,8 @@ class FlujoDashboardService extends Model
                     'estado' => 'pendiente',
                     'autorizaciones' => []
                 ],
-                'centro_costo' => [
-                    'nombre' => 'Autorización por Centro de Costo',
+                'unidad_negocio' => [
+                    'nombre' => 'Autorización por Unidad de Negocio',
                     'orden' => 2,
                     'requerido' => false,
                     'estado' => 'pendiente',

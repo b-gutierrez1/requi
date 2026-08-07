@@ -7,7 +7,7 @@
  * - Revisión inicial
  * - Autorización especial por método de pago
  * - Autorización especial por cuenta contable
- * - Autorización por centros de costo
+ * - Autorización por unidades de negocio
  * - Estado final
  * 
  * @package RequisicionesMVC\Models
@@ -86,7 +86,7 @@ class AutorizacionFlujo extends Model
     }
 
     /**
-     * Obtiene las autorizaciones por centro de costo
+     * Obtiene las autorizaciones por unidad de negocio
      * 
      * @return array
      */
@@ -677,7 +677,7 @@ class AutorizacionFlujo extends Model
      *
      * @param int   $flujoId
      * @param array $flujo
-     * @param array $asignaciones  Mapa [centro_costo_id => email] para centros manuales.
+     * @param array $asignaciones  Mapa [unidad_negocio_id => email] para centros manuales.
      */
     private static function crearAutorizacionesEspeciales($flujoId, $flujo, array $asignaciones = [])
     {

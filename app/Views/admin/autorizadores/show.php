@@ -289,7 +289,7 @@ $title = 'Detalles del Autorizador';
                 <div class="detail-row">
                     <div class="detail-label">
                         <i class="fas fa-building me-2"></i>
-                        Centros de Costo Asignados (<?= count($centrosCosto) ?>)
+                        Unidades de Negocio Asignados (<?= count($centrosCosto) ?>)
                     </div>
                     <div class="detail-value">
                         <?php if (!empty($centrosCosto)): ?>
@@ -301,7 +301,7 @@ $title = 'Detalles del Autorizador';
                                         <span>
                                             <?php 
                                             // Mostrar ID si no hay código
-                                            $codigo = $centro['centro_codigo'] ?? $centro['codigo'] ?? ('ID: ' . ($centro['centro_id'] ?? $centro['centro_costo_id'] ?? 'N/A'));
+                                            $codigo = $centro['centro_codigo'] ?? $centro['codigo'] ?? ('ID: ' . ($centro['centro_id'] ?? $centro['unidad_negocio_id'] ?? 'N/A'));
                                             echo View::e($codigo);
                                             ?>
                                             - 
@@ -338,7 +338,7 @@ $title = 'Detalles del Autorizador';
                                                 <td>
                                                     <span class="badge bg-primary">
                                                         <?php 
-                                                        $codigo = $centro['centro_codigo'] ?? $centro['codigo'] ?? ('ID: ' . ($centro['centro_id'] ?? $centro['centro_costo_id'] ?? 'N/A'));
+                                                        $codigo = $centro['centro_codigo'] ?? $centro['codigo'] ?? ('ID: ' . ($centro['centro_id'] ?? $centro['unidad_negocio_id'] ?? 'N/A'));
                                                         echo View::e($codigo);
                                                         ?>
                                                     </span>
@@ -354,7 +354,7 @@ $title = 'Detalles del Autorizador';
                         <?php else: ?>
                             <div class="alert alert-warning mt-2">
                                 <i class="fas fa-exclamation-triangle me-2"></i>
-                                No tiene centros de costo asignados
+                                No tiene unidades de negocio asignados
                             </div>
                         <?php endif; ?>
                     </div>
@@ -424,7 +424,7 @@ $title = 'Detalles del Autorizador';
                         <div>
                             <?php 
                             $permisos = [
-                                'puede_autorizar_centro_costo' => 'Centro de Costo',
+                                'puede_autorizar_unidad_negocio' => 'Unidad de Negocio',
                                 'puede_autorizar_flujo' => 'Flujo de Trabajo',
                                 'puede_autorizar_cuenta_contable' => 'Cuenta Contable',
                                 'puede_autorizar_metodo_pago' => 'Método de Pago',

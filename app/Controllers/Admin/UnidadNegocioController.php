@@ -1,8 +1,8 @@
 <?php
 /**
- * CentroCostoController
+ * UnidadNegocioController
  *
- * CRUD de centros de costo para administración.
+ * CRUD de unidades de negocio para administración.
  * Movido desde AdminController como parte del refactoring.
  *
  * @package RequisicionesMVC\Controllers\Admin
@@ -14,10 +14,10 @@ use App\Controllers\Controller;
 use App\Helpers\View;
 use App\Helpers\Redirect;
 use App\Models\Model;
-use App\Models\CentroCosto;
 use App\Models\UnidadNegocio;
+use App\Models\CentroCosto;
 
-class CentroCostoController extends Controller
+class UnidadNegocioController extends Controller
 {
     public function __construct()
     {
@@ -31,37 +31,37 @@ class CentroCostoController extends Controller
     }
 
     // ========================================================================
-    // CENTROS DE COSTO
+    // UNIDADES DE NEGOCIO
     // ========================================================================
 
     /**
-     * Lista centros de costo
+     * Lista unidades de negocio
      */
     public function centrosCosto()
     {
-        $centros = CentroCosto::all();
+        $centros = UnidadNegocio::all();
 
         View::render('admin/centros/index', [
             'centros' => $centros,
-            'title' => 'Centros de Costo'
+            'title' => 'Unidades de Negocio'
         ]);
     }
 
     /**
-     * Muestra el formulario para crear un nuevo centro de costo
+     * Muestra el formulario para crear un nuevo unidad de negocio
      */
     public function createCentro()
     {
-        $unidadesNegocio = UnidadNegocio::activas();
+        $unidadesNegocio = CentroCosto::activas();
 
         View::render('admin/centros/create', [
-            'title' => 'Nuevo Centro de Costo',
+            'title' => 'Nuevo Unidad de Negocio',
             'unidadesNegocio' => $unidadesNegocio
         ]);
     }
 
     /**
-     * Crea un centro de costo
+     * Crea un unidad de negocio
      */
     public function storeCentro()
     {
@@ -75,11 +75,11 @@ class CentroCostoController extends Controller
             'nombre'                    => $this->sanitize($_POST['nombre']),
             'codigo'                    => !empty($_POST['codigo']) ? $this->sanitize($_POST['codigo']) : null,
             'factura'                   => intval($_POST['factura'] ?? 1),
-            'unidad_negocio_id'         => !empty($_POST['unidad_negocio_id']) ? intval($_POST['unidad_negocio_id']) : null,
+            'centro_costo_id'         => !empty($_POST['centro_costo_id']) ? intval($_POST['centro_costo_id']) : null,
             'requiere_asignacion_manual' => isset($_POST['requiere_asignacion_manual']) ? 1 : 0,
         ];
 
-        $id = CentroCosto::create($data);
+        $id = UnidadNegocio::create($data);
 
         if ($id) {
             Redirect::to('/admin/centros')
@@ -87,18 +87,18 @@ class CentroCostoController extends Controller
                 ->send();
         } else {
             Redirect::back()
-                ->withError('Error al crear centro de costo')
+                ->withError('Error al crear unidad de negocio')
                 ->withInput($data)
                 ->send();
         }
     }
 
     /**
-     * Muestra los detalles de un centro de costo
+     * Muestra los detalles de un unidad de negocio
      */
     public function showCentro($id)
     {
-        $centro = CentroCosto::find($id);
+        $centro = UnidadNegocio::find($id);
 
         if (!$centro) {
             Redirect::to('/admin/centros')
@@ -109,16 +109,16 @@ class CentroCostoController extends Controller
 
         View::render('admin/centros/show', [
             'centro' => $centro,
-            'title' => 'Detalles del Centro de Costo'
+            'title' => 'Detalles del Unidad de Negocio'
         ]);
     }
 
     /**
-     * Muestra el formulario para editar un centro de costo
+     * Muestra el formulario para editar un unidad de negocio
      */
     public function editCentro($id)
     {
-        $centro = CentroCosto::find($id);
+        $centro = UnidadNegocio::find($id);
 
         if (!$centro) {
             Redirect::to('/admin/centros')
@@ -127,17 +127,17 @@ class CentroCostoController extends Controller
             return;
         }
 
-        $unidadesNegocio = UnidadNegocio::activas();
+        $unidadesNegocio = CentroCosto::activas();
 
         View::render('admin/centros/edit', [
             'centro' => $centro,
-            'title' => 'Editar Centro de Costo',
+            'title' => 'Editar Unidad de Negocio',
             'unidadesNegocio' => $unidadesNegocio
         ]);
     }
 
     /**
-     * Actualiza un centro de costo
+     * Actualiza un unidad de negocio
      */
     public function updateCentro($id)
     {
@@ -150,7 +150,7 @@ class CentroCostoController extends Controller
         $data = [
             'nombre'                    => $this->sanitize($_POST['nombre']),
             'factura'                   => intval($_POST['factura'] ?? 1),
-            'unidad_negocio_id'         => !empty($_POST['unidad_negocio_id']) ? intval($_POST['unidad_negocio_id']) : null,
+            'centro_costo_id'         => !empty($_POST['centro_costo_id']) ? intval($_POST['centro_costo_id']) : null,
             'requiere_asignacion_manual' => isset($_POST['requiere_asignacion_manual']) ? 1 : 0,
         ];
 
@@ -159,7 +159,7 @@ class CentroCostoController extends Controller
             $data['codigo'] = !empty($_POST['codigo']) ? $this->sanitize($_POST['codigo']) : null;
         }
 
-        $resultado = CentroCosto::updateById($id, $data);
+        $resultado = UnidadNegocio::updateById($id, $data);
 
         if ($resultado) {
             Redirect::back()
@@ -173,7 +173,7 @@ class CentroCostoController extends Controller
     }
 
     /**
-     * Elimina un centro de costo
+     * Elimina un unidad de negocio
      */
     public function deleteCentro($id)
     {
@@ -184,7 +184,7 @@ class CentroCostoController extends Controller
             return;
         }
 
-        $centro = CentroCosto::find($id);
+        $centro = UnidadNegocio::find($id);
 
         if (!$centro) {
             Redirect::to('/admin/centros')
@@ -195,18 +195,18 @@ class CentroCostoController extends Controller
 
         // Verificar si el centro está siendo usado en requisiciones
         $pdo = Model::getConnection();
-        $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM distribucion_gasto WHERE centro_costo_id = ?");
+        $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM distribucion_gasto WHERE unidad_negocio_id = ?");
         $stmt->execute([$id]);
         $uso = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if ($uso['total'] > 0) {
             Redirect::to('/admin/centros')
-                ->withError('No se puede eliminar: el centro de costo está siendo utilizado en ' . $uso['total'] . ' registros')
+                ->withError('No se puede eliminar: el unidad de negocio está siendo utilizado en ' . $uso['total'] . ' registros')
                 ->send();
             return;
         }
 
-        $resultado = CentroCosto::destroy($id);
+        $resultado = UnidadNegocio::destroy($id);
 
         if ($resultado) {
             Redirect::to('/admin/centros')
@@ -214,7 +214,7 @@ class CentroCostoController extends Controller
                 ->send();
         } else {
             Redirect::to('/admin/centros')
-                ->withError('Error al eliminar el centro de costo')
+                ->withError('Error al eliminar el unidad de negocio')
                 ->send();
         }
     }
@@ -226,14 +226,14 @@ class CentroCostoController extends Controller
             return;
         }
 
-        $centro = CentroCosto::find($id);
+        $centro = UnidadNegocio::find($id);
         if (!$centro) {
             Redirect::to('/admin/centros')->withError('Centro de costo no encontrado')->send();
             return;
         }
 
         $nuevoEstado = $centro->activo ? 0 : 1;
-        CentroCosto::updateById($id, ['activo' => $nuevoEstado]);
+        UnidadNegocio::updateById($id, ['activo' => $nuevoEstado]);
 
         $mensaje = $nuevoEstado ? 'Centro de costo activado' : 'Centro de costo desactivado';
         Redirect::to('/admin/centros')->withSuccess($mensaje)->send();

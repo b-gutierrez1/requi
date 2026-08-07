@@ -10,14 +10,14 @@
 
 namespace App\Controllers;
 
-use App\Models\CentroCosto;
 use App\Models\UnidadNegocio;
+use App\Models\CentroCosto;
 use App\Repositories\AutorizacionCentroRepository;
 
 class ApiController extends Controller
 {
     /**
-     * Repositorio de autorizaciones por centro de costo.
+     * Repositorio de autorizaciones por unidad de negocio.
      *
      * @var AutorizacionCentroRepository
      */
@@ -30,55 +30,55 @@ class ApiController extends Controller
     }
 
     /**
-     * Obtiene la unidad de negocio de un centro de costo
+     * Obtiene la centro de costo de un unidad de negocio
      *
-     * GET /api/centro-costo/{id}/unidad-negocio
+     * GET /api/unidad-negocio/{id}/centro-costo
      *
-     * @param int $centroCostoId
+     * @param int $unidadNegocioId
      * @return void
      */
-    public function getUnidadNegocioPorCentro($centroCostoId)
+    public function getCentroCostoPorCentro($unidadNegocioId)
     {
         try {
-            $centroCosto = CentroCosto::find($centroCostoId);
-
-            if (!$centroCosto) {
-                $this->jsonResponse(['success' => false, 'error' => 'Centro de costo no encontrado'], 404);
-            }
-
-            $unidadNegocioId = $centroCosto['unidad_negocio_id'] ?? null;
-
-            if (!$unidadNegocioId) {
-                $this->jsonResponse([
-                    'success' => true,
-                    'data' => null,
-                    'message' => 'Este centro de costo no tiene unidad de negocio asignada'
-                ]);
-            }
-
             $unidadNegocio = UnidadNegocio::find($unidadNegocioId);
 
             if (!$unidadNegocio) {
+                $this->jsonResponse(['success' => false, 'error' => 'Centro de costo no encontrado'], 404);
+            }
+
+            $centroCostoId = $unidadNegocio['centro_costo_id'] ?? null;
+
+            if (!$centroCostoId) {
+                $this->jsonResponse([
+                    'success' => true,
+                    'data' => null,
+                    'message' => 'Este unidad de negocio no tiene centro de costo asignada'
+                ]);
+            }
+
+            $centroCosto = CentroCosto::find($centroCostoId);
+
+            if (!$centroCosto) {
                 $this->jsonResponse(['success' => false, 'error' => 'Unidad de negocio no encontrada'], 404);
             }
 
             $this->jsonResponse([
                 'success' => true,
                 'data' => [
-                    'id'          => $unidadNegocio['id'],
-                    'nombre'      => $unidadNegocio['nombre'],
-                    'codigo'      => $unidadNegocio['codigo'],
-                    'descripcion' => $unidadNegocio['descripcion'] ?? null
+                    'id'          => $centroCosto['id'],
+                    'nombre'      => $centroCosto['nombre'],
+                    'codigo'      => $centroCosto['codigo'],
+                    'descripcion' => $centroCosto['descripcion'] ?? null
                 ]
             ]);
 
         } catch (\Exception $e) {
-            $this->jsonResponse(['success' => false, 'error' => 'Error al obtener la unidad de negocio: ' . $e->getMessage()], 500);
+            $this->jsonResponse(['success' => false, 'error' => 'Error al obtener la centro de costo: ' . $e->getMessage()], 500);
         }
     }
 
     /**
-     * Obtiene todas las unidades de negocio activas
+     * Obtiene todas las centros de costo activas
      *
      * GET /api/unidades-negocio
      *
@@ -87,15 +87,15 @@ class ApiController extends Controller
     public function getUnidadesNegocio()
     {
         try {
-            $unidades = UnidadNegocio::activas();
+            $unidades = CentroCosto::activas();
             $this->jsonResponse(['success' => true, 'data' => $unidades]);
         } catch (\Exception $e) {
-            $this->jsonResponse(['success' => false, 'error' => 'Error al obtener unidades de negocio: ' . $e->getMessage()], 500);
+            $this->jsonResponse(['success' => false, 'error' => 'Error al obtener centros de costo: ' . $e->getMessage()], 500);
         }
     }
 
     /**
-     * Obtiene todos los centros de costo activos con sus unidades de negocio
+     * Obtiene todos los unidades de negocio activos con sus centros de costo
      *
      * GET /api/centros-costo
      *
@@ -104,10 +104,10 @@ class ApiController extends Controller
     public function getCentrosCosto()
     {
         try {
-            $centros = CentroCosto::activos();
+            $centros = UnidadNegocio::activos();
             $this->jsonResponse(['success' => true, 'data' => $centros]);
         } catch (\Exception $e) {
-            $this->jsonResponse(['success' => false, 'error' => 'Error al obtener centros de costo: ' . $e->getMessage()], 500);
+            $this->jsonResponse(['success' => false, 'error' => 'Error al obtener unidades de negocio: ' . $e->getMessage()], 500);
         }
     }
 

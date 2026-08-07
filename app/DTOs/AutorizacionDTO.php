@@ -11,8 +11,8 @@ class AutorizacionDTO
 {
     public $id;
     public $ordenId;
-    public $centroCostoId;
-    public $centroCostoNombre;
+    public $unidadNegocioId;
+    public $unidadNegocioNombre;
     public $autorizadorEmail;
     public $autorizadorNombre;
     public $estado;
@@ -26,8 +26,8 @@ class AutorizacionDTO
     {
         $this->id = $data['id'] ?? null;
         $this->ordenId = $data['requisicion_id'] ?? null;
-        $this->centroCostoId = $data['centro_costo_id'] ?? null;
-        $this->centroCostoNombre = $data['centro_nombre'] ?? null;
+        $this->unidadNegocioId = $data['unidad_negocio_id'] ?? null;
+        $this->unidadNegocioNombre = $data['centro_nombre'] ?? null;
         $this->autorizadorEmail = $data['autorizador_email'] ?? null;
         $this->autorizadorNombre = $data['autorizador_nombre'] ?? null;
         $this->estado = $data['estado'] ?? 'pendiente';
@@ -70,8 +70,8 @@ class AutorizacionDTO
         return [
             'id' => $this->id,
             'requisicion_id' => $this->ordenId,
-            'centro_costo_id' => $this->centroCostoId,
-            'centro_nombre' => $this->centroCostoNombre,
+            'unidad_negocio_id' => $this->unidadNegocioId,
+            'centro_nombre' => $this->unidadNegocioNombre,
             'autorizador_email' => $this->autorizadorEmail,
             'autorizador_nombre' => $this->autorizadorNombre,
             'estado' => $this->estado,

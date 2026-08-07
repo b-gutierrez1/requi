@@ -64,7 +64,7 @@ class Requisicion extends Model
     }
 
     /**
-     * Obtiene la distribución por centros de costo
+     * Obtiene la distribución por unidades de negocio
      */
     public function distribucionCentros()
     {
@@ -343,18 +343,18 @@ class Requisicion extends Model
     }
 
     /**
-     * Crea autorizaciones por centros de costo
+     * Crea autorizaciones por unidades de negocio
      */
     private function crearAutorizacionesCentrosCosto(): void
     {
         foreach ($this->distribucionCentros as $distribucion) {
-            // Obtener autorizador del centro de costo
-            $autorizador = $this->obtenerAutorizadorCentroCosto($distribucion->centro_costo_id);
+            // Obtener autorizador del unidad de negocio
+            $autorizador = $this->obtenerAutorizadorUnidadNegocio($distribucion->unidad_negocio_id);
 
             Autorizacion::create([
                 'requisicion_id' => $this->id,
-                'tipo' => 'centro_costo',
-                'centro_costo_id' => $distribucion->centro_costo_id,
+                'tipo' => 'unidad_negocio',
+                'unidad_negocio_id' => $distribucion->unidad_negocio_id,
                 'autorizador_email' => $autorizador['email'],
                 'autorizador_nombre' => $autorizador['nombre'],
                 'fecha_vencimiento' => date('Y-m-d H:i:s', strtotime('+3 days'))
@@ -363,21 +363,21 @@ class Requisicion extends Model
     }
 
     /**
-     * Obtiene el autorizador para un centro de costo
+     * Obtiene el autorizador para un unidad de negocio
      */
-    private function obtenerAutorizadorCentroCosto(int $centroCostoId): array
+    private function obtenerAutorizadorUnidadNegocio(int $unidadNegocioId): array
     {
-        // Buscar en tabla persona_autorizada por centro de costo
+        // Buscar en tabla persona_autorizada por unidad de negocio
         $pdo = static::getConnection();
         $table = \App\Models\PersonaAutorizada::getTable();
         $stmt = $pdo->prepare("
             SELECT pa.email, pa.nombre 
             FROM {$table} pa 
-            JOIN centro_de_costo cc ON pa.centro_costo_id = cc.id 
+            JOIN unidad_de_negocio cc ON pa.unidad_negocio_id = cc.id 
             WHERE cc.id = ? AND pa.activo = 1
             LIMIT 1
         ");
-        $stmt->execute([$centroCostoId]);
+        $stmt->execute([$unidadNegocioId]);
         $resultado = $stmt->fetch();
 
         if ($resultado) {

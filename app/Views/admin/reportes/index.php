@@ -59,14 +59,14 @@ View::startSection('content');
             </div>
         </div>
 
-        <!-- 2. Gasto por Centro de Costo -->
+        <!-- 2. Gasto por Unidad de Negocio -->
         <div class="col-md-6">
             <div class="card h-100 border-success">
                 <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fas fa-building me-2"></i>Gasto por Centro de Costo</h5>
+                    <h5 class="mb-0"><i class="fas fa-building me-2"></i>Gasto por Unidad de Negocio</h5>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted">Resumen del gasto consolidado por centro de costo según la distribución registrada en cada requisición.</p>
+                    <p class="text-muted">Resumen del gasto consolidado por unidad de negocio según la distribución registrada en cada requisición.</p>
                     <ul class="list-unstyled mb-3">
                         <li><i class="fas fa-check text-success me-2"></i>Centro de costo</li>
                         <li><i class="fas fa-check text-success me-2"></i>Número de requisiciones</li>
@@ -74,7 +74,7 @@ View::startSection('content');
                     </ul>
                 </div>
                 <div class="card-footer bg-transparent">
-                    <button class="btn btn-success w-100" onclick="descargar('gasto-centro-costo')">
+                    <button class="btn btn-success w-100" onclick="descargar('gasto-unidad-negocio')">
                         <i class="fas fa-download me-2"></i>Descargar CSV
                     </button>
                 </div>
@@ -153,7 +153,7 @@ View::startSection('content');
 <script>
 window.REPORT_URLS = {
     'estado-requisiciones':    '<?= url('/admin/reportes/estado-requisiciones') ?>',
-    'gasto-centro-costo':      '<?= url('/admin/reportes/gasto-centro-costo') ?>',
+    'gasto-unidad-negocio':      '<?= url('/admin/reportes/gasto-unidad-negocio') ?>',
     'gasto-unidad-requirente': '<?= url('/admin/reportes/gasto-unidad-requirente') ?>',
     'tasa-rechazo':            '<?= url('/admin/reportes/tasa-rechazo') ?>',
     'forma-pago':              '<?= url('/admin/reportes/forma-pago') ?>',

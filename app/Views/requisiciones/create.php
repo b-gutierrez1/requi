@@ -592,8 +592,8 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                     <thead class="table-dark-custom">
                         <tr>
                             <th>Cuenta Contable</th>
-                            <th>Centro de Costo</th>
                             <th>Unidad de Negocio</th>
+                            <th>Centro de Costo</th>
                             <th>Porcentaje</th>
                             <th>Cantidad</th>
                             <th>Factura</th>
@@ -617,13 +617,13 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                     <div class="cuenta-contable-suggestions"></div>
                                 </div>
                             </td>
-                            <td><select class="form-select" name="distribucion[0][centro_costo_id]" required>
+                            <td><select class="form-select" name="distribucion[0][unidad_negocio_id]" required>
                                     <option value="">Seleccione...</option>
-                                    <?php if (!empty($centros_costo)): ?>
-                                        <?php foreach ($centros_costo as $centro): ?>
+                                    <?php if (!empty($unidades_negocio)): ?>
+                                        <?php foreach ($unidades_negocio as $centro): ?>
                                             <option value="<?= $centro['id'] ?>"
-                                                    data-unidad-negocio-id="<?= $centro['rel_unidad_negocio_id'] ?? $centro['unidad_negocio_id'] ?? '' ?>"
-                                                    data-unidad-negocio-nombre="<?= View::e($centro['unidad_negocio_nombre'] ?? 'UNIDAD DE NEGOCIO GENERAL') ?>"
+                                                    data-centro-costo-id="<?= $centro['rel_centro_costo_id'] ?? $centro['centro_costo_id'] ?? '' ?>"
+                                                    data-centro-costo-nombre="<?= View::e($centro['centro_costo_nombre'] ?? 'CENTRO DE COSTO GENERAL') ?>"
                                                     data-factura="<?= $centro['factura'] ?? 1 ?>">
                                                 <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
                                             </option>
@@ -631,8 +631,8 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                     <?php endif; ?>
                                 </select></td>
                             <td>
-                                <input type="text" class="form-control" name="distribucion[0][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
-                                <input type="hidden" name="distribucion[0][unidad_negocio_id]" value="">
+                                <input type="text" class="form-control" name="distribucion[0][centro_costo_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
+                                <input type="hidden" name="distribucion[0][centro_costo_id]" value="">
                             </td>
                             <td><input type="number" class="form-control dist-porcentaje" name="distribucion[0][porcentaje]" min="0" max="100" step="0.00001" value="100" required></td>
                             <td><input type="number" class="form-control dist-cantidad" name="distribucion[0][cantidad]" readonly></td>
@@ -1034,13 +1034,13 @@ window.agregarDistribucion = function() {
             </div>
         </td>
         <td>
-            <select class="form-select" name="distribucion[${contadorDistribucion}][centro_costo_id]" required>
+            <select class="form-select" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" required>
                 <option value="">Seleccione...</option>
-                <?php if (!empty($centros_costo)): ?>
-                    <?php foreach ($centros_costo as $centro): ?>
+                <?php if (!empty($unidades_negocio)): ?>
+                    <?php foreach ($unidades_negocio as $centro): ?>
                         <option value="<?= $centro['id'] ?>"
-                                data-unidad-negocio-id="<?= $centro['rel_unidad_negocio_id'] ?? $centro['unidad_negocio_id'] ?? '' ?>"
-                                data-unidad-negocio-nombre="<?= View::e($centro['unidad_negocio_nombre'] ?? 'UNIDAD DE NEGOCIO GENERAL') ?>"
+                                data-centro-costo-id="<?= $centro['rel_centro_costo_id'] ?? $centro['centro_costo_id'] ?? '' ?>"
+                                data-centro-costo-nombre="<?= View::e($centro['centro_costo_nombre'] ?? 'CENTRO DE COSTO GENERAL') ?>"
                                 data-factura="<?= $centro['factura'] ?? 1 ?>">
                             <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
                         </option>
@@ -1049,8 +1049,8 @@ window.agregarDistribucion = function() {
             </select>
         </td>
         <td>
-            <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
-            <input type="hidden" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" value="">
+            <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][centro_costo_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
+            <input type="hidden" name="distribucion[${contadorDistribucion}][centro_costo_id]" value="">
         </td>
         <td><input type="number" class="form-control dist-porcentaje" name="distribucion[${contadorDistribucion}][porcentaje]" min="0" max="100" step="0.00001" required></td>
         <td><input type="number" class="form-control dist-cantidad" name="distribucion[${contadorDistribucion}][cantidad]" readonly></td>
@@ -1068,12 +1068,12 @@ window.agregarDistribucion = function() {
         porcentajeInput.addEventListener('input', calcularDistribucionPorcentajes);
     }
     
-    // Agregar event listener para el cambio de centro de costo
-    const centroCostoSelect = newRow.querySelector('select[name*="[centro_costo_id]"]');
-    if (centroCostoSelect) {
-        centroCostoSelect.addEventListener('change', function() {
+    // Agregar event listener para el cambio de unidad de negocio
+    const unidadNegocioSelect = newRow.querySelector('select[name*="[unidad_negocio_id]"]');
+    if (unidadNegocioSelect) {
+        unidadNegocioSelect.addEventListener('change', function() {
             if (window.calculadorAutomatico) {
-                window.calculadorAutomatico.actualizarFacturaPorCentroCosto(newRow);
+                window.calculadorAutomatico.actualizarFacturaPorUnidadNegocio(newRow);
             }
         });
     }
@@ -1215,13 +1215,13 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('input', calcularDistribucionPorcentajes);
     });
     
-    // Agregar event listener para el cambio de centro de costo en la primera fila
+    // Agregar event listener para el cambio de unidad de negocio en la primera fila
     document.querySelectorAll('.distribucion-row').forEach(row => {
-        const centroCostoSelect = row.querySelector('select[name*="[centro_costo_id]"]');
-        if (centroCostoSelect) {
-            centroCostoSelect.addEventListener('change', function() {
+        const unidadNegocioSelect = row.querySelector('select[name*="[unidad_negocio_id]"]');
+        if (unidadNegocioSelect) {
+            unidadNegocioSelect.addEventListener('change', function() {
                 if (window.calculadorAutomatico) {
-                    window.calculadorAutomatico.actualizarFacturaPorCentroCosto(row);
+                    window.calculadorAutomatico.actualizarFacturaPorUnidadNegocio(row);
                 }
             });
         }
@@ -1431,7 +1431,7 @@ document.addEventListener('DOMContentLoaded', function() {
             Object.keys(distributionData).forEach(index => {
                 const dist = distributionData[index];
                 
-                if (dist.centro_costo_id && (!dist.cuenta_contable_id || dist.cuenta_contable_id === '')) {
+                if (dist.unidad_negocio_id && (!dist.cuenta_contable_id || dist.cuenta_contable_id === '')) {
                     console.log(`❌ Distribution ${index}: Has center cost but missing account ID`);
                     issuesFound++;
                 }
@@ -1545,11 +1545,11 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// Función para buscar unidad de negocio por nombre
-function buscarUnidadNegocioPorNombre(nombreUnidad) {
+// Función para buscar centro de costo por nombre
+function buscarCentroCostoPorNombre(nombreUnidad) {
     const unidadesNegocio = [
-        <?php if (!empty($unidades_negocio)): ?>
-            <?php foreach ($unidades_negocio as $unidad): ?>
+        <?php if (!empty($centros_costo)): ?>
+            <?php foreach ($centros_costo as $unidad): ?>
                 {
                     id: '<?= $unidad['id'] ?>',
                     nombre: '<?= addslashes($unidad['nombre'] ?? $unidad['descripcion'] ?? '') ?>'
@@ -1703,29 +1703,29 @@ class CalculadorAutomatico {
     }
 
     configurarEventListeners() {
-        // Event listeners para centros de costo
+        // Event listeners para unidades de negocio
         document.addEventListener('change', (e) => {
-            if (e.target.matches('select[name*="[centro_costo_id]"]')) {
-                this.actualizarFacturaPorCentroCosto(e.target.closest('tr'));
+            if (e.target.matches('select[name*="[unidad_negocio_id]"]')) {
+                this.actualizarFacturaPorUnidadNegocio(e.target.closest('tr'));
             }
         });
     }
 
-    actualizarFacturaPorCentroCosto(row) {
-        const centroCostoSelect = row.querySelector('select[name*="[centro_costo_id]"]');
+    actualizarFacturaPorUnidadNegocio(row) {
+        const unidadNegocioSelect = row.querySelector('select[name*="[unidad_negocio_id]"]');
         const facturaHidden = row.querySelector('input.dist-factura-value') || row.querySelector('input[name*="[factura]"]');
         const facturaDisplay = row.querySelector('input.dist-factura-display');
-        const unidadNegocioDisplay = row.querySelector('input[name*="[unidad_negocio_display]"]');
-        const unidadNegocioHidden = row.querySelector('input[name*="[unidad_negocio_id]"]');
+        const centroCostoDisplay = row.querySelector('input[name*="[centro_costo_display]"]');
+        const centroCostoHidden = row.querySelector('input[name*="[centro_costo_id]"]');
         
-        if (!centroCostoSelect || !facturaHidden) return;
+        if (!unidadNegocioSelect || !facturaHidden) return;
         
-        const selectedOption = centroCostoSelect.options[centroCostoSelect.selectedIndex];
+        const selectedOption = unidadNegocioSelect.options[unidadNegocioSelect.selectedIndex];
         if (!selectedOption || !selectedOption.value) return;
         
         // Obtener datos directamente desde los data-attributes (cargados desde BD)
-        const unidadNegocioId = selectedOption.dataset.unidadNegocioId || '';
-        const unidadNegocioNombre = selectedOption.dataset.unidadNegocioNombre || 'UNIDAD DE NEGOCIO GENERAL';
+        const centroCostoId = selectedOption.dataset.centroCostoId || '';
+        const centroCostoNombre = selectedOption.dataset.centroCostoNombre || 'CENTRO DE COSTO GENERAL';
         const facturaNumero = parseInt(selectedOption.dataset.factura) || 1;
         const tipoFactura = `Factura ${facturaNumero}`;
         
@@ -1736,10 +1736,10 @@ class CalculadorAutomatico {
             facturaDisplay.setAttribute('data-factura-numero', facturaNumero);
         }
         
-        // Actualizar unidad de negocio automáticamente
-        if (unidadNegocioDisplay && unidadNegocioHidden) {
-            unidadNegocioDisplay.value = unidadNegocioNombre;
-            unidadNegocioHidden.value = unidadNegocioId;
+        // Actualizar centro de costo automáticamente
+        if (centroCostoDisplay && centroCostoHidden) {
+            centroCostoDisplay.value = centroCostoNombre;
+            centroCostoHidden.value = centroCostoId;
         }
         
         // Recalcular cantidad y actualizar facturas
@@ -1875,13 +1875,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </td>
             <td>
-                <select class="form-select" name="distribucion[${contadorDistribucion}][centro_costo_id]" required>
+                <select class="form-select" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" required>
                     <option value="">Seleccione...</option>
-                    <?php if (!empty($centros_costo)): ?>
-                        <?php foreach ($centros_costo as $centro): ?>
+                    <?php if (!empty($unidades_negocio)): ?>
+                        <?php foreach ($unidades_negocio as $centro): ?>
                             <option value="<?= $centro['id'] ?>"
-                                    data-unidad-negocio-id="<?= $centro['rel_unidad_negocio_id'] ?? $centro['unidad_negocio_id'] ?? '' ?>"
-                                    data-unidad-negocio-nombre="<?= View::e($centro['unidad_negocio_nombre'] ?? 'UNIDAD DE NEGOCIO GENERAL') ?>"
+                                    data-centro-costo-id="<?= $centro['rel_centro_costo_id'] ?? $centro['centro_costo_id'] ?? '' ?>"
+                                    data-centro-costo-nombre="<?= View::e($centro['centro_costo_nombre'] ?? 'CENTRO DE COSTO GENERAL') ?>"
                                     data-factura="<?= $centro['factura'] ?? 1 ?>">
                                 <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
                             </option>
@@ -1890,8 +1890,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 </select>
             </td>
             <td>
-                <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][unidad_negocio_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
-                <input type="hidden" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" value="">
+                <input type="text" class="form-control" name="distribucion[${contadorDistribucion}][centro_costo_display]" readonly placeholder="Se asigna automáticamente" style="background-color: #f8f9fa; cursor: not-allowed;">
+                <input type="hidden" name="distribucion[${contadorDistribucion}][centro_costo_id]" value="">
             </td>
             <td><input type="number" class="form-control dist-porcentaje" name="distribucion[${contadorDistribucion}][porcentaje]" min="0" max="100" step="0.00001" required></td>
             <td><input type="number" class="form-control dist-cantidad" name="distribucion[${contadorDistribucion}][cantidad]" readonly></td>
@@ -1910,12 +1910,12 @@ document.addEventListener('DOMContentLoaded', function() {
             porcentajeInput.addEventListener('input', calcularDistribucionPorcentajes);
         }
         
-        // Agregar event listener para el cambio de centro de costo
-        const centroCostoSelect = newRow.querySelector('select[name*="[centro_costo_id]"]');
-        if (centroCostoSelect) {
-            centroCostoSelect.addEventListener('change', function() {
+        // Agregar event listener para el cambio de unidad de negocio
+        const unidadNegocioSelect = newRow.querySelector('select[name*="[unidad_negocio_id]"]');
+        if (unidadNegocioSelect) {
+            unidadNegocioSelect.addEventListener('change', function() {
                 if (window.calculadorAutomatico) {
-                    window.calculadorAutomatico.actualizarFacturaPorCentroCosto(newRow);
+                    window.calculadorAutomatico.actualizarFacturaPorUnidadNegocio(newRow);
                 }
             });
         }
@@ -2440,13 +2440,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         for (let [key, value] of formData.entries()) {
             // Extraer índice de distribución
-            const matchCentro = key.match(/^distribucion\[(\d+)\]\[centro_costo_id\]$/);
+            const matchCentro = key.match(/^distribucion\[(\d+)\]\[unidad_negocio_id\]$/);
             const matchCuenta = key.match(/^distribucion\[(\d+)\]\[cuenta_contable_id\]$/);
             
             if (matchCentro) {
                 const idx = matchCentro[1];
                 if (!distribuciones[idx]) distribuciones[idx] = {};
-                distribuciones[idx].centro_costo_id = value;
+                distribuciones[idx].unidad_negocio_id = value;
             }
             
             if (matchCuenta) {
@@ -2464,8 +2464,8 @@ document.addEventListener('DOMContentLoaded', function() {
         for (const idx of indices) {
             const dist = distribuciones[idx];
             
-            // Solo validar distribuciones que tienen centro de costo seleccionado
-            if (dist.centro_costo_id && dist.centro_costo_id !== '') {
+            // Solo validar distribuciones que tienen unidad de negocio seleccionado
+            if (dist.unidad_negocio_id && dist.unidad_negocio_id !== '') {
                 hasValidDist = true;
                 
                 // Verificar si tiene cuenta contable
@@ -2478,7 +2478,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!hasValidDist) {
             return {
                 valid: false,
-                message: 'Debe incluir la distribución de gastos con al menos un centro de costo'
+                message: 'Debe incluir la distribución de gastos con al menos un unidad de negocio'
             };
         }
         

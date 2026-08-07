@@ -16,7 +16,7 @@ use App\Helpers\View;
 use App\Helpers\Redirect;
 use App\Helpers\Session;
 use App\Models\Model;
-use App\Models\CentroCosto;
+use App\Models\UnidadNegocio;
 use App\Models\PersonaAutorizada;
 use App\Models\AutorizadorRespaldo;
 use App\Models\AutorizadorMetodoPago;
@@ -51,7 +51,7 @@ class AutorizadorEspecialController extends Controller
                 return (object)$row;
             }, $respaldosData);
 
-            $centros      = CentroCosto::all();
+            $centros      = UnidadNegocio::all();
             $estadisticas = AutorizadorRespaldo::getEstadisticas();
 
             View::render('admin/autorizadores/respaldos', [
@@ -122,17 +122,17 @@ class AutorizadorEspecialController extends Controller
                         $autorizadorId = $resultAutorizadorId['id'] ?? null;
 
                         if ($autorizadorId) {
-                            $sqlCentros = "SELECT COUNT(DISTINCT centro_costo_id) as total FROM autorizador_centro_costo WHERE autorizador_id = ?";
+                            $sqlCentros = "SELECT COUNT(DISTINCT unidad_negocio_id) as total FROM autorizador_unidad_negocio WHERE autorizador_id = ?";
                             $stmtCentros = Model::getConnection()->prepare($sqlCentros);
                             $stmtCentros->execute([$autorizadorId]);
                             $resultCentros = $stmtCentros->fetch(\PDO::FETCH_ASSOC);
-                            $row['centros_costo_count'] = $resultCentros['total'] ?? 0;
+                            $row['unidades_negocio_count'] = $resultCentros['total'] ?? 0;
                         } else {
-                            $row['centros_costo_count'] = 0;
+                            $row['unidades_negocio_count'] = 0;
                         }
                     } catch (\Exception $e) {
-                        error_log("Error contando centros de costo: " . $e->getMessage());
-                        $row['centros_costo_count'] = 0;
+                        error_log("Error contando unidades de negocio: " . $e->getMessage());
+                        $row['unidades_negocio_count'] = 0;
                     }
 
                     $row['autorizador_id'] = $autorizadorId ?? null;
@@ -228,17 +228,17 @@ class AutorizadorEspecialController extends Controller
                         $autorizadorId = $resultAutorizadorId['id'] ?? null;
 
                         if ($autorizadorId) {
-                            $sqlCentros = "SELECT COUNT(DISTINCT centro_costo_id) as total FROM autorizador_centro_costo WHERE autorizador_id = ?";
+                            $sqlCentros = "SELECT COUNT(DISTINCT unidad_negocio_id) as total FROM autorizador_unidad_negocio WHERE autorizador_id = ?";
                             $stmtCentros = Model::getConnection()->prepare($sqlCentros);
                             $stmtCentros->execute([$autorizadorId]);
                             $resultCentros = $stmtCentros->fetch(\PDO::FETCH_ASSOC);
-                            $row['centros_costo_count'] = $resultCentros['total'] ?? 0;
+                            $row['unidades_negocio_count'] = $resultCentros['total'] ?? 0;
                         } else {
-                            $row['centros_costo_count'] = 0;
+                            $row['unidades_negocio_count'] = 0;
                         }
                     } catch (\Exception $e) {
-                        error_log("Error contando centros de costo: " . $e->getMessage());
-                        $row['centros_costo_count'] = 0;
+                        error_log("Error contando unidades de negocio: " . $e->getMessage());
+                        $row['unidades_negocio_count'] = 0;
                     }
 
                     $row['id']          = $row['registro_id'] ?? null;
@@ -286,7 +286,7 @@ class AutorizadorEspecialController extends Controller
                 ];
             }
 
-            $centros = CentroCosto::all();
+            $centros = UnidadNegocio::all();
             $centrosArray = [];
             foreach ($centros as $centro) {
                 $centroArray = is_object($centro) ? $centro->toArray() : $centro;
@@ -340,8 +340,8 @@ class AutorizadorEspecialController extends Controller
         // Centros asignados al respaldo
         $stmt = $pdo->prepare(
             "SELECT cc.nombre, cc.id
-             FROM autorizador_respaldo_centro arc
-             INNER JOIN centro_de_costo cc ON cc.id = arc.centro_costo_id
+             FROM autorizador_respaldo_unidad arc
+             INNER JOIN unidad_de_negocio cc ON cc.id = arc.unidad_negocio_id
              WHERE arc.respaldo_id = ?
              ORDER BY cc.nombre ASC"
         );
@@ -367,7 +367,7 @@ class AutorizadorEspecialController extends Controller
         }
 
         try {
-            $centrosCostoIds = $_POST['centros_costo_ids'] ?? [];
+            $centrosCostoIds = $_POST['unidades_negocio_ids'] ?? [];
 
             if (!is_array($centrosCostoIds)) {
                 $centrosCostoIds = [$centrosCostoIds];
@@ -376,7 +376,7 @@ class AutorizadorEspecialController extends Controller
 
             if (empty($centrosCostoIds)) {
                 Redirect::back()
-                    ->withError('Debe seleccionar al menos un centro de costo')
+                    ->withError('Debe seleccionar al menos un unidad de negocio')
                     ->withInput($_POST)
                     ->send();
                 return;
@@ -398,7 +398,7 @@ class AutorizadorEspecialController extends Controller
                 $totalCentros = count($centrosCostoIds);
                 $mensaje = $totalCentros === 1
                     ? 'Respaldo creado exitosamente'
-                    : "Respaldo creado exitosamente para {$totalCentros} centros de costo";
+                    : "Respaldo creado exitosamente para {$totalCentros} unidades de negocio";
 
                 Redirect::to('/admin/autorizadores/respaldos')
                     ->withSuccess($mensaje)
@@ -474,7 +474,7 @@ class AutorizadorEspecialController extends Controller
                 ];
             }
 
-            $centros = CentroCosto::all();
+            $centros = UnidadNegocio::all();
             $centrosArray = [];
             foreach ($centros as $centro) {
                 $centroArray = is_object($centro) ? $centro->toArray() : $centro;
@@ -519,7 +519,7 @@ class AutorizadorEspecialController extends Controller
                 return;
             }
 
-            $centrosCostoIds = $_POST['centros_costo_ids'] ?? [];
+            $centrosCostoIds = $_POST['unidades_negocio_ids'] ?? [];
             if (!is_array($centrosCostoIds)) {
                 $centrosCostoIds = [$centrosCostoIds];
             }
@@ -527,7 +527,7 @@ class AutorizadorEspecialController extends Controller
 
             if (empty($centrosCostoIds)) {
                 Redirect::back()
-                    ->withError('Debe seleccionar al menos un centro de costo')
+                    ->withError('Debe seleccionar al menos un unidad de negocio')
                     ->withInput($_POST)
                     ->send();
                 return;
@@ -1085,22 +1085,22 @@ class AutorizadorEspecialController extends Controller
             $stmtCuentas->execute();
             $cuentas_contables = $stmtCuentas->fetchAll(\PDO::FETCH_ASSOC);
 
-            $sqlCentros = "SELECT id, nombre FROM centro_de_costo ORDER BY nombre ASC";
+            $sqlCentros = "SELECT id, nombre FROM unidad_de_negocio ORDER BY nombre ASC";
             $stmtCentros = Model::getConnection()->prepare($sqlCentros);
             $stmtCentros->execute();
-            $centros_costo = $stmtCentros->fetchAll(\PDO::FETCH_ASSOC);
+            $unidades_negocio = $stmtCentros->fetchAll(\PDO::FETCH_ASSOC);
 
         } catch (\Exception $e) {
             error_log("Error obteniendo datos para cuenta contable: " . $e->getMessage());
             $autorizadores     = [];
             $cuentas_contables = [];
-            $centros_costo     = [];
+            $unidades_negocio     = [];
         }
 
         View::render('admin/autorizadores/cuentas_contables_create', [
             'autorizadores'     => $autorizadores,
             'cuentas_contables' => $cuentas_contables,
-            'centros_costo'     => $centros_costo,
+            'unidades_negocio'     => $unidades_negocio,
             'title'             => 'Crear Autorizador por Cuenta Contable'
         ]);
     }
@@ -1209,7 +1209,7 @@ class AutorizadorEspecialController extends Controller
                     'descripcion'         => $observaciones ?: null,
                     'activo'              => $activo,
                     'prioridad'           => 1,
-                    'ignora_centro_costo' => 0,
+                    'ignora_unidad_negocio' => 0,
                 ]);
                 $insertadas++;
             }
@@ -1265,13 +1265,13 @@ class AutorizadorEspecialController extends Controller
             $stmtCuentas->execute();
             $cuentas_contables = $stmtCuentas->fetchAll(\PDO::FETCH_ASSOC);
 
-            $sqlCentros = "SELECT id, nombre FROM centro_de_costo ORDER BY nombre ASC";
+            $sqlCentros = "SELECT id, nombre FROM unidad_de_negocio ORDER BY nombre ASC";
             $stmtCentros = $pdo->prepare($sqlCentros);
             $stmtCentros->execute();
-            $centros_costo = $stmtCentros->fetchAll(\PDO::FETCH_ASSOC);
+            $unidades_negocio = $stmtCentros->fetchAll(\PDO::FETCH_ASSOC);
         } catch (\Exception $e) {
             $cuentas_contables = [];
-            $centros_costo     = [];
+            $unidades_negocio     = [];
         }
 
         $stmtUsr = $pdo->prepare(
@@ -1286,7 +1286,7 @@ class AutorizadorEspecialController extends Controller
             'nombre'            => $nombreAutorizador,
             'ids_asignados'     => $idsAsignados,
             'cuentas_contables' => $cuentas_contables,
-            'centros_costo'     => $centros_costo,
+            'unidades_negocio'     => $unidades_negocio,
             'observaciones'     => $cuentasAsignadas[0]['descripcion'] ?? '',
             'activo'            => $cuentasAsignadas[0]['activo'] ?? 1,
             'title'             => 'Editar Autorizador por Cuenta Contable',
@@ -1338,7 +1338,7 @@ class AutorizadorEspecialController extends Controller
                     'descripcion'         => $obs ?: null,
                     'activo'              => $activo,
                     'prioridad'           => 1,
-                    'ignora_centro_costo' => 0,
+                    'ignora_unidad_negocio' => 0,
                 ]);
             }
 
@@ -1481,7 +1481,7 @@ class AutorizadorEspecialController extends Controller
 
     private function enviarARevisores($requisicion)
     {
-        $revisores = $this->obtenerRevisores($requisicion['centro_costo_id']);
+        $revisores = $this->obtenerRevisores($requisicion['unidad_negocio_id']);
 
         if (empty($revisores)) {
             return $this->procesarMetodoPagoFlujo($requisicion);
@@ -1530,7 +1530,7 @@ class AutorizadorEspecialController extends Controller
         if ($autorizadorCuenta) {
             $centroExcluido = $this->verificarCentroExcluido(
                 $autorizadorCuenta['id'],
-                $requisicion['centro_costo_id']
+                $requisicion['unidad_negocio_id']
             );
 
             if (!$centroExcluido) {
@@ -1551,12 +1551,12 @@ class AutorizadorEspecialController extends Controller
 
     private function procesarAutorizacionCentro($requisicion)
     {
-        $centroCostoId = $requisicion['centro_costo_id'];
+        $unidadNegocioId = $requisicion['unidad_negocio_id'];
 
-        $respaldoActivo = $this->obtenerRespaldoActivo($centroCostoId, date('Y-m-d'));
+        $respaldoActivo = $this->obtenerRespaldoActivo($unidadNegocioId, date('Y-m-d'));
 
         if ($respaldoActivo) {
-            $this->enviarNotificacion($respaldoActivo['autorizador_respaldo_email'], $requisicion, 'centro_costo_respaldo');
+            $this->enviarNotificacion($respaldoActivo['autorizador_respaldo_email'], $requisicion, 'unidad_negocio_respaldo');
 
             return [
                 'success'           => true,
@@ -1568,42 +1568,42 @@ class AutorizadorEspecialController extends Controller
                     'tipo'   => 'respaldo',
                     'motivo' => $respaldoActivo['motivo']
                 ],
-                'tipo_autorizacion' => 'centro_costo_respaldo'
+                'tipo_autorizacion' => 'unidad_negocio_respaldo'
             ];
         }
 
-        $autorizadorPrincipal = $this->obtenerAutorizadorPrincipalCentroCosto($centroCostoId);
+        $autorizadorPrincipal = $this->obtenerAutorizadorPrincipalUnidadNegocio($unidadNegocioId);
 
         if ($autorizadorPrincipal) {
-            $this->enviarNotificacion($autorizadorPrincipal['email'], $requisicion, 'centro_costo');
+            $this->enviarNotificacion($autorizadorPrincipal['email'], $requisicion, 'unidad_negocio');
 
             return [
                 'success'           => true,
-                'mensaje'           => "Requisición enviada a autorizador del centro de costo ({$autorizadorPrincipal['nombre']})",
+                'mensaje'           => "Requisición enviada a autorizador del unidad de negocio ({$autorizadorPrincipal['nombre']})",
                 'siguiente_paso'    => 'pendiente_autorizacion_final',
                 'asignado_a'        => $autorizadorPrincipal,
-                'tipo_autorizacion' => 'centro_costo'
+                'tipo_autorizacion' => 'unidad_negocio'
             ];
         }
 
         return [
             'success'        => false,
-            'mensaje'        => 'No se encontró autorizador para el centro de costo',
+            'mensaje'        => 'No se encontró autorizador para el unidad de negocio',
             'siguiente_paso' => 'error'
         ];
     }
 
-    private function obtenerRevisores($centroCostoId)
+    private function obtenerRevisores($unidadNegocioId)
     {
         try {
             $sql = "SELECT r.*, u.nombre, u.email
                     FROM revisores r
                     INNER JOIN usuarios u ON r.usuario_id = u.id
-                    WHERE r.centro_costo_id = ? AND r.activo = 1
+                    WHERE r.unidad_negocio_id = ? AND r.activo = 1
                     ORDER BY r.orden ASC";
 
             $stmt = Model::getConnection()->prepare($sql);
-            $stmt->execute([$centroCostoId]);
+            $stmt->execute([$unidadNegocioId]);
             return $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         } catch (\Exception $e) {
@@ -1651,15 +1651,15 @@ class AutorizadorEspecialController extends Controller
         }
     }
 
-    private function verificarCentroExcluido($autorizadorId, $centroCostoId)
+    private function verificarCentroExcluido($autorizadorId, $unidadNegocioId)
     {
         try {
             $sql = "SELECT COUNT(*) as count
-                    FROM autorizador_exclusiones_centro_costo
-                    WHERE autorizador_id = ? AND centro_costo_id = ? AND activo = 1";
+                    FROM autorizador_exclusiones_unidad_negocio
+                    WHERE autorizador_id = ? AND unidad_negocio_id = ? AND activo = 1";
 
             $stmt = Model::getConnection()->prepare($sql);
-            $stmt->execute([$autorizadorId, $centroCostoId]);
+            $stmt->execute([$autorizadorId, $unidadNegocioId]);
             $result = $stmt->fetch(\PDO::FETCH_ASSOC);
             return ($result['count'] ?? 0) > 0;
 
@@ -1669,11 +1669,11 @@ class AutorizadorEspecialController extends Controller
         }
     }
 
-    private function obtenerRespaldoActivo($centroCostoId, $fecha)
+    private function obtenerRespaldoActivo($unidadNegocioId, $fecha)
     {
         try {
             $sql = "SELECT * FROM autorizador_respaldo
-                    WHERE centro_costo_id = ?
+                    WHERE unidad_negocio_id = ?
                     AND estado = 'activo'
                     AND fecha_inicio <= ?
                     AND (fecha_fin IS NULL OR fecha_fin >= ?)
@@ -1681,7 +1681,7 @@ class AutorizadorEspecialController extends Controller
                     LIMIT 1";
 
             $stmt = Model::getConnection()->prepare($sql);
-            $stmt->execute([$centroCostoId, $fecha, $fecha]);
+            $stmt->execute([$unidadNegocioId, $fecha, $fecha]);
             return $stmt->fetch(\PDO::FETCH_ASSOC);
 
         } catch (\Exception $e) {
@@ -1690,20 +1690,20 @@ class AutorizadorEspecialController extends Controller
         }
     }
 
-    private function obtenerAutorizadorPrincipalCentroCosto($centroCostoId)
+    private function obtenerAutorizadorPrincipalUnidadNegocio($unidadNegocioId)
     {
         try {
             $sql = "SELECT acc.*, u.nombre, u.email
-                    FROM autorizador_centro_costo acc
+                    FROM autorizador_unidad_negocio acc
                     INNER JOIN usuarios u ON acc.autorizador_id = u.id
-                    WHERE acc.centro_costo_id = ?
+                    WHERE acc.unidad_negocio_id = ?
                     AND acc.activo = 1
                     AND acc.es_principal = 1
                     ORDER BY acc.orden ASC
                     LIMIT 1";
 
             $stmt = Model::getConnection()->prepare($sql);
-            $stmt->execute([$centroCostoId]);
+            $stmt->execute([$unidadNegocioId]);
             return $stmt->fetch(\PDO::FETCH_ASSOC);
 
         } catch (\Exception $e) {
@@ -1804,8 +1804,8 @@ class AutorizadorEspecialController extends Controller
             'actualizado_por'      => $ultimo['actualizado_por'] ?? null,
             'registros'            => $registros,
             'id_registro'          => $ultimo['id'] ?? null,
-            'centros_costo'        => $centros,
-            'centros_costo_count'  => is_array($centros) ? count($centros) : 0
+            'unidades_negocio'        => $centros,
+            'unidades_negocio_count'  => is_array($centros) ? count($centros) : 0
         ];
     }
 

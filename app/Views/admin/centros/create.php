@@ -3,7 +3,7 @@ use App\Helpers\View;
 use App\Helpers\Session;
 use App\Middlewares\CsrfMiddleware;
 
-$title = 'Nuevo Centro de Costo';
+$title = 'Nuevo Unidad de Negocio';
 ?>
 
 <?php View::startSection('content'); ?>
@@ -13,9 +13,9 @@ $title = 'Nuevo Centro de Costo';
         <div class="col-md-6">
             <h1 class="h3 mb-0">
                 <i class="fas fa-plus me-2"></i>
-                Nuevo Centro de Costo
+                Nuevo Unidad de Negocio
             </h1>
-            <p class="text-muted mb-0">Crear un nuevo centro de costo para el sistema</p>
+            <p class="text-muted mb-0">Crear un nuevo unidad de negocio para el sistema</p>
         </div>
         <div class="col-md-6 text-end">
             <a href="<?= url('/admin/centros') ?>" class="btn btn-outline-secondary">
@@ -31,7 +31,7 @@ $title = 'Nuevo Centro de Costo';
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-building me-2"></i>
-                        Información del Centro de Costo
+                        Información del Unidad de Negocio
                     </h5>
                 </div>
                 <div class="card-body">
@@ -42,14 +42,14 @@ $title = 'Nuevo Centro de Costo';
                         <div class="mb-3">
                             <label for="nombre" class="form-label">Nombre *</label>
                             <input type="text" class="form-control" id="nombre" name="nombre" required>
-                            <div class="form-text">Nombre descriptivo del centro de costo</div>
+                            <div class="form-text">Nombre descriptivo del unidad de negocio</div>
                         </div>
 
                         <!-- Código -->
                         <div class="mb-3">
                             <label for="codigo" class="form-label">Código</label>
                             <input type="text" class="form-control" id="codigo" name="codigo" maxlength="10">
-                            <div class="form-text">Código corto del centro de costo (ej. PA01, CR01). Opcional.</div>
+                            <div class="form-text">Código corto del unidad de negocio (ej. PA01, CR01). Opcional.</div>
                         </div>
 
                         <!-- Factura -->
@@ -64,14 +64,14 @@ $title = 'Nuevo Centro de Costo';
                             </select>
                             <div class="form-text">
                                 <i class="fas fa-info-circle me-1"></i>
-                                Seleccione a qué factura se cargarán los gastos de este centro de costo.
+                                Seleccione a qué factura se cargarán los gastos de este unidad de negocio.
                             </div>
                         </div>
 
-                        <!-- Unidad de Negocio -->
+                        <!-- Centro de Costo -->
                         <div class="mb-3">
-                            <label for="unidad_negocio_id" class="form-label">Unidad de Negocio *</label>
-                            <select class="form-select" id="unidad_negocio_id" name="unidad_negocio_id" required>
+                            <label for="centro_costo_id" class="form-label">Centro de Costo *</label>
+                            <select class="form-select" id="centro_costo_id" name="centro_costo_id" required>
                                 <option value="">-- Seleccionar --</option>
                                 <?php foreach ($unidadesNegocio as $unidad): ?>
                                 <option value="<?= $unidad['id'] ?>">
@@ -79,7 +79,7 @@ $title = 'Nuevo Centro de Costo';
                                 </option>
                                 <?php endforeach; ?>
                             </select>
-                            <div class="form-text">Seleccione la unidad de negocio a la que pertenece este centro de costo.</div>
+                            <div class="form-text">Seleccione la centro de costo a la que pertenece este unidad de negocio.</div>
                         </div>
 
                         <!-- Asignación manual -->
@@ -187,7 +187,7 @@ $title = 'Nuevo Centro de Costo';
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">
-                        Una vez creado el centro de costo, podrás:
+                        Una vez creado el unidad de negocio, podrás:
                     </p>
                     <ul class="list-unstyled">
                         <li class="mb-2">

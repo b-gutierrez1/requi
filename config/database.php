@@ -193,7 +193,7 @@ return [
         'orden_compra' => 'orden_compra',
         'detalle_items' => 'detalle_items',
         'distribucion_gasto' => 'distribucion_gasto',
-        'centro_de_costo' => 'centro_de_costo',
+        'unidad_de_negocio' => 'unidad_de_negocio',
         'cuenta_contable' => 'cuenta_contable',
         'autorizacion_flujo' => 'autorizacion_flujo',
         'autorizaciones' => 'autorizaciones',
@@ -205,7 +205,7 @@ return [
         'historial_requisicion' => 'historial_requisicion',
         'recordatorios' => 'recordatorios',
         'facturas' => 'facturas',
-        'unidad_de_negocio' => 'unidad_de_negocio',
+        'centro_de_costo' => 'centro_de_costo',
         'unidad_requirente' => 'unidad_requirente',
     ],
 
@@ -228,7 +228,7 @@ return [
         'recommended_indexes' => [
             'orden_compra' => ['usuario_id', 'fecha', 'estado'],
             'autorizacion_flujo' => ['orden_compra_id', 'estado'],
-            'distribucion_gasto' => ['orden_compra_id', 'centro_costo_id'],
+            'distribucion_gasto' => ['orden_compra_id', 'unidad_negocio_id'],
             'historial_requisicion' => ['orden_compra_id', 'fecha_cambio'],
         ],
     ],

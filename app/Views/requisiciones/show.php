@@ -751,8 +751,8 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                     <thead class="table-dark-custom">
                         <tr>
                             <th>Cuenta Contable</th>
-                            <th>Centro de Costo</th>
                             <th>Unidad de Negocio</th>
+                            <th>Centro de Costo</th>
                             <th>Porcentaje</th>
                             <th>Cantidad</th>
                             <th>Factura</th>
@@ -780,10 +780,10 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                             </td>
                                     <td>
                                         <?php 
-                                        $centroId = getData($dist, 'centro_costo_id');
+                                        $centroId = getData($dist, 'unidad_negocio_id');
                                         $centroNombre = getData($dist, 'centro_nombre', '');
-                                        if (empty($centroNombre) && !empty($centros_costo) && $centroId) {
-                                            foreach ($centros_costo as $centro) {
+                                        if (empty($centroNombre) && !empty($unidades_negocio) && $centroId) {
+                                            foreach ($unidades_negocio as $centro) {
                                                 if ($centro->id == $centroId) {
                                                     $centroNombre = $centro->nombre ?? $centro->descripcion ?? 'Sin nombre';
                                                     break;
@@ -795,10 +795,10 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                             </td>
                                     <td>
                                         <?php
-                                        $unidadId = getData($dist, 'unidad_negocio_id');
-                                        $unidadNombre = getData($dist, 'unidad_negocio_nombre', '');
-                                        if (empty($unidadNombre) && !empty($unidades_negocio) && $unidadId) {
-                                            foreach ($unidades_negocio as $unidad) {
+                                        $unidadId = getData($dist, 'centro_costo_id');
+                                        $unidadNombre = getData($dist, 'centro_costo_nombre', '');
+                                        if (empty($unidadNombre) && !empty($centros_costo) && $unidadId) {
+                                            foreach ($centros_costo as $unidad) {
                                                 if ($unidad['id'] == $unidadId) {
                                                     $unidadNombre = $unidad['nombre'] ?? $unidad['descripcion'] ?? 'Sin nombre';
                                                     break;

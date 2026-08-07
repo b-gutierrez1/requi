@@ -120,7 +120,7 @@ class Usuario extends Model
             WHERE af.estado = 'pendiente_autorizacion'
               AND a.autorizador_email = :email
               AND a.estado = 'pendiente'
-              AND a.tipo = 'centro_costo'
+              AND a.tipo = 'unidad_negocio'
             ORDER BY r.fecha_solicitud DESC
         ";
 

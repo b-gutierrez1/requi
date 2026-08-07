@@ -165,7 +165,7 @@ View::startSection('content');
         <div class="card-body">
             <?php foreach ($todas_autorizaciones as $auth): ?>
             <div class="card mb-3 border-0 shadow-sm" style="border-left: 4px solid <?php 
-                    echo match($auth['tipo'] ?? 'centro_costo') {
+                    echo match($auth['tipo'] ?? 'unidad_negocio') {
                         'forma_pago' => '#10b981',
                         'cuenta_contable' => '#06b6d4', 
                         'revision' => '#8b5cf6',
@@ -184,7 +184,7 @@ View::startSection('content');
                                 <?php elseif ($auth['tipo'] === 'revision'): ?>
                                     <span class="badge rounded-pill me-2" style="background-color: #8b5cf6;">Revisión</span>
                                 <?php else: ?>
-                                    <span class="badge rounded-pill text-dark me-2" style="background-color: #fbbf24;">Centro de Costo</span>
+                                    <span class="badge rounded-pill text-dark me-2" style="background-color: #fbbf24;">Unidad de Negocio</span>
                                 <?php endif; ?>
                                 
                                 <!-- Badge de respaldo si aplica -->
@@ -212,7 +212,7 @@ View::startSection('content');
                             </p>
                             
                             <!-- Información específica por tipo -->
-                            <?php if ($auth['tipo'] === 'centro_costo' && isset($auth['centro_nombre'])): ?>
+                            <?php if ($auth['tipo'] === 'unidad_negocio' && isset($auth['centro_nombre'])): ?>
                                 <p class="text-muted mb-1 small">
                                     <i class="fas fa-sitemap me-1"></i> <?php echo View::e($auth['centro_nombre']); ?>
                                     <?php if (isset($auth['porcentaje'])): ?>
@@ -242,7 +242,7 @@ View::startSection('content');
                                 <?php
                                 // forma_pago/cuenta_contable: usar el ID de la autorizacion especial
                                 // para que show() la detecte como especial y muestre el botón correcto.
-                                // centro_costo: usar requisicion_id para ir a la página de centros.
+                                // unidad_negocio: usar requisicion_id para ir a la página de centros.
                                 $tipoFlujo = $auth['tipo_flujo'] ?? $auth['tipo'] ?? '';
                                 $detalleId = in_array($tipoFlujo, ['forma_pago', 'cuenta_contable'])
                                     ? $auth['id']
@@ -277,7 +277,7 @@ View::startSection('content');
         <div class="card-header bg-warning text-dark">
             <h5 class="mb-0">
                 <i class="fas fa-check-circle me-2"></i>
-                Autorizaciones por Centro de Costo
+                Autorizaciones por Unidad de Negocio
             </h5>
         </div>
         <div class="card-body">
@@ -445,7 +445,7 @@ function confirmarRechazoRequisicion(requisicionId) {
 function rechazarAutorizacion(authId, tipo) {
     const tipoTexto = tipo === 'forma_pago' ? 'Forma de Pago' : 
                      tipo === 'cuenta_contable' ? 'Cuenta Contable' : 
-                     tipo === 'revision' ? 'Revisión' : 'Centro de Costo';
+                     tipo === 'revision' ? 'Revisión' : 'Unidad de Negocio';
                      
     // Crear modal dinámico para el motivo del rechazo
     const modalHtml = `

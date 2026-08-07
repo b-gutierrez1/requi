@@ -36,11 +36,11 @@ class AutorizacionRepository
                     ELSE NULL
                 END AS porcentaje
             FROM autorizaciones a
-            LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+            LEFT JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
             LEFT JOIN requisiciones oc ON a.requisicion_id = oc.id
             WHERE a.requisicion_id = ?
               AND a.autorizador_email = ?
-              AND a.tipo = 'centro_costo'
+              AND a.tipo = 'unidad_negocio'
             ORDER BY a.id ASC
         ";
 
@@ -51,7 +51,7 @@ class AutorizacionRepository
     }
 
     /**
-     * Obtiene todas las autorizaciones por centro de costo de una requisición.
+     * Obtiene todas las autorizaciones por unidad de negocio de una requisición.
      */
     public function findByOrden(int $ordenId): array
     {
@@ -68,10 +68,10 @@ class AutorizacionRepository
                     ELSE NULL
                 END AS porcentaje
             FROM autorizaciones a
-            LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+            LEFT JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
             LEFT JOIN requisiciones oc ON a.requisicion_id = oc.id
             WHERE a.requisicion_id = ?
-              AND a.tipo = 'centro_costo'
+              AND a.tipo = 'unidad_negocio'
             ORDER BY a.id ASC
         ";
 
@@ -98,7 +98,7 @@ class AutorizacionRepository
                     ELSE NULL
                 END AS porcentaje
             FROM autorizaciones a
-            LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+            LEFT JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
             LEFT JOIN requisiciones oc ON a.requisicion_id = oc.id
             WHERE a.id = ?
         ";
@@ -128,11 +128,11 @@ class AutorizacionRepository
                     ELSE NULL
                 END AS porcentaje
             FROM autorizaciones a
-            LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+            LEFT JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
             LEFT JOIN requisiciones oc ON a.requisicion_id = oc.id
             WHERE a.autorizador_email = ?
               AND a.estado = 'pendiente'
-              AND a.tipo = 'centro_costo'
+              AND a.tipo = 'unidad_negocio'
             ORDER BY oc.fecha DESC, a.id ASC
         ";
 

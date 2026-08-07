@@ -15,7 +15,7 @@ class Autorizacion extends Model
     
     // Tipos de autorización
     const TIPO_REVISION = 'revision';
-    const TIPO_CENTRO_COSTO = 'centro_costo';
+    const TIPO_CENTRO_COSTO = 'unidad_negocio';
     const TIPO_FORMA_PAGO = 'forma_pago';
     const TIPO_CUENTA_CONTABLE = 'cuenta_contable';
     
@@ -28,7 +28,7 @@ class Autorizacion extends Model
         'requisicion_id',
         'tipo',
         'nivel',
-        'centro_costo_id',
+        'unidad_negocio_id',
         'autorizador_email',
         'autorizador_nombre',
         'estado',
@@ -53,11 +53,11 @@ class Autorizacion extends Model
     }
 
     /**
-     * Relación con centro de costo (si aplica)
+     * Relación con unidad de negocio (si aplica)
      */
-    public function centroCosto()
+    public function unidadNegocio()
     {
-        return $this->belongsTo(CentroDeCosto::class, 'centro_costo_id');
+        return $this->belongsTo(CentroDeCosto::class, 'unidad_negocio_id');
     }
 
     /**
@@ -213,13 +213,13 @@ class Autorizacion extends Model
         $pdo = static::getConnection();
         $stmt = $pdo->prepare("
             SELECT a.*, r.numero_requisicion, r.proveedor_nombre, r.monto_total,
-                   cc.nombre as centro_costo_nombre,
+                   cc.nombre as unidad_negocio_nombre,
                    dc.monto as monto_centro
             FROM autorizaciones a
             JOIN requisiciones r ON a.requisicion_id = r.id
-            LEFT JOIN centro_de_costo cc ON a.centro_costo_id = cc.id
+            LEFT JOIN unidad_de_negocio cc ON a.unidad_negocio_id = cc.id
             LEFT JOIN distribucion_centros dc ON a.requisicion_id = dc.requisicion_id 
-                AND a.centro_costo_id = dc.centro_costo_id
+                AND a.unidad_negocio_id = dc.unidad_negocio_id
             WHERE a.autorizador_email = ? 
             AND a.estado = 'pendiente'
             ORDER BY a.fecha_vencimiento ASC
@@ -311,20 +311,20 @@ class Autorizacion extends Model
     }
 
     /**
-     * Crea autorizaciones masivas por centro de costo
+     * Crea autorizaciones masivas por unidad de negocio
      */
     public static function crearPorCentrosCosto(int $requisicionId, array $centrosCosto): array
     {
         $autorizaciones = [];
 
-        foreach ($centrosCosto as $centroCosto) {
+        foreach ($centrosCosto as $unidadNegocio) {
             // Obtener autorizador del centro
-            $autorizador = static::obtenerAutorizadorCentroCosto($centroCosto['centro_costo_id']);
+            $autorizador = static::obtenerAutorizadorUnidadNegocio($unidadNegocio['unidad_negocio_id']);
 
             $autorizacion = static::create([
                 'requisicion_id' => $requisicionId,
                 'tipo' => self::TIPO_CENTRO_COSTO,
-                'centro_costo_id' => $centroCosto['centro_costo_id'],
+                'unidad_negocio_id' => $unidadNegocio['unidad_negocio_id'],
                 'autorizador_email' => $autorizador['email'],
                 'autorizador_nombre' => $autorizador['nombre'],
                 'fecha_vencimiento' => date('Y-m-d H:i:s', strtotime('+3 days'))
@@ -337,19 +337,19 @@ class Autorizacion extends Model
     }
 
     /**
-     * Obtiene autorizador para un centro de costo
+     * Obtiene autorizador para un unidad de negocio
      */
-    private static function obtenerAutorizadorCentroCosto(int $centroCostoId): array
+    private static function obtenerAutorizadorUnidadNegocio(int $unidadNegocioId): array
     {
         $pdo = static::getConnection();
         $table = \App\Models\PersonaAutorizada::getTable();
         $stmt = $pdo->prepare("
             SELECT pa.email, pa.nombre 
             FROM {$table} pa 
-            WHERE pa.centro_costo_id = ? AND pa.activo = 1
+            WHERE pa.unidad_negocio_id = ? AND pa.activo = 1
             LIMIT 1
         ");
-        $stmt->execute([$centroCostoId]);
+        $stmt->execute([$unidadNegocioId]);
         $resultado = $stmt->fetch();
 
         if ($resultado) {

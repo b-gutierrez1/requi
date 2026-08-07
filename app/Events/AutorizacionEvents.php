@@ -43,7 +43,7 @@ class AutorizacionEvents
         EventDispatcher::listen(self::REVISION_APROBADA, function($data) {
             if (isset($data['orden_id'])) {
                 error_log("Evento: Revisión aprobada para orden {$data['orden_id']}");
-                // Crear autorizaciones por centro de costo
+                // Crear autorizaciones por unidad de negocio
                 // NotificationService::notifyAuthorizers($data['orden_id']);
             }
         });

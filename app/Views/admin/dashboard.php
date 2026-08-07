@@ -215,7 +215,7 @@ View::startSection('content');
                         Panel de Administración
                     </h1>
                     <p class="card-subtitle mb-0">
-                        Gestiona usuarios, centros de costo, autorizadores y configuración del sistema
+                        Gestiona usuarios, unidades de negocio, autorizadores y configuración del sistema
                     </p>
                 </div>
             </div>
@@ -242,7 +242,7 @@ View::startSection('content');
                         <i class="fas fa-building"></i>
                     </div>
                     <h3 class="text-success"><?php echo $stats['total_centros'] ?? 0; ?></h3>
-                    <p class="text-muted mb-0">Centros de Costo</p>
+                    <p class="text-muted mb-0">Unidades de Negocio</p>
                 </div>
             </div>
         </div>
@@ -298,8 +298,8 @@ View::startSection('content');
             <div class="quick-action-icon manage">
                 <i class="fas fa-building"></i>
             </div>
-            <h5>Centros de Costo</h5>
-            <p class="text-muted">Administrar centros de costo del sistema</p>
+            <h5>Unidades de Negocio</h5>
+            <p class="text-muted">Administrar unidades de negocio del sistema</p>
             <a href="<?= url('/admin/catalogos?tipo=centros') ?>" class="btn btn-success action-btn">
                 <i class="fas fa-building me-2"></i>Gestionar
             </a>

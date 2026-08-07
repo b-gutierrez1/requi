@@ -35,7 +35,7 @@ class DashboardController extends Controller
     private $requisicionService;
 
     /**
-     * Repositorio centralizado para autorizaciones de centro de costo
+     * Repositorio centralizado para autorizaciones de unidad de negocio
      *
      * @var AutorizacionCentroRepository|null
      */
@@ -278,7 +278,7 @@ class DashboardController extends Controller
     // ========================================================================
 
     /**
-     * Verifica si un usuario es autorizador de algún centro de costo
+     * Verifica si un usuario es autorizador de algún unidad de negocio
      * 
      * @param string $usuarioEmail Email del usuario
      * @return bool

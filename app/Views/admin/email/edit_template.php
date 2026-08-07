@@ -134,7 +134,7 @@ const PREVIEW_SAMPLES = {
     motivo_rechazo:       'Presupuesto insuficiente para este período.',
     solicitante_nombre:   'Carlos López',
     monto_total:          'Q 1,500.00',
-    centro_costo:         'Centro de Costo Ejemplo',
+    unidad_negocio:         'Unidad de Negocio Ejemplo',
     unidad_requirente:    'Departamento de TI',
     descripcion:          'Compra de insumos de oficina',
 };

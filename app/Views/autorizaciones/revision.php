@@ -152,7 +152,7 @@ View::startSection('modals');
                     </div>
                     <div class="alert alert-info mb-0">
                         <i class="fas fa-info-circle me-2"></i>
-                        Al aprobar, la requisición pasará a la fase de autorización por centros de costo.
+                        Al aprobar, la requisición pasará a la fase de autorización por unidades de negocio.
                     </div>
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid #e5e7eb; padding: 1rem 1.5rem;">

@@ -2,7 +2,7 @@
 use App\Helpers\View;
 use App\Helpers\Session;
 
-$title = 'Gestión de Centros de Costo';
+$title = 'Gestión de Unidades de Negocio';
 ?>
 
 <?php View::startSection('content'); ?>
@@ -174,12 +174,12 @@ $title = 'Gestión de Centros de Costo';
                     <i class="fas fa-building me-3"></i>
                     <?= View::e($title) ?>
                 </h1>
-                <p class="mb-0 opacity-75">Administra los centros de costo del sistema</p>
+                <p class="mb-0 opacity-75">Administra los unidades de negocio del sistema</p>
             </div>
             <div class="col-md-6 text-end">
                 <a href="<?= url('/admin/centros/create') ?>" class="btn btn-create">
                     <i class="fas fa-plus me-2"></i>
-                    Nuevo Centro de Costo
+                    Nuevo Unidad de Negocio
                 </a>
             </div>
         </div>
@@ -213,7 +213,7 @@ $title = 'Gestión de Centros de Costo';
         <div class="col-md-3">
             <div class="stats-card p-4 text-center">
                 <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
-                <h3 class="mb-1"><?= count(array_unique(array_column(array_map(function($c) { return (array)$c; }, $centros ?? []), 'unidad_negocio_id'))) ?></h3>
+                <h3 class="mb-1"><?= count(array_unique(array_column(array_map(function($c) { return (array)$c; }, $centros ?? []), 'centro_costo_id'))) ?></h3>
                 <p class="text-muted mb-0">Unidades</p>
             </div>
         </div>
@@ -240,12 +240,12 @@ $title = 'Gestión de Centros de Costo';
                     <i class="fas fa-search"></i>
                 </span>
                 <input type="text" class="form-control search-box border-start-0"
-                       placeholder="Buscar centro de costo..." id="searchInput">
+                       placeholder="Buscar unidad de negocio..." id="searchInput">
             </div>
         </div>
     </div>
 
-    <!-- Tabla de Centros de Costo -->
+    <!-- Tabla de Unidades de Negocio -->
     <div class="centros-table">
         <div class="table-responsive">
             <table class="table table-hover mb-0" id="centrosTable">
@@ -298,8 +298,8 @@ $title = 'Gestión de Centros de Costo';
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if (!empty($centro->unidad_negocio_id)): ?>
-                                        <small class="text-muted">ID: <?= View::e($centro->unidad_negocio_id) ?></small>
+                                    <?php if (!empty($centro->centro_costo_id)): ?>
+                                        <small class="text-muted">ID: <?= View::e($centro->centro_costo_id) ?></small>
                                     <?php else: ?>
                                         <span class="text-muted">Sin asignar</span>
                                     <?php endif; ?>
@@ -352,8 +352,8 @@ $title = 'Gestión de Centros de Costo';
                             <td colspan="8" class="text-center py-5">
                                 <div class="empty-state">
                                     <i class="fas fa-building"></i>
-                                    <h4>No hay centros de costo</h4>
-                                    <p class="mb-3">No se encontraron centros de costo en el sistema.</p>
+                                    <h4>No hay unidades de negocio</h4>
+                                    <p class="mb-3">No se encontraron unidades de negocio en el sistema.</p>
                                     <a href="<?= url('/admin/centros/create') ?>" class="btn btn-create">
                                         <i class="fas fa-plus me-2"></i>Crear Primer Centro
                                     </a>
@@ -426,7 +426,7 @@ $title = 'Gestión de Centros de Costo';
 
     function toggleCentro(id, activo) {
         const accion = activo ? 'desactivar' : 'activar';
-        if (confirm(`¿Deseas ${accion} este centro de costo?`)) {
+        if (confirm(`¿Deseas ${accion} este unidad de negocio?`)) {
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = `<?= url('/admin/centros/') ?>${id}/toggle`;

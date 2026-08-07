@@ -294,17 +294,17 @@ $title = 'Nuevo Autorizador';
                             </div>
                         </div>
 
-                        <!-- Centros de Costo con checkboxes -->
+                        <!-- Unidades de Negocio con checkboxes -->
                         <div class="centros-section">
                             <h6 class="mb-3">
                                 <i class="fas fa-building me-2 text-danger"></i>
-                                Centros de Costo a Asignar *
+                                Unidades de Negocio a Asignar *
                             </h6>
 
                             <div class="toolbar-centros">
                                 <div class="search-centros-wrapper" style="flex: 1; max-width: 350px;">
                                     <i class="fas fa-search"></i>
-                                    <input type="text" class="search-centros" id="searchCentrosCreate" placeholder="Buscar centro de costo...">
+                                    <input type="text" class="search-centros" id="searchCentrosCreate" placeholder="Buscar unidad de negocio...">
                                 </div>
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn-sel" id="btnSelAll">
@@ -333,7 +333,7 @@ $title = 'Nuevo Autorizador';
                                                  data-nombre="<?= strtolower(View::e($cNombre)) ?>"
                                                  data-codigo="<?= strtolower(View::e($cCodigo)) ?>">
                                                 <label class="centro-item">
-                                                    <input type="checkbox" name="centro_costo_ids[]" value="<?= View::e($cId) ?>">
+                                                    <input type="checkbox" name="unidad_negocio_ids[]" value="<?= View::e($cId) ?>">
                                                     <div>
                                                         <div class="centro-nombre"><?= View::e($cNombre) ?></div>
                                                         <?php if ($cCodigo): ?>

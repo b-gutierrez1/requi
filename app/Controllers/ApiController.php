@@ -30,7 +30,7 @@ class ApiController extends Controller
     }
 
     /**
-     * Obtiene la centro de costo de un unidad de negocio
+     * Obtiene el centro de costo de una unidad de negocio
      *
      * GET /api/unidad-negocio/{id}/centro-costo
      *
@@ -43,7 +43,7 @@ class ApiController extends Controller
             $unidadNegocio = UnidadNegocio::find($unidadNegocioId);
 
             if (!$unidadNegocio) {
-                $this->jsonResponse(['success' => false, 'error' => 'Centro de costo no encontrado'], 404);
+                $this->jsonResponse(['success' => false, 'error' => 'Unidad de negocio no encontrada'], 404);
             }
 
             $centroCostoId = $unidadNegocio['centro_costo_id'] ?? null;
@@ -52,14 +52,14 @@ class ApiController extends Controller
                 $this->jsonResponse([
                     'success' => true,
                     'data' => null,
-                    'message' => 'Este unidad de negocio no tiene centro de costo asignada'
+                    'message' => 'Esta unidad de negocio no tiene centro de costo asignado'
                 ]);
             }
 
             $centroCosto = CentroCosto::find($centroCostoId);
 
             if (!$centroCosto) {
-                $this->jsonResponse(['success' => false, 'error' => 'Unidad de negocio no encontrada'], 404);
+                $this->jsonResponse(['success' => false, 'error' => 'Centro de costo no encontrado'], 404);
             }
 
             $this->jsonResponse([
@@ -73,12 +73,15 @@ class ApiController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            $this->jsonResponse(['success' => false, 'error' => 'Error al obtener la centro de costo: ' . $e->getMessage()], 500);
+            $this->jsonResponse(['success' => false, 'error' => 'Error al obtener el centro de costo: ' . $e->getMessage()], 500);
         }
     }
 
     /**
-     * Obtiene todas las centros de costo activas
+     * Obtiene todos los centros de costo activos (los grupos)
+     *
+     * NOTA: el nombre del método quedó desalineado tras el cambio de terminología
+     * oficial; devuelve centros de costo, no unidades de negocio.
      *
      * GET /api/unidades-negocio
      *
@@ -95,7 +98,10 @@ class ApiController extends Controller
     }
 
     /**
-     * Obtiene todos los unidades de negocio activos con sus centros de costo
+     * Obtiene todas las unidades de negocio activas con sus centros de costo
+     *
+     * NOTA: el nombre del método quedó desalineado tras el cambio de terminología
+     * oficial; devuelve unidades de negocio, no centros de costo.
      *
      * GET /api/centros-costo
      *

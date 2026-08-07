@@ -356,8 +356,8 @@ View::startSection('content');
                 <thead class="table-dark-custom">
                     <tr>
                         <th>Cuenta Contable</th>
-                        <th>Unidad de Negocio</th>
                         <th>Centro de Costo</th>
+                        <th>Unidad de Negocio</th>
                         <th class="text-center">Porcentaje</th>
                         <th class="text-end">Cantidad</th>
                         <th class="text-center">Factura</th>
@@ -367,8 +367,8 @@ View::startSection('content');
                     <?php foreach ($distribucion as $dist): ?>
                     <tr>
                         <td><?php echo View::e($dist['cuenta_contable'] ?? ''); ?></td>
-                        <td><?php echo View::e($dist['unidad_negocio'] ?? ''); ?></td>
                         <td><?php echo View::e($dist['centro_costo'] ?? 'N/A'); ?></td>
+                        <td><?php echo View::e($dist['unidad_negocio'] ?? ''); ?></td>
                         <td class="text-center"><?php echo number_format($dist['porcentaje'] ?? 0, 2); ?>%</td>
                         <td class="text-end"><?php echo View::money($dist['cantidad'] ?? 0, $moneda); ?></td>
                         <td class="text-center"><?php echo View::e($dist['factura'] ?? 'N/A'); ?></td>

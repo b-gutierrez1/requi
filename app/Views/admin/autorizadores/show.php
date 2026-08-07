@@ -269,7 +269,7 @@ $title = 'Detalles del Autorizador';
                         </div>
                         <div>
                             <i class="fas fa-building me-2"></i>
-                            <strong><?= count($centrosCosto) ?></strong> Centro<?= count($centrosCosto) != 1 ? 's' : '' ?> de Costo
+                            <strong><?= count($centrosCosto) ?></strong> Unidad<?= count($centrosCosto) != 1 ? 'es' : '' ?> de Negocio
                         </div>
                     </div>
                 </div>
@@ -289,7 +289,7 @@ $title = 'Detalles del Autorizador';
                 <div class="detail-row">
                     <div class="detail-label">
                         <i class="fas fa-building me-2"></i>
-                        Unidades de Negocio Asignados (<?= count($centrosCosto) ?>)
+                        Unidades de Negocio Asignadas (<?= count($centrosCosto) ?>)
                     </div>
                     <div class="detail-value">
                         <?php if (!empty($centrosCosto)): ?>
@@ -354,7 +354,7 @@ $title = 'Detalles del Autorizador';
                         <?php else: ?>
                             <div class="alert alert-warning mt-2">
                                 <i class="fas fa-exclamation-triangle me-2"></i>
-                                No tiene unidades de negocio asignados
+                                No tiene unidades de negocio asignadas
                             </div>
                         <?php endif; ?>
                     </div>

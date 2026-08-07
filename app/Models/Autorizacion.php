@@ -337,7 +337,7 @@ class Autorizacion extends Model
     }
 
     /**
-     * Obtiene autorizador para un unidad de negocio
+     * Obtiene autorizador para una unidad de negocio
      */
     private static function obtenerAutorizadorUnidadNegocio(int $unidadNegocioId): array
     {

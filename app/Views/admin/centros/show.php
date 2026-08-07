@@ -2,7 +2,7 @@
 use App\Helpers\View;
 use App\Helpers\Session;
 
-$title = 'Detalles del Unidad de Negocio';
+$title = 'Detalles de la Unidad de Negocio';
 ?>
 
 <?php View::startSection('content'); ?>
@@ -12,7 +12,7 @@ $title = 'Detalles del Unidad de Negocio';
         <div class="col-md-6">
             <h1 class="h3 mb-0">
                 <i class="fas fa-building me-2"></i>
-                Detalles del Unidad de Negocio
+                Detalles de la Unidad de Negocio
             </h1>
         </div>
         <div class="col-md-6 text-end">
@@ -27,7 +27,7 @@ $title = 'Detalles del Unidad de Negocio';
         </div>
     </div>
 
-    <!-- Información del Centro -->
+    <!-- Información de la Unidad de Negocio -->
     <div class="row">
         <div class="col-md-8">
             <div class="card mb-4">
@@ -115,7 +115,7 @@ $title = 'Detalles del Unidad de Negocio';
                                         Factura <?= View::e($centro->factura ?? 1) ?>
                                     </span>
                                 </div>
-                                <small class="text-muted">Los gastos de este centro se cargan a esta factura</small>
+                                <small class="text-muted">Los gastos de esta unidad de negocio se cargan a esta factura</small>
                             </div>
                         </div>
                     </div>
@@ -164,7 +164,7 @@ $title = 'Detalles del Unidad de Negocio';
                 <i class="fas fa-arrow-left me-2"></i>Volver a la Lista
             </a>
             <a href="<?= url('/admin/centros/' . $centro->id . '/edit') ?>" class="btn btn-primary me-2">
-                <i class="fas fa-edit me-2"></i>Editar Centro
+                <i class="fas fa-edit me-2"></i>Editar Unidad de Negocio
             </a>
             <a href="<?= url('/admin/autorizadores?centro=' . $centro->id) ?>" class="btn btn-outline-info">
                 <i class="fas fa-users me-2"></i>Gestionar Autorizadores

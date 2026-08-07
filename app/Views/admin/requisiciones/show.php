@@ -280,7 +280,7 @@ View::startSection('content');
                         </div>
                     </div>
                     
-                    <h6 class="text-muted mb-2">Autorizaciones por Centro</h6>
+                    <h6 class="text-muted mb-2">Autorizaciones por Unidad de Negocio</h6>
                     <div class="row text-center">
                         <div class="col-4">
                             <div class="text-warning"><?php echo $estadisticas['autorizaciones_centros']['pendientes']; ?></div>
@@ -350,13 +350,13 @@ View::startSection('content');
             </div>
             <?php endif; ?>
 
-            <!-- Autorizaciones por Centro Detalle -->
+            <!-- Autorizaciones por Unidad de Negocio Detalle -->
             <?php if (!empty($autorizaciones_centros)): ?>
             <div class="card mb-4">
                 <div class="card-header bg-warning text-dark">
                     <h6 class="mb-0">
                         <i class="fas fa-building me-2"></i>
-                        Autorizaciones por Centro
+                        Autorizaciones por Unidad de Negocio
                     </h6>
                 </div>
                 <div class="card-body">

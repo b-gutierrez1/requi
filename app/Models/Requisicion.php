@@ -348,7 +348,7 @@ class Requisicion extends Model
     private function crearAutorizacionesCentrosCosto(): void
     {
         foreach ($this->distribucionCentros as $distribucion) {
-            // Obtener autorizador del unidad de negocio
+            // Obtener autorizador de la unidad de negocio
             $autorizador = $this->obtenerAutorizadorUnidadNegocio($distribucion->unidad_negocio_id);
 
             Autorizacion::create([
@@ -363,7 +363,7 @@ class Requisicion extends Model
     }
 
     /**
-     * Obtiene el autorizador para un unidad de negocio
+     * Obtiene el autorizador para una unidad de negocio
      */
     private function obtenerAutorizadorUnidadNegocio(int $unidadNegocioId): array
     {

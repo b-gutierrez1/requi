@@ -337,7 +337,7 @@ class AutorizadorEspecialController extends Controller
         $data['autorizador_principal_nombre'] = $getNombre($data['autorizador_principal_email'] ?? '');
         $data['autorizador_respaldo_nombre']  = $getNombre($data['autorizador_respaldo_email']  ?? '');
 
-        // Centros asignados al respaldo
+        // Unidades de negocio asignadas al respaldo
         $stmt = $pdo->prepare(
             "SELECT cc.nombre, cc.id
              FROM autorizador_respaldo_unidad arc
@@ -376,7 +376,7 @@ class AutorizadorEspecialController extends Controller
 
             if (empty($centrosCostoIds)) {
                 Redirect::back()
-                    ->withError('Debe seleccionar al menos un unidad de negocio')
+                    ->withError('Debe seleccionar al menos una unidad de negocio')
                     ->withInput($_POST)
                     ->send();
                 return;
@@ -527,7 +527,7 @@ class AutorizadorEspecialController extends Controller
 
             if (empty($centrosCostoIds)) {
                 Redirect::back()
-                    ->withError('Debe seleccionar al menos un unidad de negocio')
+                    ->withError('Debe seleccionar al menos una unidad de negocio')
                     ->withInput($_POST)
                     ->send();
                 return;
@@ -1579,7 +1579,7 @@ class AutorizadorEspecialController extends Controller
 
             return [
                 'success'           => true,
-                'mensaje'           => "Requisición enviada a autorizador del unidad de negocio ({$autorizadorPrincipal['nombre']})",
+                'mensaje'           => "Requisición enviada a autorizador de la unidad de negocio ({$autorizadorPrincipal['nombre']})",
                 'siguiente_paso'    => 'pendiente_autorizacion_final',
                 'asignado_a'        => $autorizadorPrincipal,
                 'tipo_autorizacion' => 'unidad_negocio'
@@ -1588,7 +1588,7 @@ class AutorizadorEspecialController extends Controller
 
         return [
             'success'        => false,
-            'mensaje'        => 'No se encontró autorizador para el unidad de negocio',
+            'mensaje'        => 'No se encontró autorizador para la unidad de negocio',
             'siguiente_paso' => 'error'
         ];
     }

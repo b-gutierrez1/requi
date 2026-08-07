@@ -165,7 +165,7 @@ $title = 'Detalles del Autorizador de Cuenta Contable';
                                 <i class="fas fa-building"></i>
                                 <div>
                                     <strong>Unidades de Negocio:</strong><br>
-                                    <span><?= $autorizador->unidades_negocio_count ?? 0 ?> centro(s) asignado(s)</span>
+                                    <span><?= $autorizador->unidades_negocio_count ?? 0 ?> unidad(es) asignada(s)</span>
                                 </div>
                             </div>
                         </div>

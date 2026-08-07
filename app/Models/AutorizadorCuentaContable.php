@@ -4,7 +4,7 @@
  * 
  * Gestiona autorizadores especiales según la cuenta contable.
  * Algunas cuentas (como donaciones) requieren autorización especial
- * y se ignora el unidad de negocio asociado.
+ * y se ignora la unidad de negocio asociada.
  * 
  * @package RequisicionesMVC\Models
  * @version 2.0
@@ -83,7 +83,7 @@ class AutorizadorCuentaContable extends Model
     }
 
     /**
-     * Verifica si se debe ignorar el unidad de negocio
+     * Verifica si se debe ignorar la unidad de negocio
      * 
      * @param int $cuentaContableId
      * @return bool
@@ -99,7 +99,7 @@ class AutorizadorCuentaContable extends Model
             
             return ($autorizador['ignora_unidad_negocio'] ?? 0) == 1;
         } catch (\Exception $e) {
-            // Si la columna no existe, asumir que no ignora centros
+            // Si la columna no existe, asumir que no ignora unidades de negocio
             return false;
         }
     }

@@ -440,7 +440,7 @@ class RequisicionService
             if (empty($dist['unidad_negocio_id'])) {
                 return [
                     'success' => false,
-                    'error' => "Distribución " . ($index + 1) . ": El unidad de negocio es obligatorio"
+                    'error' => "Distribución " . ($index + 1) . ": La unidad de negocio es obligatoria"
                 ];
             }
 
@@ -909,7 +909,7 @@ class RequisicionService
      * Solo permite editar cuando:
      * 1. El usuario es el creador de la requisición
      * 2. El rechazo provino del revisor (rechazado_revision)
-     *    — rechazos de autorizadores de centros/pago/cuenta NO son editables.
+     *    — rechazos de autorizadores de unidades de negocio/pago/cuenta NO son editables.
      *
      * @param int $ordenId ID de la orden
      * @param int $usuarioId ID del usuario
@@ -1354,7 +1354,7 @@ class RequisicionService
                 // Limpiar IDs vacíos
                 $centroCostoId = (!empty($dist['centro_costo_id']) && $dist['centro_costo_id'] !== '') ? $dist['centro_costo_id'] : null;
                 
-                // Limpiar y validar IDs de cuenta y centro
+                // Limpiar y validar IDs de cuenta y unidad de negocio
                 $cuentaContableId = (!empty($dist['cuenta_contable_id']) && $dist['cuenta_contable_id'] !== '' && $dist['cuenta_contable_id'] !== '0') ? $dist['cuenta_contable_id'] : null;
                 $unidadNegocioId = (!empty($dist['unidad_negocio_id']) && $dist['unidad_negocio_id'] !== '' && $dist['unidad_negocio_id'] !== '0') ? $dist['unidad_negocio_id'] : null;
                 
@@ -1383,7 +1383,7 @@ class RequisicionService
         
         // Debug: mostrar las facturas asignadas a cada distribución
         foreach ($distribucion as $index => $dist) {
-            error_log("Distribución $index - Centro: {$dist['unidad_negocio_id']}, Factura: {$dist['factura']}, Porcentaje: {$dist['porcentaje']}%");
+            error_log("Distribución $index - Unidad: {$dist['unidad_negocio_id']}, Factura: {$dist['factura']}, Porcentaje: {$dist['porcentaje']}%");
         }
         
         error_log("Datos procesados - Total: " . $montoTotal . ", Items: " . count($items) . ", Distribuciones: " . count($distribucion));

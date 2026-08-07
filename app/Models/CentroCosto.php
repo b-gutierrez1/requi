@@ -2,8 +2,8 @@
 /**
  * Modelo CentroCosto
  * 
- * Representa las centros de costo de la organización.
- * Cada distribución de gasto está asociada a una centro de costo.
+ * Representa los centros de costo de la organización.
+ * Cada distribución de gasto está asociada a un centro de costo.
  * 
  * @package RequisicionesMVC\Models
  * @version 2.0
@@ -19,6 +19,8 @@ class CentroCosto extends Model
 
     protected static $fillable = [
         'nombre',
+        'codigo',
+        'activo',
     ];
 
     protected static $guarded = ['id'];
@@ -38,8 +40,8 @@ class CentroCosto extends Model
     }
 
     /**
-     * Obtiene todas las centros de costo activas
-     * 
+     * Obtiene todos los centros de costo activos
+     *
      * @return array
      */
     public static function activas()
@@ -95,31 +97,38 @@ class CentroCosto extends Model
     }
 
     /**
-     * Obtiene centro de costo por código (no disponible - tabla solo tiene nombre)
-     * 
+     * Obtiene centro de costo por código
+     *
      * @param string $codigo
      * @return array|null
      */
     public static function porCodigo($codigo)
     {
-        // La tabla centro_de_costo no tiene columna codigo
-        return null;
+        $table = static::$table;
+
+        $sql = "SELECT * FROM {$table}
+                WHERE codigo = ?
+                LIMIT 1";
+
+        $stmt = self::getConnection()->prepare($sql);
+        $stmt->execute([$codigo]);
+
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
     }
 
     /**
-     * Activa o desactiva la centro de costo (no disponible - tabla no tiene columna activo)
-     * 
+     * Activa o desactiva el centro de costo
+     *
      * @param bool $activo
      * @return bool
      */
     public function setActivo($activo = true)
     {
-        // La tabla centro_de_costo no tiene columna activo
-        return false;
+        return static::updateById($this->attributes['id'], ['activo' => $activo ? 1 : 0]);
     }
 
     /**
-     * Obtiene el total gastado en esta centro de costo
+     * Obtiene el total gastado en este centro de costo
      * 
      * @param string $fechaInicio
      * @param string $fechaFin
@@ -166,7 +175,7 @@ class CentroCosto extends Model
     }
 
     /**
-     * Obtiene estadísticas de la centro de costo
+     * Obtiene estadísticas del centro de costo
      * 
      * @return array
      */

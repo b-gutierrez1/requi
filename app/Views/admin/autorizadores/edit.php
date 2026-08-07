@@ -158,7 +158,7 @@ $title = 'Editar Autorizador';
                             <strong>ID:</strong> #<?= View::e($autorizador->id ?? 'N/A') ?>
                         </div>
                         <div class="col-md-8">
-                            <strong>Unidades de Negocio asignados:</strong>
+                            <strong>Unidades de Negocio asignadas:</strong>
                             <span class="centros-badge"><?= count($centrosAsignados ?? []) ?></span>
                         </div>
                     </div>

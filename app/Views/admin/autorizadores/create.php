@@ -317,7 +317,7 @@ $title = 'Nuevo Autorizador';
                             </div>
 
                             <div class="counter-centros mb-2">
-                                <span id="selCount">0</span> de <?= count($centros ?? []) ?> centros seleccionados
+                                <span id="selCount">0</span> de <?= count($centros ?? []) ?> unidades de negocio seleccionadas
                             </div>
 
                             <div class="centros-list" id="centrosListCreate">

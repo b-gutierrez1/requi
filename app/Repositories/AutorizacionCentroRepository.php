@@ -187,7 +187,7 @@ class AutorizacionCentroRepository
         $stmtGuard = $this->pdo->prepare($sqlGuard);
         $stmtGuard->execute([$id]);
         if ((int)$stmtGuard->fetchColumn() > 0) {
-            throw new \RuntimeException('El autorizador de nivel anterior aún no ha aprobado este unidad de negocio.');
+            throw new \RuntimeException('El autorizador de nivel anterior aún no ha aprobado esta unidad de negocio.');
         }
 
         $sql = "
@@ -331,7 +331,7 @@ class AutorizacionCentroRepository
     }
 
     /**
-     * Obtiene estadísticas agregadas para un unidad de negocio.
+     * Obtiene estadísticas agregadas para una unidad de negocio.
      */
     public function getStatsByCentro(int $unidadNegocioId): array
     {

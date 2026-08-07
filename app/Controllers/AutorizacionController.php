@@ -106,12 +106,12 @@ class AutorizacionController extends Controller
         $esRespaldo = $this->autorizacionService->esAutorizadorRespaldo($usuarioEmail);
         
         error_log("=== AUTORIZACIONES PENDIENTES EN CONTROLADOR ===");
-        error_log("Centros de costo: " . count($autorizacionesPendientes));
+        error_log("Unidades de negocio: " . count($autorizacionesPendientes));
         error_log("Forma de pago: " . count($autorizacionesPendientesPago));
         error_log("Cuenta contable: " . count($autorizacionesPendientesCuenta));
         foreach ($autorizacionesPendientes as $i => $auth) {
             $ordenLogId = $auth['orden_id'] ?? $auth['requisicion_id'] ?? $auth['requisicion_id'] ?? 'N/A';
-            $centroLog = $auth['centro_nombre'] ?? 'Centro no definido';
+            $centroLog = $auth['centro_nombre'] ?? 'Unidad de negocio no definida';
             $proveedorLog = $auth['nombre_razon_social'] ?? 'Proveedor no definido';
             error_log("[$i] Orden {$ordenLogId}: {$centroLog} - {$proveedorLog}");
         }
@@ -605,7 +605,7 @@ class AutorizacionController extends Controller
 
 
     /**
-     * Autoriza un unidad de negocio
+     * Autoriza una unidad de negocio
      * 
      * @param int $id ID de la autorizaciÃ³n de unidad de negocio
      * @return void
@@ -672,7 +672,7 @@ class AutorizacionController extends Controller
                         if ($this->autorizacionService->existenAutorizacionesEspecialesPendientes((int)$ordenId)) {
                             $response = [
                                 'success' => false,
-                                'error' => 'AÃºn existen autorizaciones especiales pendientes. Deben completarse antes de autorizar los unidades de negocio.'
+                                'error' => 'Aún existen autorizaciones especiales pendientes. Deben completarse antes de autorizar las unidades de negocio.'
                             ];
                             $this->sendAjaxResponse($response);
                             return;
@@ -691,7 +691,7 @@ class AutorizacionController extends Controller
                         // Autorizar todas las que corresponden a este autorizador
                         $response = [
                             'success' => true,
-                            'message' => 'Centro(s) de costo autorizado(s) exitosamente',
+                            'message' => 'Unidad(es) de negocio autorizada(s) exitosamente',
                             'centros_autorizados' => []
                         ];
 
@@ -700,7 +700,7 @@ class AutorizacionController extends Controller
                         
                         foreach ($autorizacionesAAutorizar as $i => $authPendiente) {
                             error_log("=== AUTORIZANDO CENTRO [$i] ===");
-                            error_log("ID: {$authPendiente['id']}, Centro: {$authPendiente['unidad_negocio_id']}");
+                            error_log("ID: {$authPendiente['id']}, Unidad de negocio: {$authPendiente['unidad_negocio_id']}");
                             
                             $usuarioEmail = $this->requireUsuarioEmail();
                             error_log("Usuario email obtenido: $usuarioEmail");
@@ -720,8 +720,8 @@ class AutorizacionController extends Controller
                             }
                             
                             if ($resultado['success']) {
-                                $response['centros_autorizados'][] = $authPendiente['centro_nombre'] ?? 'Centro #' . $authPendiente['unidad_negocio_id'];
-                                error_log("Centro autorizado exitosamente");
+                                $response['centros_autorizados'][] = $authPendiente['centro_nombre'] ?? 'Unidad de negocio #' . $authPendiente['unidad_negocio_id'];
+                                error_log("Unidad de negocio autorizada exitosamente");
                             } else {
                                 error_log("ERROR autorizando centro: " . ($resultado['error'] ?? 'Error desconocido'));
                             }
@@ -803,7 +803,7 @@ class AutorizacionController extends Controller
 
             if ($this->autorizacionService->existenAutorizacionesEspecialesPendientes((int)$ordenId)) {
                 Redirect::back()
-                    ->withError('AÃºn existen autorizaciones especiales pendientes. Deben completarse antes de autorizar los unidades de negocio.')
+                    ->withError('Aún existen autorizaciones especiales pendientes. Deben completarse antes de autorizar las unidades de negocio.')
                     ->send();
                 return;
             }
@@ -840,7 +840,7 @@ class AutorizacionController extends Controller
 
             if ($exitosas > 0) {
                 Redirect::back()
-                    ->withSuccess('Centro(s) de costo autorizado(s) exitosamente')
+                    ->withSuccess('Unidad(es) de negocio autorizada(s) exitosamente')
                     ->send();
             } else {
                 Redirect::back()
@@ -856,7 +856,7 @@ class AutorizacionController extends Controller
     }
 
     /**
-     * Rechaza un unidad de negocio
+     * Rechaza una unidad de negocio
      * 
      * @param int $id ID de la autorizaciÃ³n de unidad de negocio
      * @return void
@@ -901,7 +901,7 @@ class AutorizacionController extends Controller
 
         $ordenId = $autorizacion['requisicion_id'] ?? null;
         if ($ordenId && $this->autorizacionService->existenAutorizacionesEspecialesPendientes((int)$ordenId)) {
-            $mensajePendientes = 'Aún existen autorizaciones especiales pendientes. Deben completarse antes de autorizar o rechazar los unidades de negocio.';
+            $mensajePendientes = 'Aún existen autorizaciones especiales pendientes. Deben completarse antes de autorizar o rechazar las unidades de negocio.';
             if ($this->isAjaxRequest()) {
                 $this->jsonResponse([
                     'success' => false,
@@ -922,7 +922,7 @@ class AutorizacionController extends Controller
         } else {
             if ($resultado['success']) {
                 Redirect::to('/autorizaciones')
-                    ->withSuccess('Centro de costo rechazado. La requisiciÃ³n ha sido rechazada.')
+                    ->withSuccess('Unidad de negocio rechazada. La requisición ha sido rechazada.')
                     ->send();
             } else {
                 Redirect::back()
@@ -1040,10 +1040,10 @@ class AutorizacionController extends Controller
     }
 
     /**
-     * API: Retorna los autorizadores disponibles para un unidad de negocio.
+     * API: Retorna los autorizadores disponibles para una unidad de negocio.
      * Devuelve las personas_autorizadas del centro; si no hay, devuelve usuarios con is_autorizador=1.
      *
-     * @param int $id ID del unidad de negocio
+     * @param int $id ID de la unidad de negocio
      */
     public function apiAutorizadoresCentro($id)
     {

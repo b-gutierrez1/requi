@@ -45,8 +45,8 @@ View::startSection('content');
                         <option value="">Todas</option>
                         <option value="revision_aprobada"  <?= ($filtros['accion'] ?? '') === 'revision_aprobada'  ? 'selected' : '' ?>>Revisiones Aprobadas</option>
                         <option value="revision_rechazada" <?= ($filtros['accion'] ?? '') === 'revision_rechazada' ? 'selected' : '' ?>>Revisiones Rechazadas</option>
-                        <option value="centro_autorizado"  <?= ($filtros['accion'] ?? '') === 'centro_autorizado'  ? 'selected' : '' ?>>Centros Autorizados</option>
-                        <option value="centro_rechazado"   <?= ($filtros['accion'] ?? '') === 'centro_rechazado'   ? 'selected' : '' ?>>Centros Rechazados</option>
+                        <option value="centro_autorizado"  <?= ($filtros['accion'] ?? '') === 'centro_autorizado'  ? 'selected' : '' ?>>Unidades Autorizadas</option>
+                        <option value="centro_rechazado"   <?= ($filtros['accion'] ?? '') === 'centro_rechazado'   ? 'selected' : '' ?>>Unidades Rechazadas</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -163,8 +163,8 @@ View::startSection('content');
                                     $accionTexto = match($reg['tipo_accion']) {
                                         'revision_aprobada'  => 'Revisión Aprobada',
                                         'revision_rechazada' => 'Revisión Rechazada',
-                                        'centro_autorizado'  => 'Centro Autorizado',
-                                        'centro_rechazado'   => 'Centro Rechazado',
+                                        'centro_autorizado'  => 'Unidad Autorizada',
+                                        'centro_rechazado'   => 'Unidad Rechazada',
                                         default => 'Desconocida'
                                     };
                                     $badgeAccion = in_array($reg['tipo_accion'], ['revision_aprobada','centro_autorizado']) ? 'bg-success' : 'bg-danger';
@@ -274,8 +274,8 @@ View::startSection('content');
                             $accionTexto = match($auth['tipo_accion']) {
                                 'revision_aprobada'  => 'Revisión Aprobada',
                                 'revision_rechazada' => 'Revisión Rechazada',
-                                'centro_autorizado'  => 'Centro Autorizado',
-                                'centro_rechazado'   => 'Centro Rechazado',
+                                'centro_autorizado'  => 'Unidad Autorizada',
+                                'centro_rechazado'   => 'Unidad Rechazada',
                                 default => 'Acción Desconocida'
                             };
                             $badgeAccion = in_array($auth['tipo_accion'], ['revision_aprobada','centro_autorizado']) ? 'bg-success' : 'bg-danger';
@@ -358,7 +358,7 @@ View::startSection('content');
                     <div class="card-body">
                         <i class="fas fa-building fs-2 text-info mb-2"></i>
                         <h5><?= $conteos['centro_autorizado'] ?? 0 ?></h5>
-                        <small class="text-muted">Centros Autorizados</small>
+                        <small class="text-muted">Unidades Autorizadas</small>
                     </div>
                 </div>
             </div>
@@ -367,7 +367,7 @@ View::startSection('content');
                     <div class="card-body">
                         <i class="fas fa-ban fs-2 text-warning mb-2"></i>
                         <h5><?= $conteos['centro_rechazado'] ?? 0 ?></h5>
-                        <small class="text-muted">Centros Rechazados</small>
+                        <small class="text-muted">Unidades Rechazadas</small>
                     </div>
                 </div>
             </div>

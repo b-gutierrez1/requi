@@ -300,7 +300,7 @@ $title = 'Crear Autorizador de Respaldo';
                                         <p class="text-muted">Seleccione un autorizador principal para cargar sus unidades de negocio</p>
                                     </div>
                                 </div>
-                                <div class="help-text">Seleccione uno o más unidades de negocio para aplicar el respaldo</div>
+                                <div class="help-text">Seleccione una o más unidades de negocio para aplicar el respaldo</div>
                                 <div id="centros_count" class="mt-2" style="display: none;">
                                     <span class="badge bg-primary"><span id="selected_count">0</span> seleccionados</span>
                                 </div>
@@ -584,14 +584,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     centrosCount.style.display = 'block';
                     updateSelectedCount();
                 } else {
-                    centrosList.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle"></i> El autorizador seleccionado no tiene unidades de negocio asignados</p>';
+                    centrosList.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle"></i> El autorizador seleccionado no tiene unidades de negocio asignadas</p>';
                     centrosCount.style.display = 'none';
                     centrosDisponibles = [];
                 }
             })
             .catch(error => {
                 console.error('Error al cargar unidades de negocio:', error);
-                centrosList.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle"></i> Error al cargar los unidades de negocio</p>';
+                centrosList.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle"></i> Error al cargar las unidades de negocio</p>';
                 centrosCount.style.display = 'none';
                 centrosDisponibles = [];
             });
@@ -686,7 +686,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (centrosSeleccionados === 0 && principalSelect.value) {
             e.preventDefault();
-            alert('Debe seleccionar al menos un unidad de negocio');
+            alert('Debe seleccionar al menos una unidad de negocio');
             return false;
         }
         

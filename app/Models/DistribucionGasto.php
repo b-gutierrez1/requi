@@ -67,7 +67,7 @@ class DistribucionGasto extends Model
     }
 
     /**
-     * Obtiene el unidad de negocio asociado
+     * Obtiene la unidad de negocio asociada
      * 
      * @return array|null
      */
@@ -95,7 +95,7 @@ class DistribucionGasto extends Model
     }
 
     /**
-     * Obtiene la centro de costo asociada
+     * Obtiene el centro de costo asociado
      * 
      * @return array|null
      */
@@ -156,7 +156,7 @@ class DistribucionGasto extends Model
     }
 
     /**
-     * Obtiene los unidades de negocio únicos de una orden
+     * Obtiene las unidades de negocio únicas de una orden
      * 
      * @param int $ordenCompraId
      * @return array
@@ -212,7 +212,7 @@ class DistribucionGasto extends Model
 
         // Validar unidad de negocio
         if (!isset($data['unidad_negocio_id']) || empty($data['unidad_negocio_id'])) {
-            $errores[] = 'El unidad de negocio es requerido';
+            $errores[] = 'La unidad de negocio es requerida';
         }
 
         // Validar porcentaje

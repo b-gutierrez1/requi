@@ -278,7 +278,7 @@ class DashboardController extends Controller
     // ========================================================================
 
     /**
-     * Verifica si un usuario es autorizador de algún unidad de negocio
+     * Verifica si un usuario es autorizador de alguna unidad de negocio
      * 
      * @param string $usuarioEmail Email del usuario
      * @return bool

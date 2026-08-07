@@ -88,7 +88,7 @@ View::startSection('content');
                             <th width="140">Estado Orden</th>
                             <th width="160">Estado Flujo</th>
                             <th width="120">Especiales</th>
-                            <th width="120">Centros</th>
+                            <th width="120">Unidades</th>
                             <th width="100">Acciones</th>
                         </tr>
                     </thead>
@@ -190,7 +190,7 @@ View::startSection('content');
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <!-- Autorizaciones centros -->
+                                <!-- Autorizaciones por unidad de negocio -->
                                 <?php if (($req['centros_pendientes'] ?? 0) + ($req['centros_autorizados'] ?? 0) > 0): ?>
                                     <div class="progress mb-1" style="height: 8px;">
                                         <?php 

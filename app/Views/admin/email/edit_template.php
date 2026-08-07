@@ -134,7 +134,9 @@ const PREVIEW_SAMPLES = {
     motivo_rechazo:       'Presupuesto insuficiente para este período.',
     solicitante_nombre:   'Carlos López',
     monto_total:          'Q 1,500.00',
-    unidad_negocio:         'Unidad de Negocio Ejemplo',
+    // La clave debe coincidir con el placeholder {{unidad_negocio}} que usan las
+    // plantillas en app/Views/emails/ y con la que envia NotificacionService.
+    unidad_negocio:       'Sistemas',
     unidad_requirente:    'Departamento de TI',
     descripcion:          'Compra de insumos de oficina',
 };

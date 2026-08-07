@@ -36,7 +36,7 @@ $estadoLabels = [
     'borrador' => ['class' => 'bg-secondary text-white', 'label' => 'Borrador'],
     'pendiente_revision' => ['class' => 'bg-warning text-dark', 'label' => 'Pendiente de Revisión'],
     'pendiente_autorizacion' => ['class' => 'bg-warning text-dark', 'label' => 'Pendiente de Autorización'],
-    'pendiente_autorizacion_centros' => ['class' => 'bg-warning text-dark', 'label' => 'Pendiente Autorización Centros'],
+    'pendiente_autorizacion_centros' => ['class' => 'bg-warning text-dark', 'label' => 'Pendiente Autorización Unidades'],
     'autorizado' => ['class' => 'bg-success text-white', 'label' => 'Autorizado'],
     'autorizada' => ['class' => 'bg-success text-white', 'label' => 'Autorizada'],
     'rechazado' => ['class' => 'bg-danger text-white', 'label' => 'Rechazado'],
@@ -133,7 +133,7 @@ View::startSection('content');
                 <i class="fas fa-check-circle me-2"></i>
                 Autorizar Requisición #<?php echo getValue($orden, 'id'); ?>
             </h1>
-            <p class="text-muted mb-0">Revisa la información y autoriza los unidades de negocio</p>
+            <p class="text-muted mb-0">Revisa la información y autoriza las unidades de negocio</p>
         </div>
         <div class="col-md-4 text-end">
             <a href="<?= url('/requisiciones/' . getValue($orden, 'id')) ?>" class="btn btn-detalle-super btn-lg me-2 fw-bold px-4 py-3">
@@ -697,7 +697,7 @@ View::startSection('scripts');
 <script src="<?= url('/js/authorization-effects.js') ?>"></script>
 <script>
 function autorizarCentro(centroId) {
-    if (!confirm('¿Estás seguro de autorizar este unidad de negocio?')) {
+    if (!confirm('¿Estás seguro de autorizar esta unidad de negocio?')) {
         return;
     }
     
@@ -729,7 +729,7 @@ function autorizarCentro(centroId) {
                 
                 // Celebración principal
                 window.AuthEffects.celebrate(
-                    'Centro de costo autorizado exitosamente',
+                    'Unidad de negocio autorizada exitosamente',
                     'authorization'
                 );
             }
@@ -783,7 +783,7 @@ document.getElementById('formRechazar').addEventListener('submit', function(e) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Centro de costo rechazado');
+            alert('Unidad de negocio rechazada');
             location.reload();
         } else {
             alert('Error: ' + data.error);
@@ -1032,7 +1032,7 @@ function enviarAprobacion(formData) {
             </div>
             <div class="modal-body">
                 <p class="text-muted small mb-3">
-                    Los siguientes unidades de negocio requieren que selecciones manualmente quién los autorizará en esta requisición.
+                    Las siguientes unidades de negocio requieren que selecciones manualmente quién las autorizará en esta requisición.
                 </p>
                 <div id="asignacionCentrosContainer"></div>
                 <div class="mb-3 mt-3">

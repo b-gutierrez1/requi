@@ -3,7 +3,7 @@
  * Modelo PersonaAutorizada
  * 
  * Representa las personas autorizadas para aprobar requisiciones
- * de un unidad de negocio específico.
+ * de una unidad de negocio específica.
  * 
  * @package RequisicionesMVC\Models
  * @version 2.0
@@ -27,7 +27,7 @@ class PersonaAutorizada extends Model
     protected static $guarded = ['id'];
 
     /**
-     * Obtiene el unidad de negocio asociado
+     * Obtiene la unidad de negocio asociada
      * 
      * @return array|null
      */
@@ -41,7 +41,7 @@ class PersonaAutorizada extends Model
     }
 
     /**
-     * Obtiene todas las personas autorizadas de un unidad de negocio
+     * Obtiene todas las personas autorizadas de una unidad de negocio
      * 
      * @param int $unidadNegocioId
      * @return array
@@ -61,7 +61,7 @@ class PersonaAutorizada extends Model
     }
 
     /**
-     * Obtiene personas activas de un unidad de negocio.
+     * Obtiene personas activas de una unidad de negocio.
      *
      * Alias de porUnidadNegocio() — ambos métodos eran idénticos.
      * Se mantiene por backward compatibility; preferir porUnidadNegocio() en código nuevo.
@@ -138,7 +138,7 @@ class PersonaAutorizada extends Model
     }
 
     /**
-     * Obtiene todos los unidades de negocio de una persona autorizada
+     * Obtiene todas las unidades de negocio de una persona autorizada
      * 
      * @param string $email
      * @return array

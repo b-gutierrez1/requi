@@ -214,12 +214,12 @@ $title = 'Crear Autorizador por Cuenta Contable';
                         </h3>
                         <div class="alert alert-warning">
                             <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Atención:</strong> Los unidades de negocio seleccionados abajo serán <strong>excluidos</strong> del flujo de autorización. 
-                            Si una requisición usa uno de estos unidades de negocio, este autorizador NO será llamado.
+                            <strong>Atención:</strong> Las unidades de negocio seleccionadas abajo serán <strong>excluidas</strong> del flujo de autorización.
+                            Si una requisición usa una de estas unidades de negocio, este autorizador NO será llamado.
                         </div>
                         
                         <label class="form-label">Unidades de Negocio a Excluir (Opcional)</label>
-                        <small class="text-muted d-block mb-3">Seleccione los unidades de negocio que NO requieren autorización de esta persona</small>
+                        <small class="text-muted d-block mb-3">Seleccione las unidades de negocio que NO requieren autorización de esta persona</small>
                         
                         <div id="centros_exclusion_container" style="border: 2px solid #e9ecef; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto; background: #f8f9fa;">
                             <div class="mb-2">
@@ -236,7 +236,7 @@ $title = 'Crear Autorizador por Cuenta Contable';
                         </div>
                         <div id="exclusiones_count" class="mt-2" style="display: none;">
                             <span class="badge bg-warning text-dark">
-                                <i class="fas fa-ban"></i> <span id="excluded_count">0</span> centros excluidos
+                                <i class="fas fa-ban"></i> <span id="excluded_count">0</span> unidades de negocio excluidas
                             </span>
                         </div>
                     </div>
@@ -361,7 +361,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const exclusionesCount = document.getElementById('exclusiones_count');
     const excludedCountSpan = document.getElementById('excluded_count');
     
-    // Usar unidades de negocio pasados desde PHP
+    // Usar unidades de negocio pasadas desde PHP
     const centrosCosto = <?= json_encode($unidades_negocio ?? []) ?>;
     
     if (centrosCosto && centrosCosto.length > 0) {

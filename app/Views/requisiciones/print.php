@@ -12,7 +12,7 @@ $labelTipo = [
     'revision'        => 'Revisión',
     'forma_pago'      => 'Forma de Pago',
     'cuenta_contable' => 'Cuenta Contable',
-    'unidad_negocio'    => 'Unidad de Negocio',
+    'unidad_negocio'  => 'Unidad de Negocio',
 ];
 
 $labelFormaPago = [
@@ -405,8 +405,8 @@ $border = '#c0c0c0';
         <thead>
             <tr>
                 <th>Cuenta Contable</th>
-                <th>Unidad de Negocio</th>
                 <th>Centro de Costo</th>
+                <th>Unidad de Negocio</th>
                 <th style="width:36px">%</th>
                 <th style="width:62px">Cantidad</th>
                 <th style="width:30px">Fact.</th>
@@ -424,8 +424,8 @@ $border = '#c0c0c0';
             ?>
             <tr>
                 <td><?= View::e($cuentaLabel) ?></td>
-                <td><?= $d ? View::e($d['centro_nombre'] ?? '') : '' ?></td>
                 <td><?= $d ? View::e($d['centro_costo_nombre'] ?? '') : '' ?></td>
+                <td><?= $d ? View::e($d['centro_nombre'] ?? '') : '' ?></td>
                 <td class="tc"><?= $d ? number_format((float)$d['porcentaje'], 2) : '' ?></td>
                 <td class="tr"><?= $d ? number_format((float)$d['cantidad'], 2) : '' ?></td>
                 <td class="tc"><?= $d ? View::e($d['factura'] ?? '') : '' ?></td>

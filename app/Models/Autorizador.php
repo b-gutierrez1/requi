@@ -26,7 +26,7 @@ class Autorizador extends Model
     protected static $guarded = ['id', 'fecha_creacion', 'fecha_actualizacion'];
 
     /**
-     * Obtiene todos los unidades de negocio asignados a este autorizador
+     * Obtiene todas las unidades de negocio asignadas a este autorizador
      * 
      * @return array
      */
@@ -68,7 +68,7 @@ class Autorizador extends Model
     }
 
     /**
-     * Obtiene autorizadores de un unidad de negocio específico
+     * Obtiene autorizadores de una unidad de negocio específica
      * 
      * @param int $unidadNegocioId
      * @param bool $soloPrincipal Si es true, solo devuelve el principal
@@ -99,7 +99,7 @@ class Autorizador extends Model
     }
 
     /**
-     * Obtiene el autorizador principal de un unidad de negocio
+     * Obtiene el autorizador principal de una unidad de negocio
      * 
      * @param int $unidadNegocioId
      * @return array|null
@@ -147,7 +147,7 @@ class Autorizador extends Model
     }
 
     /**
-     * Asigna un unidad de negocio a un autorizador
+     * Asigna una unidad de negocio a un autorizador
      * 
      * @param int $autorizadorId
      * @param int $unidadNegocioId
@@ -172,7 +172,7 @@ class Autorizador extends Model
     }
 
     /**
-     * Remueve un unidad de negocio de un autorizador
+     * Remueve una unidad de negocio de un autorizador
      * 
      * @param int $autorizadorId
      * @param int $unidadNegocioId

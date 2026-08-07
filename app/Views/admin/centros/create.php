@@ -3,7 +3,7 @@ use App\Helpers\View;
 use App\Helpers\Session;
 use App\Middlewares\CsrfMiddleware;
 
-$title = 'Nuevo Unidad de Negocio';
+$title = 'Nueva Unidad de Negocio';
 ?>
 
 <?php View::startSection('content'); ?>
@@ -13,9 +13,9 @@ $title = 'Nuevo Unidad de Negocio';
         <div class="col-md-6">
             <h1 class="h3 mb-0">
                 <i class="fas fa-plus me-2"></i>
-                Nuevo Unidad de Negocio
+                Nueva Unidad de Negocio
             </h1>
-            <p class="text-muted mb-0">Crear un nuevo unidad de negocio para el sistema</p>
+            <p class="text-muted mb-0">Crear una nueva unidad de negocio para el sistema</p>
         </div>
         <div class="col-md-6 text-end">
             <a href="<?= url('/admin/centros') ?>" class="btn btn-outline-secondary">
@@ -31,7 +31,7 @@ $title = 'Nuevo Unidad de Negocio';
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-building me-2"></i>
-                        Información del Unidad de Negocio
+                        Información de la Unidad de Negocio
                     </h5>
                 </div>
                 <div class="card-body">
@@ -42,14 +42,14 @@ $title = 'Nuevo Unidad de Negocio';
                         <div class="mb-3">
                             <label for="nombre" class="form-label">Nombre *</label>
                             <input type="text" class="form-control" id="nombre" name="nombre" required>
-                            <div class="form-text">Nombre descriptivo del unidad de negocio</div>
+                            <div class="form-text">Nombre descriptivo de la unidad de negocio</div>
                         </div>
 
                         <!-- Código -->
                         <div class="mb-3">
                             <label for="codigo" class="form-label">Código</label>
                             <input type="text" class="form-control" id="codigo" name="codigo" maxlength="10">
-                            <div class="form-text">Código corto del unidad de negocio (ej. PA01, CR01). Opcional.</div>
+                            <div class="form-text">Código corto de la unidad de negocio (ej. PA01, CR01). Opcional.</div>
                         </div>
 
                         <!-- Factura -->
@@ -64,7 +64,7 @@ $title = 'Nuevo Unidad de Negocio';
                             </select>
                             <div class="form-text">
                                 <i class="fas fa-info-circle me-1"></i>
-                                Seleccione a qué factura se cargarán los gastos de este unidad de negocio.
+                                Seleccione a qué factura se cargarán los gastos de esta unidad de negocio.
                             </div>
                         </div>
 
@@ -79,7 +79,7 @@ $title = 'Nuevo Unidad de Negocio';
                                 </option>
                                 <?php endforeach; ?>
                             </select>
-                            <div class="form-text">Seleccione la centro de costo a la que pertenece este unidad de negocio.</div>
+                            <div class="form-text">Seleccione el centro de costo al que pertenece esta unidad de negocio.</div>
                         </div>
 
                         <!-- Asignación manual -->
@@ -96,7 +96,7 @@ $title = 'Nuevo Unidad de Negocio';
                                         <div class="toggle-title-off">Asignación <strong>automática</strong></div>
                                         <small class="text-muted toggle-desc">
                                             <span class="toggle-desc-on">El revisor deberá elegir el autorizador al aprobar.</span>
-                                            <span class="toggle-desc-off">El autorizador se asigna según la configuración del centro.</span>
+                                            <span class="toggle-desc-off">El autorizador se asigna según la configuración de la unidad de negocio.</span>
                                         </small>
                                     </div>
                                     <div class="form-check form-switch m-0">
@@ -169,7 +169,7 @@ $title = 'Nuevo Unidad de Negocio';
                             </div>
                             <div class="col-md-6 text-end">
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save me-2"></i>Crear Centro
+                                    <i class="fas fa-save me-2"></i>Crear Unidad de Negocio
                                 </button>
                             </div>
                         </div>
@@ -187,7 +187,7 @@ $title = 'Nuevo Unidad de Negocio';
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">
-                        Una vez creado el unidad de negocio, podrás:
+                        Una vez creada la unidad de negocio, podrás:
                     </p>
                     <ul class="list-unstyled">
                         <li class="mb-2">
@@ -196,11 +196,11 @@ $title = 'Nuevo Unidad de Negocio';
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-file-invoice text-success me-2"></i>
-                            Usar el centro en nuevas requisiciones de compra
+                            Usar la unidad de negocio en nuevas requisiciones de compra
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-chart-bar text-warning me-2"></i>
-                            Generar reportes de gastos por centro
+                            Generar reportes de gastos por unidad de negocio
                         </li>
                     </ul>
                 </div>

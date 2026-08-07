@@ -1085,7 +1085,7 @@ class RequisicionController extends Controller
     }
 
     /**
-     * API: Obtiene la centro de costo y autorizadores para un unidad de negocio
+     * API: Obtiene el centro de costo y autorizadores para una unidad de negocio
      * 
      * @return void
      */
@@ -1096,7 +1096,7 @@ class RequisicionController extends Controller
         if (!$unidadNegocioId) {
             $this->jsonResponse([
                 'success' => false,
-                'error' => 'Centro de costo no especificado'
+                'error' => 'Unidad de negocio no especificada'
             ], 400);
             return;
         }
@@ -1106,7 +1106,7 @@ class RequisicionController extends Controller
         if (!$unidadNegocio) {
             $this->jsonResponse([
                 'success' => false,
-                'error' => 'Centro de costo no encontrado'
+                'error' => 'Unidad de negocio no encontrada'
             ], 404);
             return;
         }

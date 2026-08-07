@@ -174,12 +174,12 @@ $title = 'Gestión de Unidades de Negocio';
                     <i class="fas fa-building me-3"></i>
                     <?= View::e($title) ?>
                 </h1>
-                <p class="mb-0 opacity-75">Administra los unidades de negocio del sistema</p>
+                <p class="mb-0 opacity-75">Administra las unidades de negocio del sistema</p>
             </div>
             <div class="col-md-6 text-end">
                 <a href="<?= url('/admin/centros/create') ?>" class="btn btn-create">
                     <i class="fas fa-plus me-2"></i>
-                    Nuevo Unidad de Negocio
+                    Nueva Unidad de Negocio
                 </a>
             </div>
         </div>
@@ -193,7 +193,7 @@ $title = 'Gestión de Unidades de Negocio';
             <div class="stats-card p-4 text-center">
                 <i class="fas fa-building fa-3x text-primary mb-3"></i>
                 <h3 class="mb-1"><?= count($centros ?? []) ?></h3>
-                <p class="text-muted mb-0">Total Centros</p>
+                <p class="text-muted mb-0">Total Unidades de Negocio</p>
             </div>
         </div>
         <div class="col-md-3">
@@ -214,7 +214,7 @@ $title = 'Gestión de Unidades de Negocio';
             <div class="stats-card p-4 text-center">
                 <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
                 <h3 class="mb-1"><?= count(array_unique(array_column(array_map(function($c) { return (array)$c; }, $centros ?? []), 'centro_costo_id'))) ?></h3>
-                <p class="text-muted mb-0">Unidades</p>
+                <p class="text-muted mb-0">Centros de Costo</p>
             </div>
         </div>
     </div>
@@ -256,7 +256,7 @@ $title = 'Gestión de Unidades de Negocio';
                         <th width="20%">Descripción</th>
                         <th width="10%">Código</th>
                         <th width="8%">Estado</th>
-                        <th width="10%">Unidad Negocio</th>
+                        <th width="10%">Centro de Costo</th>
                         <th width="8%">Factura</th>
                         <th width="10%">Asignación</th>
                         <th width="10%" class="text-center">Acciones</th>
@@ -329,7 +329,7 @@ $title = 'Gestión de Unidades de Negocio';
                                         </a>
                                         <a href="<?= url('/admin/centros/' . $centro->id . '/edit') ?>"
                                            class="btn btn-outline-warning btn-action"
-                                           title="Editar centro">
+                                           title="Editar unidad de negocio">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         <a href="<?= url('/admin/autorizadores?centro=' . $centro->id) ?>"
@@ -340,7 +340,7 @@ $title = 'Gestión de Unidades de Negocio';
                                         <button type="button"
                                                 class="btn btn-action <?= ($centro->activo ?? 1) ? 'btn-outline-success' : 'btn-outline-secondary' ?>"
                                                 onclick="toggleCentro(<?= $centro->id ?>, <?= ($centro->activo ?? 1) ? 1 : 0 ?>)"
-                                                title="<?= ($centro->activo ?? 1) ? 'Desactivar centro' : 'Activar centro' ?>">
+                                                title="<?= ($centro->activo ?? 1) ? 'Desactivar unidad de negocio' : 'Activar unidad de negocio' ?>">
                                             <i class="fas <?= ($centro->activo ?? 1) ? 'fa-toggle-on' : 'fa-toggle-off' ?>"></i>
                                         </button>
                                     </div>
@@ -355,7 +355,7 @@ $title = 'Gestión de Unidades de Negocio';
                                     <h4>No hay unidades de negocio</h4>
                                     <p class="mb-3">No se encontraron unidades de negocio en el sistema.</p>
                                     <a href="<?= url('/admin/centros/create') ?>" class="btn btn-create">
-                                        <i class="fas fa-plus me-2"></i>Crear Primer Centro
+                                        <i class="fas fa-plus me-2"></i>Crear Primera Unidad de Negocio
                                     </a>
                                 </div>
                             </td>
@@ -376,7 +376,7 @@ $title = 'Gestión de Unidades de Negocio';
                 <i class="fas fa-home me-2"></i>Dashboard
             </a>
             <a href="<?= url('/admin/centros/create') ?>" class="btn btn-create">
-                <i class="fas fa-plus me-2"></i>Nuevo Centro
+                <i class="fas fa-plus me-2"></i>Nueva Unidad de Negocio
             </a>
         </div>
     </div>
@@ -426,7 +426,7 @@ $title = 'Gestión de Unidades de Negocio';
 
     function toggleCentro(id, activo) {
         const accion = activo ? 'desactivar' : 'activar';
-        if (confirm(`¿Deseas ${accion} este unidad de negocio?`)) {
+        if (confirm(`¿Deseas ${accion} esta unidad de negocio?`)) {
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = `<?= url('/admin/centros/') ?>${id}/toggle`;

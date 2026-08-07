@@ -359,7 +359,7 @@ $title = 'Autorizadores de Cuentas Contables';
                                 <div class="mt-2">
                                     <small class="text-muted">
                                         <i class="fas fa-building me-1"></i>
-                                        <?= $autorizador->unidades_negocio_count ?> centro(s) de costo asignado(s)
+                                        <?= $autorizador->unidades_negocio_count ?> unidad(es) de negocio asignada(s)
                                     </small>
                                 </div>
                                 <?php endif; ?>

@@ -204,7 +204,7 @@ $badge = EstadoHelper::getBadge($estadoReal);
                         $totalDistribucion += $cantidad;
                         
                         // Buscar nombres en catálogos
-                        $unidadNegocioNombre = 'Centro ' . getData($dist, 'unidad_negocio_id');
+                        $unidadNegocioNombre = 'Unidad ' . getData($dist, 'unidad_negocio_id');
                         $cuentaContableNombre = 'Cuenta ' . getData($dist, 'cuenta_contable_id');
                         
                         if (!empty($catalogos['unidades_negocio'])) {

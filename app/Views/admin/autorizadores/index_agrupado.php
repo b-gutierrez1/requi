@@ -271,7 +271,7 @@ $title = 'Gestión de Autorizadores';
             <div class="stats-card p-4 text-center">
                 <i class="fas fa-building fa-3x text-info mb-3"></i>
                 <h3 class="mb-1" id="total-centros">0</h3>
-                <p class="text-muted mb-0">Centros Asignados</p>
+                <p class="text-muted mb-0">Unidades Asignadas</p>
             </div>
         </div>
         <div class="col-md-3">
@@ -357,7 +357,7 @@ $title = 'Gestión de Autorizadores';
                             <div class="col-md-3">
                                 <div class="tipo-badge-container">
                                     <?php if ($grupo['permisos']['unidad_negocio']): ?>
-                                        <span class="badge badge-tipo badge-centro">Centro</span>
+                                        <span class="badge badge-tipo badge-centro">Unidad</span>
                                     <?php endif; ?>
                                     <?php if ($grupo['permisos']['flujo']): ?>
                                         <span class="badge badge-tipo badge-flujo">Flujo</span>
@@ -432,7 +432,7 @@ $title = 'Gestión de Autorizadores';
                         <div class="centros-list p-3 bg-white">
                             <h6 class="mb-3">
                                 <i class="fas fa-building me-2"></i>
-                                Unidades de Negocio que Puede Autorizar (<?= count($grupo['centros']) ?> únicos)
+                                Unidades de Negocio que Puede Autorizar (<?= count($grupo['centros']) ?> únicas)
                                 <?php 
                                 $emailKey = strtolower(trim($autorizador->email ?? ''));
                                 $duplicadosReales = $duplicadosPorEmail[$emailKey] ?? 0;
@@ -442,7 +442,7 @@ $title = 'Gestión de Autorizadores';
                             </h6>
                             <div class="row">
                                 <?php 
-                                // Ordenar centros por nombre para mejor visualización
+                                // Ordenar unidades de negocio por nombre para mejor visualización
                                 usort($grupo['centros'], function($a, $b) {
                                     return strcasecmp($a->nombre ?? '', $b->nombre ?? '');
                                 });
@@ -485,9 +485,9 @@ $title = 'Gestión de Autorizadores';
                         <div class="centros-list p-3 bg-white">
                             <div class="text-center text-muted">
                                 <i class="fas fa-building me-2"></i>
-                                No tiene unidades de negocio asignados para autorizar
+                                No tiene unidades de negocio asignadas para autorizar
                                 <?php if ($grupo['registros_count'] > 1): ?>
-                                    <br><small class="text-warning">Tiene <?= $grupo['registros_count'] ?> registros duplicados sin centros asignados</small>
+                                    <br><small class="text-warning">Tiene <?= $grupo['registros_count'] ?> registros duplicados sin unidades de negocio asignadas</small>
                                 <?php endif; ?>
                             </div>
                         </div>

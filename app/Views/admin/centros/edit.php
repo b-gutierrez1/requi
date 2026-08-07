@@ -15,7 +15,7 @@ $title = 'Editar Unidad de Negocio';
                 <i class="fas fa-edit me-2"></i>
                 Editar Unidad de Negocio
             </h1>
-            <p class="text-muted mb-0">Centro: <?= View::e($centro->nombre ?? 'Sin nombre') ?></p>
+            <p class="text-muted mb-0">Unidad de Negocio: <?= View::e($centro->nombre ?? 'Sin nombre') ?></p>
         </div>
         <div class="col-md-6 text-end">
             <a href="<?= url('/admin/centros/' . $centro->id) ?>" class="btn btn-outline-secondary">
@@ -31,7 +31,7 @@ $title = 'Editar Unidad de Negocio';
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-building me-2"></i>
-                        Información del Unidad de Negocio
+                        Información de la Unidad de Negocio
                     </h5>
                 </div>
                 <div class="card-body">
@@ -44,7 +44,7 @@ $title = 'Editar Unidad de Negocio';
                             <label for="nombre" class="form-label">Nombre *</label>
                             <input type="text" class="form-control" id="nombre" name="nombre" 
                                    value="<?= View::e($centro->nombre ?? '') ?>" required>
-                            <div class="form-text">Nombre descriptivo del unidad de negocio</div>
+                            <div class="form-text">Nombre descriptivo de la unidad de negocio</div>
                         </div>
 
                         <!-- Código -->
@@ -52,7 +52,7 @@ $title = 'Editar Unidad de Negocio';
                             <label for="codigo" class="form-label">Código</label>
                             <input type="text" class="form-control" id="codigo" name="codigo" maxlength="10"
                                    value="<?= View::e($centro->codigo ?? '') ?>">
-                            <div class="form-text">Código corto del unidad de negocio (ej. PA01, CR01). Opcional.</div>
+                            <div class="form-text">Código corto de la unidad de negocio (ej. PA01, CR01). Opcional.</div>
                         </div>
 
                         <!-- Factura -->
@@ -66,8 +66,8 @@ $title = 'Editar Unidad de Negocio';
                             </select>
                             <div class="form-text">
                                 <i class="fas fa-info-circle me-1"></i>
-                                Seleccione a qué factura se cargarán los gastos de este unidad de negocio.
-                                <br><strong>Ejemplo:</strong> Si este centro pertenece a "Actividad Cultural" y debe cargarse a Factura 3, seleccione "Factura 3".
+                                Seleccione a qué factura se cargarán los gastos de esta unidad de negocio.
+                                <br><strong>Ejemplo:</strong> Si esta unidad de negocio pertenece a "Actividad Cultural" y debe cargarse a Factura 3, seleccione "Factura 3".
                             </div>
                         </div>
 
@@ -82,7 +82,7 @@ $title = 'Editar Unidad de Negocio';
                                 </option>
                                 <?php endforeach; ?>
                             </select>
-                            <div class="form-text">Seleccione la centro de costo a la que pertenece este unidad de negocio.</div>
+                            <div class="form-text">Seleccione el centro de costo al que pertenece esta unidad de negocio.</div>
                         </div>
 
                         <!-- Asignación manual -->
@@ -99,7 +99,7 @@ $title = 'Editar Unidad de Negocio';
                                         <div class="toggle-title-off">Asignación <strong>automática</strong></div>
                                         <small class="text-muted toggle-desc">
                                             <span class="toggle-desc-on">El revisor deberá elegir el autorizador al aprobar.</span>
-                                            <span class="toggle-desc-off">El autorizador se asigna según la configuración del centro.</span>
+                                            <span class="toggle-desc-off">El autorizador se asigna según la configuración de la unidad de negocio.</span>
                                         </small>
                                     </div>
                                     <div class="form-check form-switch m-0">
@@ -173,7 +173,7 @@ $title = 'Editar Unidad de Negocio';
                             </div>
                             <div class="col-md-6 text-end">
                                 <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save me-2"></i>Actualizar Centro
+                                    <i class="fas fa-save me-2"></i>Actualizar Unidad de Negocio
                                 </button>
                             </div>
                         </div>
@@ -195,7 +195,7 @@ $title = 'Editar Unidad de Negocio';
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">
-                        Eliminar este unidad de negocio es una acción irreversible. 
+                        Eliminar esta unidad de negocio es una acción irreversible.
                         Solo se puede eliminar si no tiene requisiciones asociadas.
                     </p>
                     <button type="button" class="btn btn-outline-danger" onclick="confirmarEliminacion()">
@@ -222,7 +222,7 @@ document.getElementById('formEditarCentro').addEventListener('submit', function(
 
 // Confirmar eliminación
 function confirmarEliminacion() {
-    if (confirm('¿Estás seguro de que deseas eliminar este unidad de negocio?\n\nEsta acción no se puede deshacer.')) {
+    if (confirm('¿Estás seguro de que deseas eliminar esta unidad de negocio?\n\nEsta acción no se puede deshacer.')) {
         // Crear formulario para envío por DELETE method
         const form = document.createElement('form');
         form.method = 'POST';

@@ -652,7 +652,7 @@ class AdminController extends Controller
             ];
 
             // ================================================================
-            // 1. LIMPIAR UNIDADES DE NEGOCIO DUPLICADOS
+            // 1. LIMPIAR UNIDADES DE NEGOCIO DUPLICADAS
             // ================================================================
             
             // Buscar duplicados por nombre (normalizado)
@@ -921,13 +921,13 @@ class AdminController extends Controller
     public function relaciones()
     {
         // Obtener unidades de negocio con sus relaciones (centro de costo y factura)
-        $centrosCosto = UnidadNegocio::activos();
-        $unidadesNegocio = CentroCosto::activas();
+        $unidadesNegocio = UnidadNegocio::activos();
+        $centrosCosto = CentroCosto::activas();
 
         View::render('admin/relaciones/index', [
             'title' => 'Relaciones Unidad de Negocio - Centro de Costo',
-            'unidades_negocio' => $centrosCosto,
-            'centros_costo' => $unidadesNegocio
+            'unidades_negocio' => $unidadesNegocio,
+            'centros_costo' => $centrosCosto
         ]);
     }
 

@@ -114,7 +114,7 @@ View::startSection('content');
                     </h5>
                     <a href="<?= url('/admin/centros') ?>" class="btn btn-primary" style="position: relative; z-index: 1016; transform: none !important; transition: none !important;">
                         <i class="fas fa-cog me-2"></i>
-                        Gestionar Centros
+                        Gestionar Unidades de Negocio
                     </a>
                 </div>
                 <div class="card-body">
@@ -148,7 +148,7 @@ View::startSection('content');
                                     <tr>
                                         <td colspan="3" class="text-center text-muted">
                                             <i class="fas fa-inbox fa-2x mb-2"></i><br>
-                                            No hay unidades de negocio registrados
+                                            No hay unidades de negocio registradas
                                         </td>
                                     </tr>
                                 <?php endif; ?>

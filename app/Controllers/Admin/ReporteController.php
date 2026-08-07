@@ -426,7 +426,7 @@ class ReporteController extends Controller
     private function generarCSVAutorizaciones($output, $datos)
     {
         fputcsv($output, ['Detalle de Autorizaciones']);
-        fputcsv($output, ['ID Flujo', 'Fecha', 'Proveedor', 'Monto', 'Autorizador', 'Estado', 'Fecha Autorización', 'Centro Costo']);
+        fputcsv($output, ['ID Flujo', 'Fecha', 'Proveedor', 'Monto', 'Autorizador', 'Estado', 'Fecha Autorización', 'Unidad de Negocio']);
 
         foreach ($datos['autorizaciones'] as $auth) {
             $simbolo = ($auth['moneda'] ?? 'GTQ') === 'USD' ? '$' : 'Q';

@@ -258,7 +258,7 @@ $title = 'Gestión de Autorizadores';
             <div class="stats-card p-4 text-center">
                 <i class="fas fa-building fa-3x text-info mb-3"></i>
                 <h3 class="mb-1"><?= count(array_unique(array_column(array_map(function($a) { return (array)$a; }, $autorizadores ?? []), 'unidad_negocio_id'))) ?></h3>
-                <p class="text-muted mb-0">Centros Asignados</p>
+                <p class="text-muted mb-0">Unidades Asignadas</p>
             </div>
         </div>
     </div>
@@ -333,7 +333,7 @@ $title = 'Gestión de Autorizadores';
                                             <div class="fw-bold"><?= View::e($centro->nombre ?? 'Sin nombre') ?></div>
                                             <small class="text-muted"><?= View::e($centro->codigo ?? 'Sin código') ?></small>
                                         <?php else: ?>
-                                            <span class="text-muted">Centro no encontrado</span>
+                                            <span class="text-muted">Unidad de negocio no encontrada</span>
                                         <?php endif; ?>
                                     <?php else: ?>
                                         <span class="text-muted">Sin asignar</span>
@@ -342,7 +342,7 @@ $title = 'Gestión de Autorizadores';
                                 <td>
                                     <div class="tipo-badge-container">
                                         <?php if ($autorizador->puede_autorizar_unidad_negocio ?? false): ?>
-                                            <span class="badge badge-tipo badge-centro">Centro</span>
+                                            <span class="badge badge-tipo badge-centro">Unidad</span>
                                         <?php endif; ?>
                                         <?php if ($autorizador->puede_autorizar_flujo ?? false): ?>
                                             <span class="badge badge-tipo badge-flujo">Flujo</span>

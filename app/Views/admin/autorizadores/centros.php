@@ -240,7 +240,7 @@ $title = 'Asignar Unidades de Negocio';
                     <i class="fas fa-building me-3"></i>
                     <?= View::e($title) ?>
                 </h1>
-                <p class="mb-0 opacity-75">Selecciona los unidades de negocio para este autorizador</p>
+                <p class="mb-0 opacity-75">Selecciona las unidades de negocio para este autorizador</p>
             </div>
             <div class="col-md-4 text-end">
                 <a href="<?= url('/admin/autorizadores/' . ($autorizador->id ?? '') . '/edit') ?>" class="btn btn-light">
@@ -303,12 +303,12 @@ $title = 'Asignar Unidades de Negocio';
             <div class="mt-2">
                 <span class="counter">
                     <span id="selectedCount"><?= count(array_filter($ordenesPorCentro ?? [], fn($o) => $o > 0)) ?></span> de
-                    <span id="totalCount"><?= count($todosLosCentros ?? []) ?></span> centros seleccionados
+                    <span id="totalCount"><?= count($todosLosCentros ?? []) ?></span> unidades de negocio seleccionadas
                 </span>
             </div>
         </div>
 
-        <!-- Grid de centros -->
+        <!-- Grid de unidades de negocio -->
         <div class="centros-grid">
             <div class="row" id="centrosContainer">
                 <?php if (!empty($todosLosCentros)): ?>

@@ -287,7 +287,7 @@ $title = 'Editar Autorizador de Respaldo';
                                         <p class="text-muted mb-0">No hay unidades de negocio disponibles</p>
                                     <?php endif; ?>
                                 </div>
-                                <div class="help-text">Seleccione los unidades de negocio para los cuales aplica el respaldo</div>
+                                <div class="help-text">Seleccione las unidades de negocio para las cuales aplica el respaldo</div>
                                 <div id="centros_count" class="mt-2">
                                     <span class="badge bg-primary"><span id="selected_count"><?= count($centrosAsignados) ?></span> seleccionados</span>
                                 </div>
@@ -630,7 +630,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Validar que al menos un centro esté seleccionado
         const centrosSeleccionados = document.querySelectorAll('.centro-checkbox:checked').length;
         if (centrosSeleccionados === 0) {
-            alert('Debe seleccionar al menos un unidad de negocio');
+            alert('Debe seleccionar al menos una unidad de negocio');
             return;
         }
 

@@ -205,8 +205,8 @@ class NotificacionService
                     $data['mensaje_siguiente_paso'] = 'Ahora requiere autorización especial por las cuentas contables utilizadas.';
                     break;
                 case 'unidad_negocio':
-                    $data['estado_actual'] = 'Pendiente de Autorización por Centros';
-                    $data['mensaje_siguiente_paso'] = 'Ahora está pendiente de autorización por los unidades de negocio correspondientes.';
+                    $data['estado_actual'] = 'Pendiente de Autorización por Unidades de Negocio';
+                    $data['mensaje_siguiente_paso'] = 'Ahora está pendiente de autorización por las unidades de negocio correspondientes.';
                     break;
                 default:
                     $data['estado_actual'] = 'Pendiente de Autorización';
@@ -584,16 +584,16 @@ class NotificacionService
     }
 
     /**
-     * Obtiene autorizadores de un unidad de negocio
-     * 
-     * @param int $centroId ID del unidad de negocio
+     * Obtiene autorizadores de una unidad de negocio
+     *
+     * @param int $centroId ID de la unidad de negocio
      * @return array Array de autorizadores
      */
     private function getAutorizadoresCentro($centroId)
     {
         $centro = UnidadNegocio::find($centroId);
         if (!$centro) {
-            error_log("NotificacionService: Centro de costo no encontrado: $centroId");
+            error_log("NotificacionService: Unidad de negocio no encontrada: $centroId");
             return [];
         }
 
@@ -632,14 +632,14 @@ class NotificacionService
                     }
                 }
             } catch (\Exception $e) {
-                error_log("Error buscando autorizadores del centro $centroId: " . $e->getMessage());
+                error_log("Error buscando autorizadores de la unidad de negocio $centroId: " . $e->getMessage());
             }
         }
 
         if (empty($autorizadores)) {
-            error_log("NotificacionService: No se encontraron autorizadores para el centro: $centroId ($centroNombre)");
+            error_log("NotificacionService: No se encontraron autorizadores para la unidad de negocio: $centroId ($centroNombre)");
         } else {
-            error_log("NotificacionService: Autorizadores encontrados para centro $centroId: " . json_encode($autorizadores));
+            error_log("NotificacionService: Autorizadores encontrados para la unidad de negocio $centroId: " . json_encode($autorizadores));
         }
 
         return $autorizadores;
@@ -991,7 +991,7 @@ class NotificacionService
                 return ['success' => false, 'error' => 'Orden no encontrada'];
             }
 
-            // Solo notificar a los autorizadores cuyo turno ya llegó (nivel mínimo pendiente por centro).
+            // Solo notificar a los autorizadores cuyo turno ya llegó (nivel mínimo pendiente por unidad de negocio).
             // Los de nivel=2 no reciben notificación aquí; la recibirán cuando nivel=1 apruebe.
             $pdo = \App\Models\Model::getConnection();
             $stmt = $pdo->prepare("
@@ -1039,7 +1039,7 @@ class NotificacionService
                 $result = $this->sendEmailSafe(
                     'sendWithTemplate',
                     $email,
-                    "🔔 AUTORIZAR: Requisición #{$data['numero_orden']} - Centro: {$centroNombre}",
+                    "🔔 AUTORIZAR: Requisición #{$data['numero_orden']} - Unidad: {$centroNombre}",
                     'pendiente_autorizacion_centro',
                     $data
                 );
@@ -1052,17 +1052,17 @@ class NotificacionService
 
             return [
                 'success' => true,
-                'message' => 'Notificaciones enviadas a autorizadores de centros',
+                'message' => 'Notificaciones enviadas a autorizadores de unidades de negocio',
                 'count' => count($resultados)
             ];
         } catch (\Exception $e) {
-            error_log("Error notificando autorizadores de centros: " . $e->getMessage());
+            error_log("Error notificando autorizadores de unidades de negocio: " . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
     /**
-     * Notifica a los autorizadores del siguiente nivel de un unidad de negocio,
+     * Notifica a los autorizadores del siguiente nivel de una unidad de negocio,
      * solo si existen y su turno acaba de llegar (el nivel anterior aprobó).
      *
      * Se llama desde AutorizacionService::autorizarUnidadNegocio() después de cada aprobación.
@@ -1128,12 +1128,12 @@ class NotificacionService
                 $this->sendEmailSafe(
                     'sendWithTemplate',
                     $email,
-                    "🔔 AUTORIZAR: Requisición #{$data['numero_orden']} - Centro: {$centroNombre} (Nivel {$nivelSiguiente})",
+                    "🔔 AUTORIZAR: Requisición #{$data['numero_orden']} - Unidad: {$centroNombre} (Nivel {$nivelSiguiente})",
                     'pendiente_autorizacion_centro',
                     $data
                 );
 
-                error_log("notificarSiguienteNivelUnidadNegocio: enviado a $email (nivel=$nivelSiguiente, centro=$unidadNegocioId, req=$ordenId)");
+                error_log("notificarSiguienteNivelUnidadNegocio: enviado a $email (nivel=$nivelSiguiente, unidad=$unidadNegocioId, req=$ordenId)");
             }
         } catch (\Exception $e) {
             error_log("Error en notificarSiguienteNivelUnidadNegocio: " . $e->getMessage());

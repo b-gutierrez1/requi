@@ -175,8 +175,10 @@ uasort($relaciones, function($a, $b) {
             <div class="col-md-8">
                 <h4><i class="fas fa-info-circle me-2"></i>¿Cómo funciona?</h4>
                 <p class="mb-0">
-                    Cuando seleccionas un <strong>Unidad de Negocio</strong> en una requisición, el sistema 
-                    automáticamente asigna la <strong>Centro de Costo</strong> y el tipo de <strong>Factura</strong> 
+                    Cada <strong>Unidad de Negocio</strong> (el detalle: Bodega, Sistemas, Librería Xela…)
+                    pertenece a un <strong>Centro de Costo</strong> (el grupo: COMERCIAL, COLEGIO, CURSOS…).
+                    Por eso, cuando seleccionas una <strong>Unidad de Negocio</strong> en una requisición, el sistema
+                    completa automáticamente su <strong>Centro de Costo</strong> y el tipo de <strong>Factura</strong>
                     según las relaciones definidas en la base de datos. Los datos se leen directamente de las tablas
                     <code>unidad_de_negocio</code> y <code>centro_de_costo</code>.
                 </p>
@@ -194,7 +196,7 @@ uasort($relaciones, function($a, $b) {
             <div class="diagram-box">
                 <i class="fas fa-building fa-2x text-primary mb-2"></i>
                 <div class="fw-bold">Unidad de Negocio</div>
-                <small class="text-muted">Seleccionado por usuario</small>
+                <small class="text-muted">Seleccionada por el usuario</small>
             </div>
             <div class="diagram-arrow">
                 <i class="fas fa-arrow-right"></i>
@@ -210,7 +212,7 @@ uasort($relaciones, function($a, $b) {
             <div class="diagram-box">
                 <i class="fas fa-tag fa-2x text-warning mb-2"></i>
                 <div class="fw-bold">Centro de Costo</div>
-                <small class="text-muted">Asignada automáticamente</small>
+                <small class="text-muted">Asignado automáticamente</small>
             </div>
             <div class="diagram-arrow">
                 <i class="fas fa-plus"></i>
@@ -218,13 +220,13 @@ uasort($relaciones, function($a, $b) {
             <div class="diagram-box">
                 <i class="fas fa-file-invoice fa-2x text-info mb-2"></i>
                 <div class="fw-bold">Tipo Factura</div>
-                <small class="text-muted">Asignada automáticamente</small>
+                <small class="text-muted">Asignado automáticamente</small>
             </div>
         </div>
     </div>
 
     <!-- Relaciones -->
-    <h4 class="mb-4"><i class="fas fa-list me-2"></i>Relaciones por Centro de Costo (<?= count($relaciones) ?> unidades)</h4>
+    <h4 class="mb-4"><i class="fas fa-list me-2"></i>Relaciones por Centro de Costo (<?= count($relaciones) ?> centros de costo)</h4>
     
     <div class="row">
         <?php foreach ($relaciones as $relacion): ?>
@@ -251,7 +253,7 @@ uasort($relaciones, function($a, $b) {
                         <div class="mb-3">
                             <small class="text-muted d-block mb-2">
                                 <i class="fas fa-building me-1"></i>
-                                Unidades de Negocio asignados (<?= count($relacion['centros']) ?>):
+                                Unidades de Negocio asignadas (<?= count($relacion['centros']) ?>):
                             </small>
                             <div>
                                 <?php foreach ($relacion['centros'] as $centro): ?>

@@ -46,7 +46,7 @@ class AutorizacionService
      * @param NotificacionService $notificacionService Servicio de notificaciones opcional
      */
     /**
-     * Repositorio de autorizaciones de centro
+     * Repositorio de autorizaciones por unidad de negocio
      * @var AutorizacionCentroRepository
      */
     private $autorizacionCentroRepo;
@@ -492,8 +492,8 @@ class AutorizacionService
     }
 
     /**
-     * Autoriza un unidad de negocio
-     * 
+     * Autoriza una unidad de negocio
+     *
      * @param int $autorizacionId
      * @param string $autorizadorEmail
      * @param string $comentario
@@ -515,7 +515,7 @@ class AutorizacionService
             if ($ordenId && $this->tieneAutorizacionesEspecialesPendientes($ordenId)) {
                 return [
                     'success' => false,
-                    'error' => 'Aún existen autorizaciones especiales pendientes. Deben completarse antes de autorizar los unidades de negocio.',
+                    'error' => 'Aún existen autorizaciones especiales pendientes. Deben completarse antes de autorizar las unidades de negocio.',
                     'code' => 'SPECIAL_PENDING'
                 ];
             }
@@ -525,7 +525,7 @@ class AutorizacionService
             if (!$resultado) {
                 return [
                     'success' => false,
-                    'error' => 'Error al autorizar el unidad de negocio',
+                    'error' => 'Error al autorizar la unidad de negocio',
                     'code' => 'AUTHORIZATION_ERROR'
                 ];
             }
@@ -533,7 +533,7 @@ class AutorizacionService
             $unidadNegocioId = (int)($autorizacion['unidad_negocio_id'] ?? 0);
             $nivelAprobado = (int)($autorizacion['nivel'] ?? 1);
 
-            // Auto-omitir otros autorizadores del MISMO nivel y centro (principal+respaldo en paralelo:
+            // Auto-omitir otros autorizadores del MISMO nivel y unidad de negocio (principal+respaldo en paralelo:
             // solo uno debe aprobar; nunca omitir niveles superiores que aún no les toca).
             if ($unidadNegocioId && $ordenId) {
                 $pdo = Model::getConnection();
@@ -550,7 +550,7 @@ class AutorizacionService
                       AND autorizador_email != ?
                 ");
                 $stmtOmitir->execute([$ordenId, $unidadNegocioId, $nivelAprobado, $autorizadorEmail]);
-                error_log("Auto-omitidas " . $stmtOmitir->rowCount() . " autorizaciones (nivel=$nivelAprobado, centro=$unidadNegocioId, req=$ordenId)");
+                error_log("Auto-omitidas " . $stmtOmitir->rowCount() . " autorizaciones (nivel=$nivelAprobado, unidad=$unidadNegocioId, req=$ordenId)");
             }
 
             // Notificar al siguiente nivel si existe (flujo secuencial)
@@ -572,7 +572,7 @@ class AutorizacionService
 
             return [
                 'success' => true,
-                'message' => 'Centro de costo autorizado exitosamente'
+                'message' => 'Unidad de negocio autorizada exitosamente'
             ];
         } catch (\RuntimeException $e) {
             // Guard de orden secuencial — aprobación fuera de turno
@@ -593,8 +593,8 @@ class AutorizacionService
     }
 
     /**
-     * Rechaza un unidad de negocio
-     * 
+     * Rechaza una unidad de negocio
+     *
      * @param int $autorizacionId
      * @param string $autorizadorEmail
      * @param string $motivo
@@ -617,7 +617,7 @@ class AutorizacionService
             if (!$resultado) {
                 return [
                     'success' => false,
-                    'error' => 'Error al rechazar el unidad de negocio',
+                    'error' => 'Error al rechazar la unidad de negocio',
                     'code' => 'REJECTION_ERROR'
                 ];
             }
@@ -639,7 +639,7 @@ class AutorizacionService
 
             return [
                 'success' => true,
-                'message' => 'Centro de costo rechazado exitosamente'
+                'message' => 'Unidad de negocio rechazada exitosamente'
             ];
         } catch (\Exception $e) {
             error_log("Error en rechazarUnidadNegocio: " . $e->getMessage());
@@ -947,18 +947,18 @@ class AutorizacionService
                     WHERE requisicion_id = ? AND tipo = 'unidad_negocio'
                 ");
                 $stmt->execute([$ordenId]);
-                $centrosExistentes = (int)$stmt->fetchColumn();
+                $unidadesExistentes = (int)$stmt->fetchColumn();
                 
                 // Si no existen, crearlas
-                if ($centrosExistentes === 0) {
+                if ($unidadesExistentes === 0) {
                     error_log("Creando autorizaciones de unidades de negocio para requisición $ordenId");
                     $this->autorizacionCentroRepo->createFromDistribucion($ordenId);
                     error_log("✅ Autorizaciones de unidades de negocio creadas exitosamente");
                 } else {
-                    error_log("Las autorizaciones de unidades de negocio ya existen ($centrosExistentes) para requisición $ordenId");
+                    error_log("Las autorizaciones de unidades de negocio ya existen ($unidadesExistentes) para requisición $ordenId");
                 }
                 
-                // Notificar a los autorizadores de centros
+                // Notificar a los autorizadores de las unidades de negocio
                 $this->notificacionService->notificarAutorizadoresCentros($ordenId);
             }
 
@@ -1145,18 +1145,18 @@ class AutorizacionService
                     WHERE requisicion_id = ? AND tipo = 'unidad_negocio'
                 ");
                 $stmt->execute([$ordenId]);
-                $centrosExistentes = (int)$stmt->fetchColumn();
+                $unidadesExistentes = (int)$stmt->fetchColumn();
                 
                 // Si no existen, crearlas
-                if ($centrosExistentes === 0) {
+                if ($unidadesExistentes === 0) {
                     error_log("Creando autorizaciones de unidades de negocio para requisición $ordenId");
                     $this->autorizacionCentroRepo->createFromDistribucion($ordenId);
                     error_log("✅ Autorizaciones de unidades de negocio creadas exitosamente");
                 } else {
-                    error_log("Las autorizaciones de unidades de negocio ya existen ($centrosExistentes) para requisición $ordenId");
+                    error_log("Las autorizaciones de unidades de negocio ya existen ($unidadesExistentes) para requisición $ordenId");
                 }
                 
-                // Notificar a los autorizadores de centros
+                // Notificar a los autorizadores de las unidades de negocio
                 $this->notificacionService->notificarAutorizadoresCentros($ordenId);
             }
 
@@ -1451,8 +1451,8 @@ class AutorizacionService
             $autorizaciones = [];
             
             // 1. Autorizaciones de unidad de negocio (principales y respaldo)
-            $centros = $this->getAutorizacionesPendientes($email);
-            foreach ($centros as $auth) {
+            $unidades = $this->getAutorizacionesPendientes($email);
+            foreach ($unidades as $auth) {
                 $auth['tipo_flujo'] = 'unidad_negocio';
                 $auth['prioridad'] = 2; // Normal
                 $autorizaciones[] = $auth;

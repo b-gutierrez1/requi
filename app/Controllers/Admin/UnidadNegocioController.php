@@ -48,20 +48,22 @@ class UnidadNegocioController extends Controller
     }
 
     /**
-     * Muestra el formulario para crear un nuevo unidad de negocio
+     * Muestra el formulario para crear una nueva unidad de negocio
      */
     public function createCentro()
     {
+        // Lista de centros de costo (los grupos) para el selector de agrupación.
+        // La clave 'unidadesNegocio' se conserva porque así la consume la vista.
         $unidadesNegocio = CentroCosto::activas();
 
         View::render('admin/centros/create', [
-            'title' => 'Nuevo Unidad de Negocio',
+            'title' => 'Nueva Unidad de Negocio',
             'unidadesNegocio' => $unidadesNegocio
         ]);
     }
 
     /**
-     * Crea un unidad de negocio
+     * Crea una unidad de negocio
      */
     public function storeCentro()
     {
@@ -83,7 +85,7 @@ class UnidadNegocioController extends Controller
 
         if ($id) {
             Redirect::to('/admin/centros')
-                ->withSuccess('Centro de costo creado exitosamente')
+                ->withSuccess('Unidad de negocio creada exitosamente')
                 ->send();
         } else {
             Redirect::back()
@@ -94,7 +96,7 @@ class UnidadNegocioController extends Controller
     }
 
     /**
-     * Muestra los detalles de un unidad de negocio
+     * Muestra los detalles de una unidad de negocio
      */
     public function showCentro($id)
     {
@@ -102,19 +104,19 @@ class UnidadNegocioController extends Controller
 
         if (!$centro) {
             Redirect::to('/admin/centros')
-                ->withError('Centro de costo no encontrado')
+                ->withError('Unidad de negocio no encontrada')
                 ->send();
             return;
         }
 
         View::render('admin/centros/show', [
             'centro' => $centro,
-            'title' => 'Detalles del Unidad de Negocio'
+            'title' => 'Detalles de la Unidad de Negocio'
         ]);
     }
 
     /**
-     * Muestra el formulario para editar un unidad de negocio
+     * Muestra el formulario para editar una unidad de negocio
      */
     public function editCentro($id)
     {
@@ -122,11 +124,13 @@ class UnidadNegocioController extends Controller
 
         if (!$centro) {
             Redirect::to('/admin/centros')
-                ->withError('Centro de costo no encontrado')
+                ->withError('Unidad de negocio no encontrada')
                 ->send();
             return;
         }
 
+        // Lista de centros de costo (los grupos) para el selector de agrupación.
+        // La clave 'unidadesNegocio' se conserva porque así la consume la vista.
         $unidadesNegocio = CentroCosto::activas();
 
         View::render('admin/centros/edit', [
@@ -137,7 +141,7 @@ class UnidadNegocioController extends Controller
     }
 
     /**
-     * Actualiza un unidad de negocio
+     * Actualiza una unidad de negocio
      */
     public function updateCentro($id)
     {
@@ -163,7 +167,7 @@ class UnidadNegocioController extends Controller
 
         if ($resultado) {
             Redirect::back()
-                ->withSuccess('Centro de costo actualizado')
+                ->withSuccess('Unidad de negocio actualizada')
                 ->send();
         } else {
             Redirect::back()
@@ -173,7 +177,7 @@ class UnidadNegocioController extends Controller
     }
 
     /**
-     * Elimina un unidad de negocio
+     * Elimina una unidad de negocio
      */
     public function deleteCentro($id)
     {
@@ -188,12 +192,12 @@ class UnidadNegocioController extends Controller
 
         if (!$centro) {
             Redirect::to('/admin/centros')
-                ->withError('Centro de costo no encontrado')
+                ->withError('Unidad de negocio no encontrada')
                 ->send();
             return;
         }
 
-        // Verificar si el centro está siendo usado en requisiciones
+        // Verificar si la unidad de negocio está siendo usada en requisiciones
         $pdo = Model::getConnection();
         $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM distribucion_gasto WHERE unidad_negocio_id = ?");
         $stmt->execute([$id]);
@@ -201,7 +205,7 @@ class UnidadNegocioController extends Controller
 
         if ($uso['total'] > 0) {
             Redirect::to('/admin/centros')
-                ->withError('No se puede eliminar: el unidad de negocio está siendo utilizado en ' . $uso['total'] . ' registros')
+                ->withError('No se puede eliminar: la unidad de negocio está siendo utilizada en ' . $uso['total'] . ' registros')
                 ->send();
             return;
         }
@@ -210,11 +214,11 @@ class UnidadNegocioController extends Controller
 
         if ($resultado) {
             Redirect::to('/admin/centros')
-                ->withSuccess('Centro de costo eliminado correctamente')
+                ->withSuccess('Unidad de negocio eliminada correctamente')
                 ->send();
         } else {
             Redirect::to('/admin/centros')
-                ->withError('Error al eliminar el unidad de negocio')
+                ->withError('Error al eliminar la unidad de negocio')
                 ->send();
         }
     }
@@ -228,14 +232,14 @@ class UnidadNegocioController extends Controller
 
         $centro = UnidadNegocio::find($id);
         if (!$centro) {
-            Redirect::to('/admin/centros')->withError('Centro de costo no encontrado')->send();
+            Redirect::to('/admin/centros')->withError('Unidad de negocio no encontrada')->send();
             return;
         }
 
         $nuevoEstado = $centro->activo ? 0 : 1;
         UnidadNegocio::updateById($id, ['activo' => $nuevoEstado]);
 
-        $mensaje = $nuevoEstado ? 'Centro de costo activado' : 'Centro de costo desactivado';
+        $mensaje = $nuevoEstado ? 'Unidad de negocio activada' : 'Unidad de negocio desactivada';
         Redirect::to('/admin/centros')->withSuccess($mensaje)->send();
     }
 }

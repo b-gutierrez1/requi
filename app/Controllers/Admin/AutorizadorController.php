@@ -65,7 +65,7 @@ class AutorizadorController extends Controller
         $stmtAut->execute();
         $autorizadoresRows = $stmtAut->fetchAll(\PDO::FETCH_ASSOC);
 
-        // 3) Cargar los centros de esos autorizadores en una sola consulta
+        // 3) Cargar las unidades de negocio de esos autorizadores en una sola consulta
         $centrosPorAutorizador = [];
         if (!empty($autorizadoresRows)) {
             $ids = array_column($autorizadoresRows, 'id');
@@ -254,7 +254,7 @@ class AutorizadorController extends Controller
 
         if (empty($centroIds)) {
             Redirect::back()
-                ->withError('Debe seleccionar al menos un unidad de negocio')
+                ->withError('Debe seleccionar al menos una unidad de negocio')
                 ->withInput($_POST)
                 ->send();
         }
@@ -295,7 +295,7 @@ class AutorizadorController extends Controller
             $pdo->commit();
 
             Redirect::to('/admin/autorizadores')
-                ->withSuccess("Autorizador creado exitosamente con {$creados} centro(s) de costo")
+                ->withSuccess("Autorizador creado exitosamente con {$creados} unidad(es) de negocio")
                 ->send();
         } catch (\Exception $e) {
             $pdo->rollBack();
@@ -412,7 +412,7 @@ class AutorizadorController extends Controller
         $centrosAsignados = PersonaAutorizada::centrosCostoPorEmail($autorizador->email);
         $idsAsignados     = array_column($centrosAsignados, 'centro_id');
 
-        // Cargar el orden actual de cada centro asignado desde la tabla base
+        // Cargar el orden actual de cada unidad de negocio asignada desde la tabla base
         $ordenesPorCentro = [];
         if (!empty($autorizador->email)) {
             $pdo  = PersonaAutorizada::getConnection();
@@ -514,7 +514,7 @@ class AutorizadorController extends Controller
         }
 
         Redirect::to('/admin/autorizadores/' . $id . '/centros')
-            ->withSuccess('Centros de costo actualizados exitosamente')
+            ->withSuccess('Unidades de negocio actualizadas exitosamente')
             ->send();
     }
 
@@ -623,7 +623,7 @@ class AutorizadorController extends Controller
     }
 
     /**
-     * API: retorna unidades de negocio asignados a un autorizador por email
+     * API: retorna las unidades de negocio asignadas a un autorizador por email
      *
      * GET /admin/api/autorizadores/centros-costo?email=...
      */

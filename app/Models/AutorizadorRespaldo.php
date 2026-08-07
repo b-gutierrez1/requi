@@ -56,7 +56,7 @@ class AutorizadorRespaldo extends Model
     }
 
     /**
-     * Obtiene los unidades de negocio de este respaldo
+     * Obtiene las unidades de negocio de este respaldo
      *
      * @return array
      */
@@ -116,7 +116,7 @@ class AutorizadorRespaldo extends Model
     }
 
     /**
-     * Obtiene el respaldo activo actual de un unidad de negocio
+     * Obtiene el respaldo activo actual de una unidad de negocio
      * CRÍTICO: Este método es usado por AutorizacionCentroRepository
      *
      * @param int $unidadNegocioId
@@ -429,7 +429,7 @@ class AutorizadorRespaldo extends Model
 
         if (!empty($solapados)) {
             throw new \RuntimeException(
-                'Ya existe un respaldo activo o programado con fechas solapadas para los unidades de negocio: '
+                'Ya existe un respaldo activo o programado con fechas solapadas para las unidades de negocio: '
                 . implode(', ', $solapados)
             );
         }
@@ -498,7 +498,7 @@ class AutorizadorRespaldo extends Model
 
         if (!empty($solapados)) {
             throw new \RuntimeException(
-                'Ya existe un respaldo activo o programado con fechas solapadas para los unidades de negocio: '
+                'Ya existe un respaldo activo o programado con fechas solapadas para las unidades de negocio: '
                 . implode(', ', $solapados)
             );
         }

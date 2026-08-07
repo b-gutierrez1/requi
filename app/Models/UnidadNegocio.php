@@ -2,8 +2,8 @@
 /**
  * Modelo UnidadNegocio
  * 
- * Representa los unidades de negocio de la organización.
- * Cada unidad de negocio tiene autorizadores asignados y está vinculado a una Centro de Costo.
+ * Representa las unidades de negocio de la organización.
+ * Cada unidad de negocio tiene autorizadores asignados y está vinculada a un Centro de Costo.
  * 
  * @package RequisicionesMVC\Models
  * @version 2.1
@@ -28,7 +28,7 @@ class UnidadNegocio extends Model
     protected static $guarded = ['id'];
 
     /**
-     * Obtiene la centro de costo asociada a este unidad de negocio
+     * Obtiene el centro de costo asociado a esta unidad de negocio
      * 
      * @return array|null
      */
@@ -42,7 +42,7 @@ class UnidadNegocio extends Model
     }
 
     /**
-     * Obtiene el ID de la centro de costo
+     * Obtiene el ID del centro de costo
      * 
      * @return int|null
      */
@@ -52,7 +52,7 @@ class UnidadNegocio extends Model
     }
 
     /**
-     * Obtiene las personas autorizadas de este unidad de negocio
+     * Obtiene las personas autorizadas de esta unidad de negocio
      * 
      * @return array
      */
@@ -80,11 +80,11 @@ class UnidadNegocio extends Model
                 LIMIT 1";
         
         $stmt = self::getConnection()->prepare($sql);
-        $centroId = $this->attributes['id'] ?? $this->id ?? null;
-        if (!$centroId) {
+        $unidadId = $this->attributes['id'] ?? $this->id ?? null;
+        if (!$unidadId) {
             return null;
         }
-        $stmt->execute([$centroId]);
+        $stmt->execute([$unidadId]);
         
         return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
     }
@@ -96,12 +96,12 @@ class UnidadNegocio extends Model
      */
     public function getAutorizadorRespaldoActivo()
     {
-        $centroId = $this->attributes['id'] ?? $this->id ?? null;
-        if (!$centroId) {
+        $unidadId = $this->attributes['id'] ?? $this->id ?? null;
+        if (!$unidadId) {
             return null;
         }
 
-        return AutorizadorRespaldo::activoPorCentro($centroId);
+        return AutorizadorRespaldo::activoPorCentro($unidadId);
     }
 
     /**
@@ -141,7 +141,7 @@ class UnidadNegocio extends Model
     }
 
     /**
-     * Obtiene todos los unidades de negocio activos con su centro de costo y factura
+     * Obtiene todas las unidades de negocio activas con su centro de costo y factura
      * 
      * @return array
      */
@@ -186,7 +186,7 @@ class UnidadNegocio extends Model
     }
 
     /**
-     * Obtiene el total gastado en este unidad de negocio
+     * Obtiene el total gastado en esta unidad de negocio
      * 
      * @param string $fechaInicio
      * @param string $fechaFin
@@ -215,7 +215,7 @@ class UnidadNegocio extends Model
     }
 
     /**
-     * Obtiene centros que requieren asignación manual de autorizador en revisión
+     * Obtiene las unidades de negocio que requieren asignación manual de autorizador en revisión
      */
     public static function conAsignacionManual(): array
     {
@@ -249,7 +249,7 @@ class UnidadNegocio extends Model
     }
 
     /**
-     * Activa o desactiva el unidad de negocio
+     * Activa o desactiva la unidad de negocio
      * 
      * @param bool $activo
      * @return bool

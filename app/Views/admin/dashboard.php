@@ -321,7 +321,7 @@ View::startSection('content');
                 <i class="fas fa-project-diagram"></i>
             </div>
             <h5>Relaciones</h5>
-            <p class="text-muted">Ver mapeo Centro Costo → Unidad Negocio → Factura</p>
+            <p class="text-muted">Ver mapeo Unidad de Negocio → Centro de Costo → Factura</p>
             <a href="<?= url('/admin/relaciones') ?>" class="btn action-btn" style="background: linear-gradient(45deg, #17a2b8, #20c997); color: white;">
                 <i class="fas fa-project-diagram me-2"></i>Ver Mapeo
             </a>

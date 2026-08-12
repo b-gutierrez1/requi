@@ -377,6 +377,13 @@ $title = 'Detalles del Autorizador';
                 <div class="detail-row">
                     <div class="detail-label">Límite de Autorización</div>
                     <div class="detail-value">
+                        <?php
+                        // El limite de autorizacion NO es el monto de una requisicion: es un tope
+                        // configurado del autorizador y no tiene columna de moneda (ni en
+                        // `autorizadores` ni en `autorizadores_metodos_pago`/`_cuentas_contables`).
+                        // Por definicion del negocio los topes se fijan en quetzales, asi que
+                        // este "Q" si es fijo y no debe usar View::money().
+                        ?>
                         <?php if (isset($autorizador['monto_limite']) && $autorizador['monto_limite'] > 0): ?>
                             <i class="fas fa-money-bill-wave text-success me-2"></i>
                             <strong>Q <?= number_format($autorizador['monto_limite'], 2) ?></strong>

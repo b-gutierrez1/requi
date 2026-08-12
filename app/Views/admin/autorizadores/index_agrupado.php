@@ -390,6 +390,12 @@ $title = 'Gestión de Autorizadores';
                                     <span class="centros-count"><?= count($grupo['centros']) ?></span>
                                 </div>
                                 <div class="mt-1">
+                                    <?php
+                                    // Tope configurado del autorizador, no el monto de una requisicion.
+                                    // No existe columna de moneda para los limites en la BD; por
+                                    // definicion del negocio se fijan en quetzales, asi que este "Q"
+                                    // es fijo a proposito y no debe pasar por View::money().
+                                    ?>
                                     <?php if (!empty($grupo['monto_limite_max'])): ?>
                                         <small class="text-success">Límite: Q <?= number_format($grupo['monto_limite_max'], 2) ?></small>
                                     <?php else: ?>
@@ -411,7 +417,7 @@ $title = 'Gestión de Autorizadores';
                                     </a>
                                     <button class="btn btn-outline-info btn-action"
                                             title="Consolidar registros duplicados"
-                                            onclick="consolidarAutorizador('<?= View::e($email) ?>', '<?= View::e($autorizador->nombre) ?>')">
+                                            onclick="consolidarAutorizador('<?= View::e($autorizador->email ?? '') ?>', '<?= View::e($autorizador->nombre) ?>')">
                                         <i class="fas fa-compress-arrows-alt"></i>
                                     </button>
                                     <form method="POST" action="<?= url('/admin/autorizadores/' . View::e($autorizador->id ?? '')) ?>"

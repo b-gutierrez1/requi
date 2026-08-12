@@ -1,8 +1,8 @@
 <?php
 use App\Helpers\View;
 
+// Moneda real de la requisicion; el simbolo lo resuelve View::money().
 $moneda     = $orden->moneda ?? 'GTQ';
-$simbolo    = $moneda === 'USD' ? '$' : ($moneda === 'EUR' ? '€' : 'Q');
 $distribucion = $distribucion ?? [];
 $directorUnidad = $director_unidad ?? '';
 $autorizacionesAprobadas = $autorizaciones_aprobadas ?? [];
@@ -388,13 +388,13 @@ $border = '#c0c0c0';
             <tr>
                 <td class="tc"><?= $it ? number_format((float)$it['cantidad'], 0) : '' ?></td>
                 <td><?= $it ? View::e($it['descripcion']) : '' ?></td>
-                <td class="tr"><?= $it ? $simbolo . ' ' . number_format((float)$it['precio_unitario'], 2) : '' ?></td>
-                <td class="tr"><?= $it ? $simbolo . ' ' . number_format((float)$it['total'], 2) : '' ?></td>
+                <td class="tr"><?= $it ? View::money((float)$it['precio_unitario'], $moneda) : '' ?></td>
+                <td class="tr"><?= $it ? View::money((float)$it['total'], $moneda) : '' ?></td>
             </tr>
             <?php endfor; ?>
             <tr class="tr-total">
                 <td colspan="3" style="text-align:right; padding-right:6px;">TOTAL</td>
-                <td class="tr"><?= number_format($totalItems, 2) ?></td>
+                <td class="tr"><?= View::money($totalItems, $moneda) ?></td>
             </tr>
         </tbody>
     </table>
@@ -464,13 +464,13 @@ $border = '#c0c0c0';
                         <tr>
                             <td><?= $fk ?></td>
                             <td><?= $facturas[$fk]['pct'] > 0 ? number_format($facturas[$fk]['pct'], 0) : '0' ?></td>
-                            <td><?= $facturas[$fk]['monto'] > 0 ? $simbolo . ' ' . number_format($facturas[$fk]['monto'], 2) : '-' ?></td>
+                            <td><?= $facturas[$fk]['monto'] > 0 ? View::money($facturas[$fk]['monto'], $moneda) : '-' ?></td>
                         </tr>
                         <?php endforeach; ?>
                         <tr class="tr-total">
                             <td>Total</td>
                             <td><?= number_format($totalDistPct, 2) ?>%</td>
-                            <td><?= $totalDistMonto > 0 ? $simbolo . ' ' . number_format($totalDistMonto, 2) : '-' ?></td>
+                            <td><?= $totalDistMonto > 0 ? View::money($totalDistMonto, $moneda) : '-' ?></td>
                         </tr>
                     </tbody>
                 </table>

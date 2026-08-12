@@ -127,7 +127,7 @@ View::startSection('content');
                                 <i class="fas fa-building me-1"></i> <?php echo View::e($req['nombre_razon_social']); ?>
                             </p>
                             <p class="mb-0 fw-semibold" style="color: #374151;">
-                                <i class="fas fa-coins me-1"></i> Q<?php echo number_format($req['monto_total'], 2); ?>
+                                <i class="fas fa-coins me-1"></i> <?php echo View::money($req['monto_total'], $req['moneda'] ?? 'GTQ'); ?>
                             </p>
                         </div>
                         <div class="col-md-4 text-end">
@@ -234,7 +234,7 @@ View::startSection('content');
                             <?php endif; ?>
                             
                             <p class="mb-0 fw-semibold" style="color: #374151;">
-                                <i class="fas fa-coins me-1"></i> Q<?php echo number_format($auth['monto_total'], 2); ?>
+                                <i class="fas fa-coins me-1"></i> <?php echo View::money($auth['monto_total'], $auth['moneda'] ?? 'GTQ'); ?>
                             </p>
                         </div>
                         <div class="col-md-4 text-end">

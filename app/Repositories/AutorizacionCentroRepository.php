@@ -62,6 +62,7 @@ class AutorizacionCentroRepository
                 r.numero_requisicion,
                 r.proveedor_nombre as nombre_razon_social,
                 r.monto_total,
+                r.moneda,
                 r.fecha_solicitud as fecha,
                 r.fecha_solicitud as fecha_orden,
                 CASE
@@ -146,6 +147,7 @@ class AutorizacionCentroRepository
                 r.numero_requisicion,
                 r.proveedor_nombre as nombre_razon_social,
                 r.monto_total,
+                r.moneda,
                 CASE
                     WHEN JSON_EXTRACT(a.metadata, '$.porcentaje') IS NOT NULL
                         THEN CAST(JSON_UNQUOTE(JSON_EXTRACT(a.metadata, '$.porcentaje')) AS DECIMAL(10,4))

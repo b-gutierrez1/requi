@@ -1,6 +1,7 @@
 <?php
 // Vista parcial para mostrar el detalle completo de una requisición en el modal
 use App\Helpers\EstadoHelper;
+use App\Helpers\View;
 
 // Helper para obtener valor de objeto o array
 if (!function_exists('getData')) {
@@ -16,6 +17,10 @@ if (!function_exists('getData')) {
 
 $estadoReal = getData($orden, 'id') ? EstadoHelper::getEstado(getData($orden, 'id')) : 'borrador';
 $badge = EstadoHelper::getBadge($estadoReal);
+
+// Moneda real de la requisicion (GTQ, USD, EUR). Todos los montos de esta vista
+// pertenecen a una sola requisicion, asi que comparten esta moneda.
+$moneda = getData($orden, 'moneda') ?: 'GTQ';
 ?>
 
 <style>
@@ -97,7 +102,7 @@ $badge = EstadoHelper::getBadge($estadoReal);
                 </div>
                 <div class="info-row">
                     <div class="info-label">Moneda</div>
-                    <div class="info-value"><?= getData($orden, 'moneda') ?: 'GTQ' ?></div>
+                    <div class="info-value"><?= htmlspecialchars($moneda) ?></div>
                 </div>
             </div>
             <div class="col-md-6">
@@ -107,11 +112,11 @@ $badge = EstadoHelper::getBadge($estadoReal);
                 </div>
                 <div class="info-row">
                     <div class="info-label">Anticipo</div>
-                    <div class="info-value">Q <?= number_format(floatval(getData($orden, 'anticipo', 0)), 2) ?></div>
+                    <div class="info-value"><?= View::money(floatval(getData($orden, 'anticipo', 0)), $moneda) ?></div>
                 </div>
                 <div class="info-row">
                     <div class="info-label">Monto Total</div>
-                    <div class="info-value"><strong>Q <?= number_format(floatval(getData($orden, 'monto_total', 0)), 2) ?></strong></div>
+                    <div class="info-value"><strong><?= View::money(floatval(getData($orden, 'monto_total', 0)), $moneda) ?></strong></div>
                 </div>
             </div>
         </div>
@@ -161,15 +166,15 @@ $badge = EstadoHelper::getBadge($estadoReal);
                     <tr>
                         <td><?= htmlspecialchars(getData($item, 'descripcion')) ?></td>
                         <td class="text-center"><?= number_format($cantidad, 0) ?></td>
-                        <td class="text-end">Q <?= number_format($precio, 2) ?></td>
-                        <td class="text-end">Q <?= number_format($total, 2) ?></td>
+                        <td class="text-end"><?= View::money($precio, $moneda) ?></td>
+                        <td class="text-end"><?= View::money($total, $moneda) ?></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
                     <tr class="table-active">
                         <th colspan="3" class="text-end">Total General:</th>
-                        <th class="text-end">Q <?= number_format($totalGeneral, 2) ?></th>
+                        <th class="text-end"><?= View::money($totalGeneral, $moneda) ?></th>
                     </tr>
                 </tfoot>
             </table>
@@ -229,14 +234,14 @@ $badge = EstadoHelper::getBadge($estadoReal);
                         <td><?= htmlspecialchars($unidadNegocioNombre) ?></td>
                         <td><?= htmlspecialchars($cuentaContableNombre) ?></td>
                         <td class="text-center"><?= number_format($porcentaje, 1) ?>%</td>
-                        <td class="text-end">Q <?= number_format($cantidad, 2) ?></td>
+                        <td class="text-end"><?= View::money($cantidad, $moneda) ?></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
                     <tr class="table-active">
                         <th colspan="3" class="text-end">Total Distribuido:</th>
-                        <th class="text-end">Q <?= number_format($totalDistribucion, 2) ?></th>
+                        <th class="text-end"><?= View::money($totalDistribucion, $moneda) ?></th>
                     </tr>
                 </tfoot>
             </table>
@@ -314,27 +319,27 @@ $badge = EstadoHelper::getBadge($estadoReal);
                         </td>
                         <td><strong>Factura 1</strong></td>
                         <td class="text-end"><?= number_format($facturas[1]['porcentaje'], 2) ?>%</td>
-                        <td class="text-end"><strong>Q <?= number_format($facturas[1]['monto'], 2) ?></strong></td>
+                        <td class="text-end"><strong><?= View::money($facturas[1]['monto'], $moneda) ?></strong></td>
                     </tr>
                     <tr>
                         <td><strong>Factura 2</strong></td>
                         <td class="text-end"><?= number_format($facturas[2]['porcentaje'], 2) ?>%</td>
-                        <td class="text-end"><strong>Q <?= number_format($facturas[2]['monto'], 2) ?></strong></td>
+                        <td class="text-end"><strong><?= View::money($facturas[2]['monto'], $moneda) ?></strong></td>
                     </tr>
                     <tr>
                         <td><strong>Factura 3</strong></td>
                         <td class="text-end"><?= number_format($facturas[3]['porcentaje'], 2) ?>%</td>
-                        <td class="text-end"><strong>Q <?= number_format($facturas[3]['monto'], 2) ?></strong></td>
+                        <td class="text-end"><strong><?= View::money($facturas[3]['monto'], $moneda) ?></strong></td>
                     </tr>
                     <tr>
                         <td><strong>Factura 4</strong></td>
                         <td class="text-end"><?= number_format($facturas[4]['porcentaje'], 2) ?>%</td>
-                        <td class="text-end"><strong>Q <?= number_format($facturas[4]['monto'], 2) ?></strong></td>
+                        <td class="text-end"><strong><?= View::money($facturas[4]['monto'], $moneda) ?></strong></td>
                     </tr>
                     <tr class="table-active">
                         <td><strong>TOTAL</strong></td>
                         <td class="text-end"><strong><?= number_format($facturas[1]['porcentaje'] + $facturas[2]['porcentaje'] + $facturas[3]['porcentaje'] + $facturas[4]['porcentaje'], 2) ?>%</strong></td>
-                        <td class="text-end"><strong>Q <?= number_format($facturas[1]['monto'] + $facturas[2]['monto'] + $facturas[3]['monto'] + $facturas[4]['monto'], 2) ?></strong></td>
+                        <td class="text-end"><strong><?= View::money($facturas[1]['monto'] + $facturas[2]['monto'] + $facturas[3]['monto'] + $facturas[4]['monto'], $moneda) ?></strong></td>
                     </tr>
                 </tbody>
             </table>

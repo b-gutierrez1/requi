@@ -1208,7 +1208,7 @@ function createCompleteRequisitionDetail() {
                         <div class="modal-amount">
                             <small class="amount-label-sm">Monto Total</small>
                             <div class="amount-value-sm">
-                                <?php echo View::money(getValue($orden, 'monto_total')); ?>
+                                <?php echo View::money(getValue($orden, 'monto_total'), $moneda); ?>
                             </div>
                         </div>
                     </div>
@@ -1312,7 +1312,7 @@ function createCompleteRequisitionDetail() {
                                                 </td>
                                                 <td class="text-end">
                                                     <strong class="modal-grand-total">
-                                                        <?php echo View::money(getValue($orden, 'monto_total')); ?>
+                                                        <?php echo View::money(getValue($orden, 'monto_total'), $moneda); ?>
                                                     </strong>
                                                 </td>
                                             </tr>
@@ -1868,7 +1868,7 @@ function createEnhancedContent(data) {
             <div class="modal-content-enhanced">
                 ${createHeaderSection(req)}
                 ${createInfoGrid(req, parsedData)}
-                ${parsedData.items ? createItemsSection(parsedData.items) : ''}
+                ${parsedData.items ? createItemsSection(parsedData.items, req.moneda) : ''}
                 ${req.observaciones ? createObservationsSection(req.observaciones) : ''}
                 ${parsedData.autorizaciones ? createAuthSection(parsedData.autorizaciones) : ''}
                 ${createTimelineSection(parsedData)}
@@ -1907,7 +1907,7 @@ function createHeaderSection(req) {
                 </div>
                 <div class="meta-item">
                     <i class="fas fa-dollar-sign"></i>
-                    <span class="amount">${formatCurrency(req.monto_total)}</span>
+                    <span class="amount">${formatCurrency(req.monto_total, req.moneda)}</span>
                 </div>
             </div>
         </div>
@@ -1961,7 +1961,7 @@ function createInfoCard(title, items) {
 }
 
 // Create items section
-function createItemsSection(items) {
+function createItemsSection(items, moneda) {
     if (!items || items.length === 0) return '';
     
     return `
@@ -1989,8 +1989,8 @@ function createItemsSection(items) {
                                 <td>${index + 1}</td>
                                 <td>${item.descripcion}</td>
                                 <td>${formatNumber(item.cantidad)}</td>
-                                <td>${formatCurrency(item.precio_unitario)}</td>
-                                <td class="amount">${formatCurrency(item.cantidad * item.precio_unitario)}</td>
+                                <td>${formatCurrency(item.precio_unitario, moneda)}</td>
+                                <td class="amount">${formatCurrency(item.cantidad * item.precio_unitario, moneda)}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -2126,12 +2126,16 @@ function formatDate(date) {
     });
 }
 
-function formatCurrency(amount) {
-    if (!amount) return '$0.00';
-    return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: 'COP'
-    }).format(amount);
+// Formatea un monto usando la moneda real de la requisicion (GTQ, USD, EUR).
+// Espejo en JS de App\Helpers\View::money().
+function formatCurrency(amount, moneda) {
+    const simbolos = { 'GTQ': 'Q', 'USD': '$', 'EUR': '€' };
+    const simbolo = simbolos[moneda] || simbolos['GTQ'];
+    const valor = Number(amount) || 0;
+    return simbolo + ' ' + valor.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
 }
 
 function formatNumber(num) {

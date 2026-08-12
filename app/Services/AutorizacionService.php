@@ -1274,6 +1274,7 @@ class AutorizacionService
                     r.numero_requisicion,
                     r.proveedor_nombre as nombre_razon_social,
                     r.monto_total,
+                    r.moneda,
                     r.fecha_solicitud as fecha
                 FROM autorizaciones a
                 INNER JOIN requisiciones r ON a.requisicion_id = r.id
@@ -1313,6 +1314,7 @@ class AutorizacionService
                     r.numero_requisicion,
                     r.proveedor_nombre as nombre_razon_social,
                     r.monto_total,
+                    r.moneda,
                     r.fecha_solicitud as fecha,
                     cc.descripcion as cuenta_nombre
                 FROM autorizaciones a
@@ -1628,6 +1630,7 @@ class AutorizacionService
                     r.numero_requisicion,
                     r.proveedor_nombre as nombre_razon_social,
                     r.monto_total,
+                    r.moneda,
                     COALESCE(af.estado, r.estado, 'pendiente') as estado_actual,
                     CASE 
                         WHEN a.estado = 'aprobada' AND a.tipo = 'unidad_negocio' THEN 'centro_autorizado'
@@ -1737,6 +1740,7 @@ class AutorizacionService
                     COALESCE(a.fecha_respuesta, a.fecha_asignacion) as fecha_autorizacion,
                     r.proveedor_nombre as nombre_razon_social,
                     r.monto_total,
+                    r.moneda,
                     COALESCE(af.estado, 'pendiente') as estado_actual,
                     CASE
                         WHEN a.estado = 'aprobada' AND a.tipo = 'unidad_negocio' THEN 'centro_autorizado'
@@ -1844,20 +1848,27 @@ class AutorizacionService
      */
     public function esAutorizadorGeneral($email)
     {
+        // Verificar si es autorizador de unidad de negocio. La vista
+        // persona_autorizada expone las asignaciones vigentes de
+        // autorizador_unidad_negocio (ya filtra activo = 1). Try/catch propio
+        // para que un fallo aqui no anule las demas verificaciones.
         try {
-            // Verificar si es autorizador de unidad de negocio
             $pdo = Model::getConnection();
             $stmt = $pdo->prepare("
-                SELECT COUNT(*) 
-                FROM autorizacion_unidad_negocio 
-                WHERE autorizador_email = ?
+                SELECT COUNT(*)
+                FROM persona_autorizada
+                WHERE email = ?
             ");
             $stmt->execute([$email]);
-            
+
             if ($stmt->fetchColumn() > 0) {
                 return true;
             }
-            
+        } catch (\Exception $e) {
+            error_log("Error verificando autorizador de unidad de negocio: " . $e->getMessage());
+        }
+
+        try {
             // Verificar si es autorizador de forma de pago
             if ($this->esAutorizadorPago($email)) {
                 return true;

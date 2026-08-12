@@ -106,6 +106,13 @@ View::startSection('content');
                     
                     <hr>
                     
+                    <?php
+                    // OJO: estos dos totales vienen de Requisicion::getEstadisticasUsuario(),
+                    // que hace SUM(monto_total) sobre TODAS las requisiciones del usuario sin
+                    // agrupar por moneda. Si el usuario tiene requisiciones en USD/EUR, el total
+                    // mezcla monedas y ningun simbolo seria correcto. Se deja el "Q" historico
+                    // hasta que el modelo devuelva el total desglosado por moneda.
+                    ?>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="text-center">

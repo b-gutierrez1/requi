@@ -199,7 +199,7 @@ View::startSection('content');
                                             </div>
                                         </td>
                                         <td class="text-end">
-                                            <strong><?= View::money($reg['monto_total'], 'GTQ') ?></strong>
+                                            <strong><?= View::money($reg['monto_total'], $reg['moneda'] ?? 'GTQ') ?></strong>
                                         </td>
                                         <td class="text-center">
                                             <span class="badge <?= $badgeEstado ?>"><?= $estadoTexto ?></span>

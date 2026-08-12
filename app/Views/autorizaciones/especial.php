@@ -202,7 +202,7 @@ View::startSection('content');
                         </p>
                         <p class="mb-0">
                             <strong>Monto Total:</strong><br>
-                            <span class="h5 text-success"><?php echo View::money(getValue($orden, 'monto_total', 0)); ?></span>
+                            <span class="h5 text-success"><?php echo View::money(getValue($orden, 'monto_total', 0), $moneda); ?></span>
                         </p>
                     <?php else: ?>
                         <?php 
@@ -218,7 +218,7 @@ View::startSection('content');
                         </p>
                         <p class="mb-0">
                             <strong>Monto Total:</strong><br>
-                            <span class="h5 text-info"><?php echo View::money(getValue($orden, 'monto_total', 0)); ?></span>
+                            <span class="h5 text-info"><?php echo View::money(getValue($orden, 'monto_total', 0), $moneda); ?></span>
                         </p>
                     <?php endif; ?>
                 </div>

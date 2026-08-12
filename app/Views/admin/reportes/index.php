@@ -10,7 +10,7 @@ View::startSection('content');
             <h1 class="h3 mb-0">
                 <i class="fas fa-chart-bar me-2"></i>Reportes
             </h1>
-            <p class="text-muted mb-0">Descarga reportes en CSV según el período seleccionado</p>
+            <p class="text-muted mb-0">Consulta o descarga reportes en CSV según el período seleccionado</p>
         </div>
     </div>
 
@@ -96,9 +96,15 @@ View::startSection('content');
                     </ul>
                 </div>
                 <div class="card-footer bg-transparent">
-                    <button class="btn btn-info w-100" onclick="descargar('gasto-unidad-requirente')">
-                        <i class="fas fa-download me-2"></i>Descargar CSV
-                    </button>
+                    <div class="d-grid gap-2">
+                        <a href="<?= url('/admin/reportes/gasto-unidad-requirente/ver') ?>"
+                           class="btn btn-info" id="btnVerGastoUnidadRequirente">
+                            <i class="fas fa-eye me-2"></i>Ver en pantalla
+                        </a>
+                        <button class="btn btn-outline-info" onclick="descargar('gasto-unidad-requirente')">
+                            <i class="fas fa-download me-2"></i>Descargar CSV
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -158,6 +164,24 @@ window.REPORT_URLS = {
     'tasa-rechazo':            '<?= url('/admin/reportes/tasa-rechazo') ?>',
     'forma-pago':              '<?= url('/admin/reportes/forma-pago') ?>',
 };
+
+// El boton "Ver en pantalla" arrastra el rango de fechas elegido arriba.
+(function () {
+    var base = '<?= url('/admin/reportes/gasto-unidad-requirente/ver') ?>';
+    var btn  = document.getElementById('btnVerGastoUnidadRequirente');
+    if (!btn) { return; }
+
+    btn.addEventListener('click', function (e) {
+        var ini = document.getElementById('fecha_inicio');
+        var fin = document.getElementById('fecha_fin');
+        if (!ini || !fin || !ini.value || !fin.value) { return; }
+
+        e.preventDefault();
+        window.location.href = base
+            + '?fecha_inicio=' + encodeURIComponent(ini.value)
+            + '&fecha_fin='    + encodeURIComponent(fin.value);
+    });
+})();
 </script>
 <script src="<?php echo \App\Helpers\View::asset('js/admin/reportes-index.js'); ?>"></script>
 

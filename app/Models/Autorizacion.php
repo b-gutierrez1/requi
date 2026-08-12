@@ -346,7 +346,7 @@ class Autorizacion extends Model
         $stmt = $pdo->prepare("
             SELECT pa.email, pa.nombre 
             FROM {$table} pa 
-            WHERE pa.unidad_negocio_id = ? AND pa.activo = 1
+            WHERE pa.unidad_negocio_id = ?
             LIMIT 1
         ");
         $stmt->execute([$unidadNegocioId]);

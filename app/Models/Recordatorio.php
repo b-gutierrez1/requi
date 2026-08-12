@@ -108,7 +108,7 @@ class Recordatorio extends Model
 
             if ($flujo['estado'] === 'pendiente_revision') {
                 // Obtener revisores
-                $sql = "SELECT azure_email FROM usuarios WHERE es_revisor = 1";
+                $sql = "SELECT azure_email FROM usuarios WHERE is_revisor = 1";
                 $stmt = self::getConnection()->prepare($sql);
                 $stmt->execute();
                 $autorizadores = $stmt->fetchAll(\PDO::FETCH_COLUMN);

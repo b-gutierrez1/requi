@@ -292,6 +292,8 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
         
         // -------- REPORTES --------
         $router->get('/reportes', [ReporteController::class, 'reportes']);
+        // Vista en pantalla del reporte por unidad requirente (GET, solo lectura)
+        $router->get('/reportes/gasto-unidad-requirente/ver', [ReporteController::class, 'verGastoUnidadRequirente']);
 
         $router->group(['middlewares' => ['CsrfMiddleware']], function($router) {
             $router->post('/reportes/estado-requisiciones', [ReporteController::class, 'reporteEstadoRequisiciones']);

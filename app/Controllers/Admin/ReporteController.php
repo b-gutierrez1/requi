@@ -139,26 +139,28 @@ class ReporteController extends Controller
             return;
         }
         try {
-            $fechaInicio = $_POST['fecha_inicio'] ?? date('Y-m-01');
-            $fechaFin    = $_POST['fecha_fin']    ?? date('Y-m-t');
+            [$fechaInicio, $fechaFin] = $this->normalizarRangoFechas(
+                $_POST['fecha_inicio'] ?? null,
+                $_POST['fecha_fin'] ?? null
+            );
 
-            $sql = "SELECT r.unidad_requirente AS unidad,
-                           COUNT(r.id) AS total_requisiciones,
-                           SUM(r.monto_total) AS monto_total
-                    FROM requisiciones r
-                    WHERE DATE(r.fecha_solicitud) BETWEEN ? AND ?
-                      AND r.unidad_requirente IS NOT NULL AND r.unidad_requirente != ''
-                    GROUP BY r.unidad_requirente
-                    ORDER BY monto_total DESC";
+            $filas = $this->consultarGastoUnidadRequirente($fechaInicio, $fechaFin);
 
-            $stmt = Requisicion::query($sql, [$fechaInicio, $fechaFin]);
-            $filas = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-            $columnas = ['Unidad Requirente', 'Total Requisiciones', 'Monto Total'];
+            // Las monedas NO se suman entre sí: cada fila lleva su moneda y el CSV
+            // sale ordenado por moneda para que Excel pueda subtotalizar por grupo.
+            $columnas = [
+                'Unidad Requirente', 'Moneda', 'Total Requisiciones', 'Monto Total',
+                'Aprobadas', 'Rechazadas', 'En Proceso', 'Sin Flujo',
+            ];
             $datos = array_map(fn($r) => [
                 $r['unidad'],
+                $r['moneda'],
                 $r['total_requisiciones'],
                 $r['monto_total'],
+                $r['aprobadas'],
+                $r['rechazadas'],
+                $r['en_proceso'],
+                $r['sin_flujo'],
             ], $filas);
 
             $this->exportarCSV(
@@ -171,6 +173,178 @@ class ReporteController extends Controller
             error_log("Error reporte gasto unidad requirente: " . $e->getMessage());
             $this->jsonResponse(['success' => false, 'message' => 'Error al generar el reporte'], 500);
         }
+    }
+
+    /**
+     * Vista en pantalla del reporte "Gasto por Unidad Requirente".
+     *
+     * Es de solo lectura (GET), por eso no pasa por CSRF: el filtro de fechas
+     * viaja en la query string igual que el resto de listados administrativos.
+     *
+     * @return void
+     */
+    public function verGastoUnidadRequirente()
+    {
+        [$fechaInicio, $fechaFin] = $this->normalizarRangoFechas(
+            $_GET['fecha_inicio'] ?? null,
+            $_GET['fecha_fin'] ?? null
+        );
+
+        $filas = [];
+        $error = null;
+
+        try {
+            $filas = $this->consultarGastoUnidadRequirente($fechaInicio, $fechaFin);
+        } catch (\Exception $e) {
+            error_log("Error vista gasto unidad requirente: " . $e->getMessage());
+            $error = 'No se pudo generar el reporte. Revisa el log del sistema.';
+        }
+
+        // Agrupamos en bloques por moneda. NUNCA se suman GTQ + USD + EUR en una
+        // sola cifra: cada moneda tiene su propia tabla y su propio total.
+        $porMoneda = [];
+        $totalRequisiciones = 0;
+
+        foreach ($filas as $fila) {
+            $moneda = $fila['moneda'] !== null && $fila['moneda'] !== ''
+                ? $fila['moneda']
+                : 'GTQ';
+
+            if (!isset($porMoneda[$moneda])) {
+                $porMoneda[$moneda] = [
+                    'filas'        => [],
+                    'monto_total'  => 0.0,
+                    'requisiciones'=> 0,
+                    'aprobadas'    => 0,
+                    'rechazadas'   => 0,
+                    'en_proceso'   => 0,
+                    'sin_flujo'    => 0,
+                ];
+            }
+
+            $porMoneda[$moneda]['filas'][]       = $fila;
+            $porMoneda[$moneda]['monto_total']  += (float)($fila['monto_total'] ?? 0);
+            $porMoneda[$moneda]['requisiciones']+= (int)($fila['total_requisiciones'] ?? 0);
+            $porMoneda[$moneda]['aprobadas']    += (int)($fila['aprobadas'] ?? 0);
+            $porMoneda[$moneda]['rechazadas']   += (int)($fila['rechazadas'] ?? 0);
+            $porMoneda[$moneda]['en_proceso']   += (int)($fila['en_proceso'] ?? 0);
+            $porMoneda[$moneda]['sin_flujo']    += (int)($fila['sin_flujo'] ?? 0);
+
+            $totalRequisiciones += (int)($fila['total_requisiciones'] ?? 0);
+        }
+
+        ksort($porMoneda);
+
+        View::render('admin/reportes/gasto_unidad_requirente', [
+            'title'               => 'Gasto por Unidad Requirente',
+            'fecha_inicio'        => $fechaInicio,
+            'fecha_fin'           => $fechaFin,
+            'por_moneda'          => $porMoneda,
+            'total_requisiciones' => $totalRequisiciones,
+            'error_reporte'       => $error,
+        ]);
+    }
+
+    /**
+     * Consulta base del reporte de gasto por unidad requirente.
+     *
+     * `requisiciones.unidad_requirente` es varchar(255) y en la práctica guarda
+     * el ID del catálogo como texto ('20', '24'...), aunque hay filas históricas
+     * que podrían traer el nombre. Por eso la etiqueta se resuelve en cascada:
+     *   1. si el valor es numérico, se busca por `unidad_requirente.id`
+     *   2. si no, se intenta empatar contra `unidad_requirente.nombre`
+     *   3. si nada cuadra, se usa el valor tal cual quedó guardado
+     * Se usan subconsultas escalares (no JOIN) para que ninguna fila de
+     * requisiciones se pueda duplicar al resolver el nombre.
+     *
+     * El resultado viene desglosado por moneda porque GTQ/USD/EUR no son sumables.
+     *
+     * @param string $fechaInicio Y-m-d
+     * @param string $fechaFin    Y-m-d
+     * @return array
+     */
+    private function consultarGastoUnidadRequirente(string $fechaInicio, string $fechaFin): array
+    {
+        $etiquetaUnidad = "COALESCE(
+                (SELECT cat_id.nombre
+                   FROM unidad_requirente cat_id
+                  WHERE cat_id.id = CASE
+                            WHEN TRIM(r.unidad_requirente) REGEXP '^[0-9]+$'
+                            THEN CAST(TRIM(r.unidad_requirente) AS UNSIGNED)
+                            ELSE NULL
+                        END
+                  LIMIT 1),
+                (SELECT cat_nom.nombre
+                   FROM unidad_requirente cat_nom
+                  WHERE cat_nom.nombre = TRIM(r.unidad_requirente)
+                  LIMIT 1),
+                NULLIF(TRIM(r.unidad_requirente), '')
+            )";
+
+        // Un solo registro de flujo por requisición (el más reciente), para que
+        // el desglose por estado no infle los conteos ni los montos.
+        $sql = "SELECT {$etiquetaUnidad} AS unidad,
+                       r.moneda AS moneda,
+                       COUNT(*) AS total_requisiciones,
+                       SUM(r.monto_total) AS monto_total,
+                       SUM(CASE WHEN fl.estado = 'autorizado' THEN 1 ELSE 0 END) AS aprobadas,
+                       SUM(CASE WHEN fl.estado IN ('rechazado','rechazado_revision','rechazado_autorizacion') THEN 1 ELSE 0 END) AS rechazadas,
+                       SUM(CASE WHEN fl.estado IS NOT NULL
+                                 AND fl.estado NOT IN ('autorizado','rechazado','rechazado_revision','rechazado_autorizacion')
+                                THEN 1 ELSE 0 END) AS en_proceso,
+                       SUM(CASE WHEN fl.estado IS NULL THEN 1 ELSE 0 END) AS sin_flujo
+                FROM requisiciones r
+                LEFT JOIN (
+                    SELECT af.requisicion_id, af.estado
+                    FROM autorizacion_flujo af
+                    INNER JOIN (
+                        SELECT requisicion_id, MAX(id) AS max_id
+                        FROM autorizacion_flujo
+                        GROUP BY requisicion_id
+                    ) ult ON ult.max_id = af.id
+                ) fl ON fl.requisicion_id = r.id
+                WHERE DATE(r.fecha_solicitud) BETWEEN ? AND ?
+                  AND r.unidad_requirente IS NOT NULL
+                  AND TRIM(r.unidad_requirente) <> ''
+                GROUP BY unidad, r.moneda
+                ORDER BY r.moneda ASC, monto_total DESC";
+
+        $stmt = Requisicion::query($sql, [$fechaInicio, $fechaFin]);
+
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+    }
+
+    /**
+     * Valida y normaliza un rango de fechas Y-m-d.
+     *
+     * Si vienen vacías o mal formadas usa el mes en curso; si vienen invertidas
+     * las intercambia en vez de devolver un reporte vacío.
+     *
+     * @param mixed $inicio
+     * @param mixed $fin
+     * @return array{0:string,1:string}
+     */
+    private function normalizarRangoFechas($inicio, $fin): array
+    {
+        $limpiar = function ($valor, $porDefecto) {
+            $valor = is_string($valor) ? trim($valor) : '';
+            $fecha = \DateTime::createFromFormat('Y-m-d', $valor);
+
+            if ($fecha === false || $fecha->format('Y-m-d') !== $valor) {
+                return $porDefecto;
+            }
+
+            return $valor;
+        };
+
+        $fechaInicio = $limpiar($inicio, date('Y-m-01'));
+        $fechaFin    = $limpiar($fin, date('Y-m-t'));
+
+        if ($fechaInicio > $fechaFin) {
+            [$fechaInicio, $fechaFin] = [$fechaFin, $fechaInicio];
+        }
+
+        return [$fechaInicio, $fechaFin];
     }
 
     public function reporteTasaRechazo()

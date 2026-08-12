@@ -374,7 +374,7 @@ class Requisicion extends Model
             SELECT pa.email, pa.nombre 
             FROM {$table} pa 
             JOIN unidad_de_negocio cc ON pa.unidad_negocio_id = cc.id 
-            WHERE cc.id = ? AND pa.activo = 1
+            WHERE cc.id = ?
             LIMIT 1
         ");
         $stmt->execute([$unidadNegocioId]);

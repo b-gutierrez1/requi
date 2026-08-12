@@ -1,6 +1,53 @@
 <?php
 use App\Helpers\View;
 
+/**
+ * Estados del flujo que significan que la requisición fue rechazada.
+ * La BD guarda el rechazo en tres variantes según la etapa en que ocurrió.
+ */
+$estadosRechazo = ['rechazado', 'rechazado_revision', 'rechazado_autorizacion'];
+
+/**
+ * Arma el contenido del tooltip que adelanta el motivo del rechazo en el listado.
+ * Recibe los rechazos ya cargados por el controlador (sin consultas dentro del bucle).
+ */
+$tooltipRechazo = function (array $rechazos) {
+    if (empty($rechazos)) {
+        return 'Requisición rechazada. No se registró un motivo.';
+    }
+
+    $lineas = [];
+    foreach ($rechazos as $rechazo) {
+        $etapa  = View::e($rechazo['etapa_label'] ?? 'Autorización');
+        $detalle = ($rechazo['etapa_detalle'] ?? '') !== ''
+            ? ' (' . View::e($rechazo['etapa_detalle']) . ')'
+            : '';
+        $autor  = ($rechazo['autor'] ?? '') !== ''
+            ? View::e($rechazo['autor'])
+            : 'Autorizador no registrado';
+
+        $ts = !empty($rechazo['fecha']) ? strtotime($rechazo['fecha']) : false;
+        $fecha = $ts ? ' &middot; ' . date('d/m/Y', $ts) : '';
+
+        $motivo = ($rechazo['motivo'] ?? '') !== ''
+            ? $rechazo['motivo']
+            : (($rechazo['comentario'] ?? '') !== '' ? $rechazo['comentario'] : 'Sin motivo registrado');
+
+        // Se recorta para que el tooltip no crezca de más; el detalle completo está en la pantalla de detalle
+        if (function_exists('mb_strimwidth')) {
+            $motivo = mb_strimwidth($motivo, 0, 140, '...', 'UTF-8');
+        } elseif (strlen($motivo) > 140) {
+            $motivo = substr($motivo, 0, 137) . '...';
+        }
+
+        $lineas[] = '<strong>' . $etapa . $detalle . '</strong><br>'
+            . View::e($motivo) . '<br>'
+            . '<em>' . $autor . $fecha . '</em>';
+    }
+
+    return implode('<hr class="my-1">', $lineas);
+};
+
 View::startSection('content');
 ?>
 
@@ -94,10 +141,17 @@ View::startSection('content');
                     </thead>
                     <tbody>
                         <?php foreach ($requisiciones as $req): ?>
-                        <tr class="requisicion-row" 
-                            data-estado-flujo="<?php echo $req['estado_flujo'] ?? ''; ?>"
-                            data-forma-pago="<?php echo $req['forma_pago']; ?>"
-                            data-busqueda="<?php echo strtolower($req['id'] . ' ' . $req['nombre_razon_social']); ?>">
+                        <?php
+                            $estadoFlujoReq = $req['estado_flujo'] ?? '';
+                            $rechazosReq    = (isset($req['rechazos']) && is_array($req['rechazos'])) ? $req['rechazos'] : [];
+                            // Se considera rechazada por el estado del flujo o por tener rechazos registrados
+                            $fueRechazada   = in_array($estadoFlujoReq, $estadosRechazo, true) || !empty($rechazosReq);
+                        ?>
+                        <tr class="requisicion-row<?php echo $fueRechazada ? ' table-danger' : ''; ?>"
+                            data-estado-flujo="<?php echo View::e($estadoFlujoReq); ?>"
+                            data-rechazada="<?php echo $fueRechazada ? '1' : '0'; ?>"
+                            data-forma-pago="<?php echo View::e($req['forma_pago'] ?? ''); ?>"
+                            data-busqueda="<?php echo View::e(strtolower($req['id'] . ' ' . ($req['nombre_razon_social'] ?? ''))); ?>">
                             <td>
                                 <strong class="text-primary">#<?php echo $req['id']; ?></strong>
                             </td>
@@ -137,37 +191,86 @@ View::startSection('content');
                             <td>
                                 <?php
                                     // Usar EstadoHelper para obtener el estado mapeado
-                                    $estadoReal = \App\Helpers\EstadoHelper::mapearEstadoFlujo($req['estado_flujo'] ?? 'borrador');
+                                    $estadoReal = \App\Helpers\EstadoHelper::mapearEstadoFlujo($estadoFlujoReq ?: 'borrador');
                                     $badge = \App\Helpers\EstadoHelper::getBadge($estadoReal);
+                                    // EstadoHelper devuelve clases de Bootstrap 4 (badge-*); el layout usa Bootstrap 5 (bg-*)
+                                    $badgeClass = str_replace('badge-', 'bg-', $badge['class']);
+                                    if ($badgeClass === 'bg-warning') {
+                                        $badgeClass .= ' text-dark';
+                                    }
                                 ?>
-                                <span class="badge <?php echo $badge['class']; ?>">
-                                    <?php echo $badge['text']; ?>
+                                <span class="badge <?php echo View::e($badgeClass); ?>">
+                                    <?php echo View::e($badge['text']); ?>
                                 </span>
                             </td>
                             <td>
-                                <?php if ($req['estado_flujo']): ?>
+                                <?php if ($estadoFlujoReq): ?>
                                     <?php
-                                        $estadoFlujoClass = match($req['estado_flujo']) {
+                                        $estadoFlujoClass = match($estadoFlujoReq) {
                                             'pendiente_revision' => 'bg-warning text-dark',
-                                            'pendiente_autorizacion' => 'bg-info',
+                                            'pendiente_autorizacion',
+                                            'pendiente_autorizacion_pago',
+                                            'pendiente_autorizacion_cuenta',
+                                            'pendiente_autorizacion_centros' => 'bg-info',
                                             'autorizado' => 'bg-success',
-                                            'rechazado' => 'bg-danger',
+                                            'rechazado',
+                                            'rechazado_revision',
+                                            'rechazado_autorizacion' => 'bg-danger',
                                             default => 'bg-secondary'
+                                        };
+                                        $estadoFlujoTexto = match($estadoFlujoReq) {
+                                            'pendiente_revision' => 'Pendiente de revisión',
+                                            'pendiente_autorizacion',
+                                            'pendiente_autorizacion_pago',
+                                            'pendiente_autorizacion_cuenta',
+                                            'pendiente_autorizacion_centros' => 'Pendiente de autorización',
+                                            'autorizado' => 'Autorizada',
+                                            'rechazado_revision' => 'Rechazada en la revisión',
+                                            'rechazado_autorizacion' => 'Rechazada en la autorización',
+                                            'rechazado' => 'Rechazada',
+                                            default => ucfirst(str_replace('_', ' ', $estadoFlujoReq))
                                         };
                                     ?>
                                     <span class="badge <?php echo $estadoFlujoClass; ?>">
-                                        <?php echo ucfirst(str_replace('_', ' ', $req['estado_flujo'])); ?>
+                                        <?php echo View::e($estadoFlujoTexto); ?>
                                     </span>
-                                    
+
+                                    <?php if ($fueRechazada): ?>
+                                        <a href="<?= url('/admin/requisiciones/' . $req['id']) ?>"
+                                           class="text-danger ms-1 indicador-rechazo"
+                                           data-bs-toggle="tooltip"
+                                           data-bs-html="true"
+                                           data-bs-placement="left"
+                                           title="<?php echo View::e($tooltipRechazo($rechazosReq)); ?>">
+                                            <i class="fas fa-comment-slash"></i>
+                                            <span class="visually-hidden">Ver motivo del rechazo</span>
+                                        </a>
+                                    <?php endif; ?>
+
                                     <!-- Indicador de tiempo -->
                                     <?php if ($req['fecha_inicio_flujo']): ?>
                                         <br><small class="text-muted">
-                                            <?php 
+                                            <?php
                                                 $diasFlujo = floor((time() - strtotime($req['fecha_inicio_flujo'])) / (60 * 60 * 24));
                                                 echo $diasFlujo . ' día' . ($diasFlujo != 1 ? 's' : '');
                                             ?>
                                         </small>
                                     <?php endif; ?>
+
+                                    <?php if ($fueRechazada && !empty($rechazosReq)): ?>
+                                        <?php
+                                            $primerRechazo = $rechazosReq[0];
+                                            $autorPrimerRechazo = ($primerRechazo['autor'] ?? '') !== ''
+                                                ? $primerRechazo['autor']
+                                                : 'Autorizador no registrado';
+                                        ?>
+                                        <br><small class="text-danger d-inline-block text-truncate" style="max-width: 150px;"
+                                                   title="<?php echo View::e($autorPrimerRechazo); ?>">
+                                            <i class="fas fa-user-times me-1"></i><?php echo View::e($autorPrimerRechazo); ?>
+                                        </small>
+                                    <?php endif; ?>
+                                <?php elseif ($fueRechazada): ?>
+                                    <span class="badge bg-danger">Rechazada</span>
                                 <?php else: ?>
                                     <span class="badge bg-light text-dark">Sin Flujo</span>
                                 <?php endif; ?>
@@ -243,8 +346,13 @@ View::startSection('content');
                 <div class="card-body">
                     <h5 class="text-info">
                         <?php 
-                            $pendientesAuth = array_filter($requisiciones, function($r) { 
-                                return ($r['estado_flujo'] ?? '') === 'pendiente_autorizacion'; 
+                            $pendientesAuth = array_filter($requisiciones, function($r) {
+                                return in_array($r['estado_flujo'] ?? '', [
+                                    'pendiente_autorizacion',
+                                    'pendiente_autorizacion_pago',
+                                    'pendiente_autorizacion_cuenta',
+                                    'pendiente_autorizacion_centros'
+                                ], true);
                             });
                             echo count($pendientesAuth);
                         ?>
@@ -273,8 +381,9 @@ View::startSection('content');
                 <div class="card-body">
                     <h5 class="text-danger">
                         <?php 
-                            $rechazadas = array_filter($requisiciones, function($r) { 
-                                return ($r['estado_flujo'] ?? '') === 'rechazado'; 
+                            $rechazadas = array_filter($requisiciones, function($r) use ($estadosRechazo) {
+                                return in_array($r['estado_flujo'] ?? '', $estadosRechazo, true)
+                                    || !empty($r['rechazos']);
                             });
                             echo count($rechazadas);
                         ?>
@@ -303,8 +412,19 @@ function aplicarFiltros() {
         let mostrar = true;
         
         // Filtro por estado de flujo
-        if (estadoFlujo && fila.dataset.estadoFlujo !== estadoFlujo) {
-            mostrar = false;
+        if (estadoFlujo) {
+            if (estadoFlujo === 'rechazado') {
+                // El rechazo se guarda en tres variantes segun la etapa (revision / autorizacion / general)
+                if (fila.dataset.rechazada !== '1') {
+                    mostrar = false;
+                }
+            } else if (estadoFlujo === 'pendiente_autorizacion') {
+                if (!fila.dataset.estadoFlujo.startsWith('pendiente_autorizacion')) {
+                    mostrar = false;
+                }
+            } else if (fila.dataset.estadoFlujo !== estadoFlujo) {
+                mostrar = false;
+            }
         }
         
         // Filtro por forma de pago
@@ -336,5 +456,15 @@ function limpiarFiltros() {
 document.getElementById('buscarRequisicion').addEventListener('input', aplicarFiltros);
 document.getElementById('filtroEstadoFlujo').addEventListener('change', aplicarFiltros);
 document.getElementById('filtroFormaPago').addEventListener('change', aplicarFiltros);
+
+// Tooltips con el motivo del rechazo (el layout carga el bundle de Bootstrap 5 pero no los inicializa)
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+        return;
+    }
+    document.querySelectorAll('.indicador-rechazo[data-bs-toggle="tooltip"]').forEach(function (el) {
+        new bootstrap.Tooltip(el);
+    });
+});
 </script>
 <?php View::endSection(); ?>

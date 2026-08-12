@@ -59,6 +59,12 @@ class RequisicionesController extends Controller
             $stmt->execute();
             $requisiciones = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
+            // Rechazos de TODAS las requisiciones en una sola pasada (evita N+1 en la vista)
+            $rechazosPorRequisicion = $this->getRechazos(array_column($requisiciones, 'id'));
+            foreach ($requisiciones as $indice => $fila) {
+                $requisiciones[$indice]['rechazos'] = $rechazosPorRequisicion[(int)$fila['id']] ?? [];
+            }
+
             $data = [
                 'requisiciones' => $requisiciones,
                 'total_requisiciones' => count($requisiciones)
@@ -130,6 +136,10 @@ class RequisicionesController extends Controller
             $estadisticas = $this->getEstadisticasFlujo($id, $flujo);
             error_log("Estadísticas calculadas");
 
+            // 10. Rechazos consolidados (revisión + autorizaciones), en una sola pasada
+            $rechazos = $this->getRechazos([$id])[(int)$id] ?? [];
+            error_log("Rechazos cargados: " . count($rechazos));
+
             $data = [
                 'orden' => $orden,
                 'flujo' => $flujo,
@@ -139,7 +149,8 @@ class RequisicionesController extends Controller
                 'autorizaciones_especiales' => $autorizacionesEspeciales,
                 'autorizaciones_centros' => $autorizacionesCentros,
                 'respaldos' => $respaldos,
-                'estadisticas' => $estadisticas
+                'estadisticas' => $estadisticas,
+                'rechazos' => $rechazos
             ];
 
             View::render('admin/requisiciones/show', $data);
@@ -148,6 +159,442 @@ class RequisicionesController extends Controller
             header('Location: /admin/requisiciones?error=Error al cargar detalle');
             exit;
         }
+    }
+
+    /**
+     * Obtiene, para un conjunto de requisiciones, todos los rechazos ocurridos
+     * a lo largo del flujo, ya sea en la revisión inicial o en cualquiera de las
+     * autorizaciones (unidad de negocio, forma de pago o cuenta contable).
+     *
+     * Se resuelve con 3 consultas fijas sin importar cuántas requisiciones se pidan,
+     * de manera que las vistas nunca tengan que consultar dentro de un bucle (N+1).
+     *
+     * Fuentes de datos:
+     *  - autorizaciones          -> rechazos de unidad de negocio / forma de pago / cuenta contable
+     *  - autorizacion_flujo      -> rechazo de la revisión inicial y estado final del flujo
+     *  - historial_requisiciones -> respaldo del motivo cuando el flujo no lo guardó
+     *
+     * @param array $requisicionIds
+     * @return array Mapa [requisicion_id => [ ...rechazos ordenados cronológicamente ]]
+     */
+    private function getRechazos(array $requisicionIds)
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $requisicionIds))));
+        if (empty($ids)) {
+            return [];
+        }
+
+        $resultado = array_fill_keys($ids, []);
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+        try {
+            $pdo = Model::getConnection();
+
+            // Subconsulta reutilizable: nombre legible del usuario a partir de su correo
+            $nombreDesdeEmail = "
+                SELECT COALESCE(
+                           NULLIF(TRIM(u.azure_display_name), ''),
+                           NULLIF(TRIM(u.nombre), '')
+                       )
+                  FROM usuarios u
+                 WHERE u.azure_email = %s OR u.email = %s
+                 LIMIT 1
+            ";
+
+            // ---------------------------------------------------------------
+            // 1) Rechazos registrados en las autorizaciones
+            // ---------------------------------------------------------------
+            $sqlAutorizaciones = "
+                SELECT
+                    a.requisicion_id,
+                    a.tipo,
+                    a.autorizador_email,
+                    a.autorizador_nombre,
+                    a.fecha_respuesta,
+                    a.motivo_rechazo,
+                    a.comentarios,
+                    a.metadata,
+                    un.nombre      AS unidad_negocio_nombre,
+                    ct.codigo      AS cuenta_codigo,
+                    ct.descripcion AS cuenta_descripcion,
+                    (" . sprintf($nombreDesdeEmail, 'a.autorizador_email', 'a.autorizador_email') . ") AS nombre_usuario
+                FROM autorizaciones a
+                LEFT JOIN unidad_de_negocio un ON un.id = a.unidad_negocio_id
+                LEFT JOIN cuenta_contable    ct ON ct.id = a.cuenta_contable_id
+                WHERE a.estado = 'rechazada'
+                  AND a.requisicion_id IN ($placeholders)
+                ORDER BY COALESCE(a.fecha_respuesta, a.created_at), a.id
+            ";
+            $stmt = $pdo->prepare($sqlAutorizaciones);
+            $stmt->execute($ids);
+
+            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $fila) {
+                $requisicionId = (int)$fila['requisicion_id'];
+                if (!isset($resultado[$requisicionId])) {
+                    continue;
+                }
+                $resultado[$requisicionId][] = $this->construirRechazoDeAutorizacion($fila);
+            }
+
+            // ---------------------------------------------------------------
+            // 2) Rechazo del flujo (revisión inicial o cierre del flujo)
+            // ---------------------------------------------------------------
+            $sqlFlujo = "
+                SELECT
+                    af.requisicion_id,
+                    af.estado,
+                    af.revisor_email,
+                    af.revisor_comentario,
+                    af.revisor_fecha,
+                    af.motivo_rechazo,
+                    af.fecha_completado,
+                    (" . sprintf($nombreDesdeEmail, 'af.revisor_email', 'af.revisor_email') . ") AS nombre_usuario
+                FROM autorizacion_flujo af
+                WHERE af.estado IN ('rechazado_revision', 'rechazado_autorizacion', 'rechazado')
+                  AND af.requisicion_id IN ($placeholders)
+            ";
+            $stmt = $pdo->prepare($sqlFlujo);
+            $stmt->execute($ids);
+
+            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $fila) {
+                $requisicionId = (int)$fila['requisicion_id'];
+                if (!isset($resultado[$requisicionId])) {
+                    continue;
+                }
+
+                $esRechazoDeRevision = ($fila['estado'] === 'rechazado_revision');
+
+                // El flujo también queda en "rechazado" cuando rechaza un autorizador;
+                // en ese caso ya tenemos el detalle real y no duplicamos la entrada.
+                if (!$esRechazoDeRevision && !empty($resultado[$requisicionId])) {
+                    continue;
+                }
+
+                $resultado[$requisicionId][] = $this->construirRechazoDeFlujo($fila, $esRechazoDeRevision);
+            }
+
+            // ---------------------------------------------------------------
+            // 3) Historial: respaldo del motivo cuando no quedó guardado arriba
+            // ---------------------------------------------------------------
+            $sqlHistorial = "
+                SELECT
+                    h.requisicion_id,
+                    h.descripcion,
+                    h.usuario_email,
+                    h.fecha_cambio,
+                    (SELECT COALESCE(
+                                NULLIF(TRIM(u.azure_display_name), ''),
+                                NULLIF(TRIM(u.nombre), '')
+                            )
+                       FROM usuarios u
+                      WHERE u.azure_email = h.usuario_email
+                         OR u.email = h.usuario_email
+                         OR (h.usuario_email REGEXP '^[0-9]+$' AND u.id = CAST(h.usuario_email AS UNSIGNED))
+                      LIMIT 1) AS nombre_usuario
+                FROM historial_requisiciones h
+                WHERE h.requisicion_id IN ($placeholders)
+                  AND (h.accion IN ('rechazo', 'rechazada', 'rechazado')
+                       OR h.estado_nuevo IN ('rechazada', 'rechazado'))
+                ORDER BY h.fecha_cambio, h.id
+            ";
+            $stmt = $pdo->prepare($sqlHistorial);
+            $stmt->execute($ids);
+
+            $historial = [];
+            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $fila) {
+                $requisicionId = (int)$fila['requisicion_id'];
+                if (!isset($resultado[$requisicionId])) {
+                    continue;
+                }
+                $historial[$requisicionId][] = [
+                    'motivo' => $this->limpiarMotivoHistorial($fila['descripcion'] ?? ''),
+                    'autor'  => $this->primerValorNoVacio([
+                        $fila['nombre_usuario'] ?? null,
+                        $this->emailValido($fila['usuario_email'] ?? null)
+                    ]),
+                    'autor_email' => $this->emailValido($fila['usuario_email'] ?? null),
+                    'fecha'       => $fila['fecha_cambio'] ?? null
+                ];
+            }
+
+            foreach ($resultado as $requisicionId => $rechazos) {
+                $resultado[$requisicionId] = $this->completarConHistorial(
+                    $rechazos,
+                    $historial[$requisicionId] ?? []
+                );
+            }
+        } catch (\Exception $e) {
+            error_log("Error en getRechazos: " . $e->getMessage());
+        }
+
+        return $resultado;
+    }
+
+    /**
+     * Arma una entrada de rechazo a partir de una fila de la tabla `autorizaciones`
+     */
+    private function construirRechazoDeAutorizacion(array $fila)
+    {
+        $metadata = [];
+        if (!empty($fila['metadata'])) {
+            $decodificado = json_decode($fila['metadata'], true);
+            if (is_array($decodificado)) {
+                $metadata = $decodificado;
+            }
+        }
+
+        $etapa = $fila['tipo'] ?? 'autorizacion';
+        $detalle = '';
+
+        switch ($etapa) {
+            case 'unidad_negocio':
+                $detalle = $this->primerValorNoVacio([
+                    $fila['unidad_negocio_nombre'] ?? null,
+                    $metadata['unidad_negocio'] ?? null,
+                    $metadata['centro_nombre'] ?? null
+                ], '');
+                break;
+            case 'forma_pago':
+                $detalle = $this->primerValorNoVacio([$metadata['forma_pago'] ?? null], '');
+                break;
+            case 'cuenta_contable':
+                $codigo = trim((string)($fila['cuenta_codigo'] ?? ''));
+                $nombre = $this->primerValorNoVacio([
+                    $fila['cuenta_descripcion'] ?? null,
+                    $metadata['cuenta_nombre'] ?? null
+                ], '');
+                $detalle = trim($codigo . ' ' . $nombre);
+                break;
+        }
+
+        return $this->normalizarRechazo([
+            'etapa'         => $etapa,
+            'etapa_detalle' => $detalle,
+            'autor'         => $this->primerValorNoVacio([
+                $fila['autorizador_nombre'] ?? null,
+                $fila['nombre_usuario'] ?? null,
+                $fila['autorizador_email'] ?? null
+            ]),
+            'autor_email'   => $this->emailValido($fila['autorizador_email'] ?? null),
+            'fecha'         => $fila['fecha_respuesta'] ?? null,
+            'motivo'        => $fila['motivo_rechazo'] ?? null,
+            'comentario'    => $fila['comentarios'] ?? null,
+            'origen'        => 'autorizaciones'
+        ]);
+    }
+
+    /**
+     * Arma una entrada de rechazo a partir de una fila de `autorizacion_flujo`
+     */
+    private function construirRechazoDeFlujo(array $fila, $esRechazoDeRevision)
+    {
+        return $this->normalizarRechazo([
+            'etapa'         => $esRechazoDeRevision ? 'revision' : 'autorizacion',
+            'etapa_detalle' => '',
+            'autor'         => $esRechazoDeRevision
+                ? $this->primerValorNoVacio([
+                    $fila['nombre_usuario'] ?? null,
+                    $fila['revisor_email'] ?? null
+                ])
+                : null,
+            'autor_email'   => $esRechazoDeRevision ? $this->emailValido($fila['revisor_email'] ?? null) : null,
+            'fecha'         => $this->primerValorNoVacio([
+                $fila['fecha_completado'] ?? null,
+                $esRechazoDeRevision ? ($fila['revisor_fecha'] ?? null) : null
+            ], null),
+            'motivo'        => $fila['motivo_rechazo'] ?? null,
+            'comentario'    => $esRechazoDeRevision ? ($fila['revisor_comentario'] ?? null) : null,
+            'origen'        => 'autorizacion_flujo'
+        ]);
+    }
+
+    /**
+     * Completa los rechazos que quedaron sin motivo usando el historial, y ordena
+     * el resultado cronológicamente. Si no hubo ninguna otra fuente, el historial
+     * se usa directamente para no dejar la pantalla vacía.
+     *
+     * @param array $rechazos
+     * @param array $historial
+     * @return array
+     */
+    private function completarConHistorial(array $rechazos, array $historial)
+    {
+        if (empty($rechazos)) {
+            foreach ($historial as $registro) {
+                if (($registro['motivo'] ?? '') === '') {
+                    continue;
+                }
+                $rechazos[] = $this->normalizarRechazo([
+                    'etapa'         => 'autorizacion',
+                    'etapa_detalle' => '',
+                    'autor'         => $registro['autor'] ?? null,
+                    'autor_email'   => $registro['autor_email'] ?? null,
+                    'fecha'         => $registro['fecha'] ?? null,
+                    'motivo'        => $registro['motivo'],
+                    'comentario'    => null,
+                    'origen'        => 'historial'
+                ]);
+            }
+        } else {
+            $disponibles = $historial;
+            foreach ($rechazos as $indice => $rechazo) {
+                if ($rechazo['motivo'] !== '' || empty($disponibles)) {
+                    continue;
+                }
+
+                $elegido = $this->registroHistorialMasCercano($disponibles, $rechazo['fecha']);
+                if ($elegido === null) {
+                    continue;
+                }
+
+                $registro = $disponibles[$elegido];
+                unset($disponibles[$elegido]);
+
+                $rechazos[$indice]['motivo'] = $registro['motivo'] ?? '';
+                $rechazos[$indice]['motivo_desde_historial'] = true;
+                if ($rechazos[$indice]['autor'] === '' && !empty($registro['autor'])) {
+                    $rechazos[$indice]['autor'] = $registro['autor'];
+                    $rechazos[$indice]['autor_email'] = $registro['autor_email'] ?? null;
+                }
+                if ($rechazos[$indice]['fecha'] === null && !empty($registro['fecha'])) {
+                    $rechazos[$indice]['fecha'] = $registro['fecha'];
+                }
+            }
+        }
+
+        usort($rechazos, function ($a, $b) {
+            $tsA = $a['fecha'] ? strtotime($a['fecha']) : false;
+            $tsB = $b['fecha'] ? strtotime($b['fecha']) : false;
+
+            // Los rechazos sin fecha se muestran al final
+            if ($tsA === false && $tsB === false) return 0;
+            if ($tsA === false) return 1;
+            if ($tsB === false) return -1;
+
+            return $tsA <=> $tsB;
+        });
+
+        return $rechazos;
+    }
+
+    /**
+     * Devuelve la clave del registro de historial con motivo más cercano en el tiempo
+     *
+     * @param array       $registros
+     * @param string|null $fecha
+     * @return int|string|null
+     */
+    private function registroHistorialMasCercano(array $registros, $fecha)
+    {
+        $referencia = $fecha ? strtotime($fecha) : false;
+        $mejorClave = null;
+        $mejorDistancia = null;
+
+        foreach ($registros as $clave => $registro) {
+            if (($registro['motivo'] ?? '') === '') {
+                continue;
+            }
+
+            if ($referencia === false) {
+                return $clave; // Sin fecha de referencia: se toma el primero disponible
+            }
+
+            $ts = !empty($registro['fecha']) ? strtotime($registro['fecha']) : false;
+            $distancia = ($ts === false) ? PHP_INT_MAX : abs($ts - $referencia);
+
+            if ($mejorDistancia === null || $distancia < $mejorDistancia) {
+                $mejorDistancia = $distancia;
+                $mejorClave = $clave;
+            }
+        }
+
+        return $mejorClave;
+    }
+
+    /**
+     * Normaliza una entrada de rechazo y le agrega las etiquetas para la vista.
+     * Garantiza que todas las claves existan para que las vistas no tengan que
+     * comprobar cada campo por separado.
+     */
+    private function normalizarRechazo(array $rechazo)
+    {
+        $etapa = $rechazo['etapa'] ?? 'autorizacion';
+
+        // "la revisión", "la unidad de negocio", "la forma de pago", "la cuenta contable"
+        $etapas = [
+            'revision'        => ['Revisión inicial',            'en la revisión inicial',   'fa-eye'],
+            'unidad_negocio'  => ['Unidad de Negocio',           'en la unidad de negocio',  'fa-building'],
+            'forma_pago'      => ['Forma de Pago',               'en la forma de pago',      'fa-credit-card'],
+            'cuenta_contable' => ['Cuenta Contable',             'en la cuenta contable',    'fa-calculator'],
+            'autorizacion'    => ['Proceso de autorización',     'en la autorización',       'fa-ban'],
+        ];
+        $info = $etapas[$etapa] ?? $etapas['autorizacion'];
+
+        $fecha = $rechazo['fecha'] ?? null;
+        if ($fecha !== null && trim((string)$fecha) === '') {
+            $fecha = null;
+        }
+
+        return [
+            'etapa'                 => $etapa,
+            'etapa_label'           => $info[0],
+            'etapa_frase'           => $info[1],
+            'etapa_icono'           => $info[2],
+            'etapa_detalle'         => trim((string)($rechazo['etapa_detalle'] ?? '')),
+            'autor'                 => trim((string)($rechazo['autor'] ?? '')),
+            'autor_email'           => $rechazo['autor_email'] ?? null,
+            'fecha'                 => $fecha,
+            'motivo'                => trim((string)($rechazo['motivo'] ?? '')),
+            'comentario'            => trim((string)($rechazo['comentario'] ?? '')),
+            'origen'                => $rechazo['origen'] ?? 'autorizaciones',
+            'motivo_desde_historial' => false,
+        ];
+    }
+
+    /**
+     * Quita el prefijo que agrega el historial al registrar un rechazo
+     */
+    private function limpiarMotivoHistorial($descripcion)
+    {
+        $texto = trim((string)$descripcion);
+        if ($texto === '') {
+            return '';
+        }
+
+        // "Rechazado. Motivo: X" -> "X"
+        if (preg_match('/^Rechazad[oa]\.\s*Motivo:\s*(.+)$/isu', $texto, $coincidencias)) {
+            $texto = trim($coincidencias[1]);
+        }
+
+        return $texto;
+    }
+
+    /**
+     * Devuelve el valor sólo si parece un correo (el historial a veces guarda un id)
+     */
+    private function emailValido($valor)
+    {
+        $texto = trim((string)$valor);
+        if ($texto === '' || strpos($texto, '@') === false) {
+            return null;
+        }
+        return $texto;
+    }
+
+    /**
+     * Devuelve el primer valor no vacío de la lista
+     */
+    private function primerValorNoVacio(array $valores, $porDefecto = '')
+    {
+        foreach ($valores as $valor) {
+            if ($valor === null) {
+                continue;
+            }
+            if (trim((string)$valor) !== '') {
+                return trim((string)$valor);
+            }
+        }
+        return $porDefecto;
     }
 
     /**

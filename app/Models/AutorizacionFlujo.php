@@ -273,9 +273,13 @@ class AutorizacionFlujo extends Model
                 return false;
             }
 
+            // El motivo se guarda en el flujo, no solo en el historial: de lo
+            // contrario la pantalla de seguimiento solo puede recuperarlo por
+            // cercania temporal, que es una heuristica y puede cruzarse.
             self::updateById($id, [
                 'estado' => self::ESTADO_RECHAZADO_REVISION,
                 'fecha_completado' => date('Y-m-d H:i:s'),
+                'motivo_rechazo' => $motivo,
             ]);
 
             $ordenCompraId = is_object($flujo) ? $flujo->requisicion_id : $flujo['requisicion_id'];
@@ -417,10 +421,18 @@ class AutorizacionFlujo extends Model
     public static function marcarComoRechazado($id, $motivo = null)
     {
         try {
-            return self::updateById($id, [
+            $datos = [
                 'estado' => self::ESTADO_RECHAZADO,
                 'fecha_completado' => date('Y-m-d H:i:s'),
-            ]);
+            ];
+
+            // Solo se escribe si viene motivo, para no borrar con null uno que
+            // ya se hubiera guardado antes.
+            if ($motivo !== null && $motivo !== '') {
+                $datos['motivo_rechazo'] = $motivo;
+            }
+
+            return self::updateById($id, $datos);
         } catch (\Exception $e) {
             error_log("Error marcando flujo como rechazado: " . $e->getMessage());
             return false;

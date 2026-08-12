@@ -11,6 +11,9 @@ function getValue($data, $key, $default = null) {
     return $default;
 }
 
+// Rechazos consolidados (revisión inicial y autorizaciones). Puede venir vacío.
+$rechazos = (isset($rechazos) && is_array($rechazos)) ? $rechazos : [];
+
 View::startSection('content');
 ?>
 
@@ -33,6 +36,106 @@ View::startSection('content');
             </a>
         </div>
     </div>
+
+    <!-- Detalle del Rechazo (sólo si la requisición fue rechazada) -->
+    <?php if (!empty($rechazos)): ?>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger shadow-sm">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-ban me-2"></i>
+                        <?php echo count($rechazos) > 1 ? 'Requisición rechazada' : 'Motivo del rechazo'; ?>
+                    </h5>
+                    <?php if (count($rechazos) > 1): ?>
+                        <span class="badge bg-light text-danger">
+                            <?php echo count($rechazos); ?> rechazos registrados
+                        </span>
+                    <?php endif; ?>
+                </div>
+                <div class="card-body">
+                    <?php foreach ($rechazos as $indiceRechazo => $rechazo): ?>
+                    <?php
+                        $tieneMotivo     = ($rechazo['motivo'] ?? '') !== '';
+                        $tieneComentario = ($rechazo['comentario'] ?? '') !== ''
+                            && ($rechazo['comentario'] ?? '') !== ($rechazo['motivo'] ?? '');
+                        $autorRechazo    = ($rechazo['autor'] ?? '') !== ''
+                            ? $rechazo['autor']
+                            : 'Autorizador no registrado';
+                        $correoRechazo   = $rechazo['autor_email'] ?? null;
+                        $mostrarCorreo   = $correoRechazo && $correoRechazo !== $autorRechazo;
+                    ?>
+                    <div class="border-start border-3 border-danger ps-3 <?php echo $indiceRechazo < count($rechazos) - 1 ? 'mb-4' : ''; ?>">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                            <h6 class="mb-0">
+                                <i class="fas <?php echo View::e($rechazo['etapa_icono'] ?? 'fa-ban'); ?> text-danger me-1"></i>
+                                Rechazada <?php echo View::e($rechazo['etapa_frase'] ?? 'en la autorización'); ?>
+                                <?php if (($rechazo['etapa_detalle'] ?? '') !== ''): ?>
+                                    <span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle ms-1">
+                                        <?php echo View::e($rechazo['etapa_detalle']); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </h6>
+                            <span class="badge bg-secondary">
+                                <?php echo View::e($rechazo['etapa_label'] ?? 'Autorización'); ?>
+                            </span>
+                        </div>
+
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <small class="text-muted d-block">Rechazada por</small>
+                                <span><i class="fas fa-user me-1 text-muted"></i><?php echo View::e($autorRechazo); ?></span>
+                                <?php if ($mostrarCorreo): ?>
+                                    <br><small class="text-muted"><?php echo View::e($correoRechazo); ?></small>
+                                <?php endif; ?>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted d-block">Fecha del rechazo</small>
+                                <span>
+                                    <i class="fas fa-clock me-1 text-muted"></i>
+                                    <?php
+                                        $fechaRechazo = $rechazo['fecha'] ?? null;
+                                        $tsRechazo = $fechaRechazo ? strtotime($fechaRechazo) : false;
+                                        echo $tsRechazo ? date('d/m/Y H:i', $tsRechazo) : 'Fecha no registrada';
+                                    ?>
+                                </span>
+                            </div>
+                        </div>
+
+                        <?php if ($tieneMotivo): ?>
+                            <div class="alert alert-danger py-2 px-3 mb-2">
+                                <small class="d-block fw-bold text-uppercase">Motivo</small>
+                                <span class="text-break"><?php echo nl2br(View::e($rechazo['motivo'])); ?></span>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($tieneComentario): ?>
+                            <div class="alert alert-light border py-2 px-3 mb-2">
+                                <small class="d-block fw-bold text-uppercase text-muted">Comentario</small>
+                                <span class="text-break"><?php echo nl2br(View::e($rechazo['comentario'])); ?></span>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!$tieneMotivo && !$tieneComentario): ?>
+                            <p class="text-muted fst-italic mb-2">
+                                <i class="fas fa-info-circle me-1"></i>
+                                No se registró un motivo para este rechazo.
+                            </p>
+                        <?php endif; ?>
+
+                        <?php if (!empty($rechazo['motivo_desde_historial'])): ?>
+                            <small class="text-muted">
+                                <i class="fas fa-history me-1"></i>Motivo recuperado del historial de la requisición
+                            </small>
+                        <?php endif; ?>
+                    </div>
+                    <?php if ($indiceRechazo < count($rechazos) - 1): ?><hr class="my-3"><?php endif; ?>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <div class="row">
         <!-- Timeline Principal -->
@@ -69,14 +172,32 @@ View::startSection('content');
                                     $estadoActual = $flujo['estado'] ?? 'sin_flujo';
                                     $estadoClass = match($estadoActual) {
                                         'pendiente_revision' => 'bg-warning text-dark',
-                                        'pendiente_autorizacion' => 'bg-info',
+                                        'pendiente_autorizacion',
+                                        'pendiente_autorizacion_pago',
+                                        'pendiente_autorizacion_cuenta',
+                                        'pendiente_autorizacion_centros' => 'bg-info',
                                         'autorizado' => 'bg-success',
-                                        'rechazado' => 'bg-danger',
+                                        'rechazado',
+                                        'rechazado_revision',
+                                        'rechazado_autorizacion' => 'bg-danger',
                                         default => 'bg-secondary'
+                                    };
+                                    $estadoTexto = match($estadoActual) {
+                                        'pendiente_revision' => 'Pendiente de revisión',
+                                        'pendiente_autorizacion',
+                                        'pendiente_autorizacion_pago',
+                                        'pendiente_autorizacion_cuenta',
+                                        'pendiente_autorizacion_centros' => 'Pendiente de autorización',
+                                        'autorizado' => 'Autorizada',
+                                        'rechazado_revision' => 'Rechazada en la revisión',
+                                        'rechazado_autorizacion' => 'Rechazada en la autorización',
+                                        'rechazado' => 'Rechazada',
+                                        'sin_flujo' => 'Sin flujo',
+                                        default => ucfirst(str_replace('_', ' ', $estadoActual))
                                     };
                                 ?>
                                 <span class="badge <?php echo $estadoClass; ?> fs-6">
-                                    <?php echo ucfirst(str_replace('_', ' ', $estadoActual)); ?>
+                                    <?php echo View::e($estadoTexto); ?>
                                 </span>
                             </p>
                         </div>

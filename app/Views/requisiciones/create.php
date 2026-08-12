@@ -841,9 +841,18 @@ function getSimboloMoneda() {
     }
 }
 
+// Redondeo explícito a 2 decimales (decimales oficiales de moneda).
+// Evita los errores clásicos de coma flotante (0.1 + 0.2 = 0.30000000000000004)
+// al acumular importes. Ver docs/PRECISION_DECIMAL.md
+function redondear2(valor) {
+    const n = Number(valor);
+    if (!isFinite(n)) return 0;
+    return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
 // Función para formatear monto con símbolo de moneda
 function formatearMonto(monto) {
-    return getSimboloMoneda() + ' ' + monto.toFixed(2);
+    return getSimboloMoneda() + ' ' + redondear2(monto).toFixed(2);
 }
 
 // Función para actualizar facturas - Definida al inicio para estar disponible
@@ -918,7 +927,9 @@ function actualizarFacturas() {
 window.calcularTotalGeneral = function() {
     let total = 0;
     document.querySelectorAll('.item-total').forEach(input => {
-        total += parseFloat(input.value) || 0;
+        // Se redondea cada item y también el acumulado en cada paso, para que
+        // el total mostrado sea exactamente la suma de los importes visibles.
+        total = redondear2(total + redondear2(parseFloat(input.value) || 0));
     });
     const totalElement = document.getElementById('totalGeneral');
     if (totalElement) {
@@ -1005,9 +1016,11 @@ function attachItemEventListeners(row) {
 }
 
 function calcularTotalItem(row) {
-    const cantidad = parseFloat(row.querySelector('.item-cantidad').value) || 0;
-    const precio = parseFloat(row.querySelector('.item-precio').value) || 0;
-    row.querySelector('.item-total').value = (cantidad * precio).toFixed(2);
+    // La cantidad es entera (columna int en BD) y el precio unitario tiene
+    // 2 decimales; el total se redondea explícitamente a 2 decimales.
+    const cantidad = Math.round(parseFloat(row.querySelector('.item-cantidad').value) || 0);
+    const precio = redondear2(parseFloat(row.querySelector('.item-precio').value) || 0);
+    row.querySelector('.item-total').value = redondear2(cantidad * precio).toFixed(2);
     calcularTotalGeneral();
 }
 
@@ -1136,7 +1149,7 @@ function calcularDistribucionPorcentajes() {
     
     document.querySelectorAll('.distribucion-row').forEach(row => {
         const porcentaje = parseFloat(row.querySelector('.dist-porcentaje').value) || 0;
-        const cantidad = (totalGeneral * porcentaje) / 100;
+        const cantidad = redondear2((totalGeneral * porcentaje) / 100);
         row.querySelector('.dist-cantidad').value = cantidad.toFixed(2);
         totalPorcentajes += porcentaje;
     });
@@ -1755,8 +1768,8 @@ class CalculadorAutomatico {
 
         const porcentaje = parseFloat(porcentajeInput.value) || 0;
         const totalGeneral = parseFloat(document.getElementById('total_general').value) || 0;
-        const cantidad = (porcentaje / 100) * totalGeneral;
-        
+        const cantidad = redondear2((porcentaje / 100) * totalGeneral);
+
         cantidadInput.value = cantidad.toFixed(2);
         
         // Disparar actualización de resumen

@@ -573,18 +573,28 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                     <tbody id="itemsBody">
                         <?php if (!empty($requisicion['items'])): ?>
                             <?php foreach ($requisicion['items'] as $index => $item): ?>
+                                <?php
+                                // Precision oficial: cantidad entera, precio unitario y total
+                                // a 2 decimales. Se redondea el precio ANTES de multiplicar para
+                                // que el total mostrado sea exactamente cantidad x precio visible
+                                // (registros antiguos pueden traer hasta 5 decimales en BD).
+                                // Ver docs/PRECISION_DECIMAL.md
+                                $itemCantidad = (int) round($item['cantidad'] ?? 1);
+                                $itemPrecio   = round((float) ($item['precio_unitario'] ?? 0), 2);
+                                $itemTotal    = round($itemCantidad * $itemPrecio, 2);
+                                ?>
                                 <tr class="item-row">
                                     <td>
-                                        <input type="number" class="form-control item-cantidad" name="items[<?php echo $index; ?>][cantidad]" min="1" step="1" value="<?php echo round($item['cantidad'] ?? 1); ?>" required>
+                                        <input type="number" class="form-control item-cantidad" name="items[<?php echo $index; ?>][cantidad]" min="1" step="1" value="<?php echo $itemCantidad; ?>" required>
                                     </td>
                                     <td>
                                         <textarea class="form-control item-descripcion" name="items[<?php echo $index; ?>][descripcion]" rows="2" required><?php echo View::e($item['descripcion'] ?? ''); ?></textarea>
                                     </td>
                                     <td>
-                                        <input type="number" class="form-control item-precio" name="items[<?php echo $index; ?>][precio_unitario]" min="0" step="0.01" value="<?php echo round($item['precio_unitario'] ?? 0, 2); ?>" required>
+                                        <input type="number" class="form-control item-precio" name="items[<?php echo $index; ?>][precio_unitario]" min="0" step="0.01" value="<?php echo number_format($itemPrecio, 2, '.', ''); ?>" required>
                                     </td>
                                     <td>
-                                        <input type="number" class="form-control item-total" name="items[<?php echo $index; ?>][total]" value="<?php echo round(($item['cantidad'] ?? 1) * ($item['precio_unitario'] ?? 0), 2); ?>" readonly>
+                                        <input type="number" class="form-control item-total" name="items[<?php echo $index; ?>][total]" value="<?php echo number_format($itemTotal, 2, '.', ''); ?>" readonly>
                                     </td>
                                     <td class="text-center">
                                         <button type="button" class="btn btn-sm btn-danger btn-eliminar-item" onclick="eliminarItem(this)">
@@ -625,7 +635,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
             
             <div class="total-display">
                 Total: <span id="totalGeneral"><?php $moneda = $requisicion['orden']->moneda ?? 'GTQ'; echo ($moneda === 'USD' ? '$' : ($moneda === 'EUR' ? '€' : 'Q')) . ' ' . number_format($requisicion['orden']->monto_total ?? 0, 2); ?></span>
-                <input type="hidden" id="total_general" name="total_general" value="<?php echo $requisicion['orden']->monto_total ?? 0; ?>">
+                <input type="hidden" id="total_general" name="total_general" value="<?php echo number_format((float) ($requisicion['orden']->monto_total ?? 0), 2, '.', ''); ?>">
             </div>
             <div id="monto-minimo-aviso" style="display:none; margin-top:6px; padding:6px 12px; border-radius:6px; font-size:0.85rem;"></div>
         </div>
@@ -972,9 +982,18 @@ function getSimboloMoneda() {
     }
 }
 
+// Redondeo explícito a 2 decimales (decimales oficiales de moneda).
+// Evita los errores clásicos de coma flotante (0.1 + 0.2 = 0.30000000000000004)
+// al acumular importes. Ver docs/PRECISION_DECIMAL.md
+function redondear2(valor) {
+    const n = Number(valor);
+    if (!isFinite(n)) return 0;
+    return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
 // Función para formatear monto con símbolo de moneda
 function formatearMonto(monto) {
-    return getSimboloMoneda() + ' ' + monto.toFixed(2);
+    return getSimboloMoneda() + ' ' + redondear2(monto).toFixed(2);
 }
 
 function agregarItem() {
@@ -1006,16 +1025,20 @@ function attachItemEventListeners(row) {
 }
 
 function calcularTotalItem(row) {
-    const cantidad = parseFloat(row.querySelector('.item-cantidad').value) || 0;
-    const precio = parseFloat(row.querySelector('.item-precio').value) || 0;
-    row.querySelector('.item-total').value = (cantidad * precio).toFixed(2);
+    // La cantidad es entera (columna int en BD) y el precio unitario tiene
+    // 2 decimales; el total se redondea explícitamente a 2 decimales.
+    const cantidad = Math.round(parseFloat(row.querySelector('.item-cantidad').value) || 0);
+    const precio = redondear2(parseFloat(row.querySelector('.item-precio').value) || 0);
+    row.querySelector('.item-total').value = redondear2(cantidad * precio).toFixed(2);
     calcularTotalGeneral();
 }
 
 function calcularTotalGeneral() {
     let total = 0;
     document.querySelectorAll('.item-total').forEach(input => {
-        total += parseFloat(input.value) || 0;
+        // Se redondea cada item y también el acumulado en cada paso, para que
+        // el total mostrado sea exactamente la suma de los importes visibles.
+        total = redondear2(total + redondear2(parseFloat(input.value) || 0));
     });
     document.getElementById('totalGeneral').textContent = formatearMonto(total);
     document.getElementById('total_general').value = total.toFixed(2);
@@ -1173,7 +1196,7 @@ function calcularDistribucionPorcentajes() {
     
     document.querySelectorAll('.distribucion-row').forEach(row => {
         const porcentaje = parseFloat(row.querySelector('.dist-porcentaje').value) || 0;
-        const cantidad = (totalGeneral * porcentaje) / 100;
+        const cantidad = redondear2((totalGeneral * porcentaje) / 100);
         row.querySelector('.dist-cantidad').value = cantidad.toFixed(2);
         totalPorcentajes += porcentaje;
     });
@@ -1823,8 +1846,8 @@ class CalculadorAutomatico {
 
         const porcentaje = parseFloat(porcentajeInput.value) || 0;
         const totalGeneral = parseFloat(document.getElementById('total_general').value) || 0;
-        const cantidad = (porcentaje / 100) * totalGeneral;
-        
+        const cantidad = redondear2((porcentaje / 100) * totalGeneral);
+
         cantidadInput.value = cantidad.toFixed(2);
         
         // Disparar actualización de resumen

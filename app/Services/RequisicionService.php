@@ -301,8 +301,8 @@ class RequisicionService
                 DetalleItem::create([
                     'requisicion_id' => $ordenId,
                     'descripcion' => $item['descripcion'],
-                    'cantidad' => $item['cantidad'],
-                    'precio_unitario' => $item['precio_unitario'],
+                    'cantidad' => DetalleItem::normalizarCantidad($item['cantidad'] ?? 0),
+                    'precio_unitario' => DetalleItem::normalizarMonto($item['precio_unitario'] ?? 0),
                     'unidad_medida' => $item['unidad_medida'] ?? 'unidad'
                 ]);
             }
@@ -364,7 +364,11 @@ class RequisicionService
     {
         $total = 0;
         foreach ($items as $item) {
-            $total += ($item['cantidad'] ?? 0) * ($item['precio_unitario'] ?? 0);
+            // Cada item se redondea a 2 decimales ANTES de sumarse, para que
+            // el total coincida con la suma de los importes mostrados.
+            $cantidad = DetalleItem::normalizarCantidad($item['cantidad'] ?? 0);
+            $precio = DetalleItem::normalizarMonto($item['precio_unitario'] ?? 0);
+            $total = round($total + DetalleItem::normalizarMonto($cantidad * $precio), 2);
         }
         return $total;
     }
@@ -1292,18 +1296,24 @@ class RequisicionService
         
         if (!empty($data['items'])) {
             foreach ($data['items'] as $item) {
-                $cantidad = floatval($item['cantidad'] ?? 0);
-                $precioUnitario = floatval($item['precio_unitario'] ?? 0);
-                $total = $cantidad * $precioUnitario;
-                
+                // Normalizacion en servidor: NUNCA confiar en el redondeo del
+                // navegador. La cantidad es entera (columna int) y el precio
+                // unitario se maneja con 2 decimales.
+                // Ver docs/PRECISION_DECIMAL.md
+                $cantidad = DetalleItem::normalizarCantidad($item['cantidad'] ?? 0);
+                $precioUnitario = DetalleItem::normalizarMonto($item['precio_unitario'] ?? 0);
+                $total = DetalleItem::normalizarMonto($cantidad * $precioUnitario);
+
                 $items[] = [
                     'cantidad' => $cantidad,
                     'descripcion' => $item['descripcion'] ?? '',
                     'precio_unitario' => $precioUnitario,
                     'total' => $total
                 ];
-                
-                $montoTotal += $total;
+
+                // Se acumulan totales ya redondeados: el monto total es
+                // exactamente la suma de los items que ve el usuario.
+                $montoTotal = round($montoTotal + $total, 2);
             }
         }
         
@@ -1402,12 +1412,17 @@ class RequisicionService
     {
         try {
             foreach ($items as $item) {
+                // Los items ya vienen normalizados desde procesarDatosRequisicion();
+                // se vuelve a normalizar por si el metodo se invoca desde otro punto.
+                $cantidad = DetalleItem::normalizarCantidad($item['cantidad'] ?? 0);
+                $precioUnitario = DetalleItem::normalizarMonto($item['precio_unitario'] ?? 0);
+
                 $detalleItem = new DetalleItem([
                     'requisicion_id' => $ordenId,
                     'descripcion' => $item['descripcion'],
-                    'cantidad' => $item['cantidad'],
-                    'precio_unitario' => $item['precio_unitario'],
-                    'total' => $item['total'],
+                    'cantidad' => $cantidad,
+                    'precio_unitario' => $precioUnitario,
+                    'total' => DetalleItem::normalizarMonto($cantidad * $precioUnitario),
                     'unidad_medida' => 'unidad'
                 ]);
                 

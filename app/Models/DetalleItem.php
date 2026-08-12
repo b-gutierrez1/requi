@@ -13,6 +13,16 @@ namespace App\Models;
 
 class DetalleItem extends Model
 {
+    /**
+     * Decimales oficiales para importes de cara al usuario.
+     *
+     * El precio unitario y el total se manejan SIEMPRE con 2 decimales
+     * (GTQ/USD/EUR son monedas de 2 decimales y las facturas se guardan
+     * con 2). Las columnas de BD admiten mas decimales, pero solo como
+     * colchon para calculos intermedios. Ver docs/PRECISION_DECIMAL.md
+     */
+    const DECIMALES_MONEDA = 2;
+
     protected static $table = 'detalle_items';
     protected static $primaryKey = 'id';
     protected static $timestamps = false;
@@ -42,8 +52,38 @@ class DetalleItem extends Model
     }
 
     /**
+     * Normaliza la cantidad de un item.
+     *
+     * La columna `cantidad` es int(11): no se admiten cantidades
+     * fraccionarias. Se normaliza aqui para que el total calculado en PHP
+     * coincida exactamente con lo que termina guardado en la BD.
+     *
+     * @param mixed $cantidad
+     * @return int
+     */
+    public static function normalizarCantidad($cantidad)
+    {
+        return (int) round(floatval($cantidad));
+    }
+
+    /**
+     * Normaliza un importe (precio unitario o total) a 2 decimales.
+     *
+     * @param mixed $monto
+     * @return float
+     */
+    public static function normalizarMonto($monto)
+    {
+        return round(floatval($monto), self::DECIMALES_MONEDA);
+    }
+
+    /**
      * Calcula el total del item (cantidad * precio_unitario)
-     * 
+     *
+     * Redondeado a 2 decimales. Con cantidad entera y precio de 2
+     * decimales el resultado ya es exacto en centavos; el round() protege
+     * frente a datos heredados con mas decimales.
+     *
      * @return float
      */
     public function calcularTotal()
@@ -52,7 +92,10 @@ class DetalleItem extends Model
             return 0;
         }
 
-        return floatval($this->attributes['cantidad']) * floatval($this->attributes['precio_unitario']);
+        return self::normalizarMonto(
+            self::normalizarCantidad($this->attributes['cantidad'])
+            * self::normalizarMonto($this->attributes['precio_unitario'])
+        );
     }
 
     /**
@@ -159,8 +202,10 @@ class DetalleItem extends Model
             return ['errores' => $errores];
         }
 
-        // Calcular el total
-        $data['total'] = floatval($data['cantidad']) * floatval($data['precio_unitario']);
+        // Normalizar y calcular el total (2 decimales, cantidad entera)
+        $data['cantidad'] = self::normalizarCantidad($data['cantidad']);
+        $data['precio_unitario'] = self::normalizarMonto($data['precio_unitario']);
+        $data['total'] = self::normalizarMonto($data['cantidad'] * $data['precio_unitario']);
 
         return self::create($data);
     }
@@ -191,7 +236,9 @@ class DetalleItem extends Model
             // Insertar nuevos items
             foreach ($items as $item) {
                 $item['requisicion_id'] = $ordenCompraId;
-                $item['total'] = floatval($item['cantidad']) * floatval($item['precio_unitario']);
+                $item['cantidad'] = self::normalizarCantidad($item['cantidad'] ?? 0);
+                $item['precio_unitario'] = self::normalizarMonto($item['precio_unitario'] ?? 0);
+                $item['total'] = self::normalizarMonto($item['cantidad'] * $item['precio_unitario']);
                 self::create($item);
             }
 
@@ -217,7 +264,7 @@ class DetalleItem extends Model
     public function getPrecioFormateado($moneda = 'GTQ')
     {
         $simbolo = $moneda === 'USD' ? '$' : 'Q';
-        $precio = number_format($this->attributes['precio_unitario'] ?? 0, 5);
+        $precio = number_format($this->attributes['precio_unitario'] ?? 0, self::DECIMALES_MONEDA);
         
         return $simbolo . ' ' . $precio;
     }
@@ -231,7 +278,7 @@ class DetalleItem extends Model
     public function getTotalFormateado($moneda = 'GTQ')
     {
         $simbolo = $moneda === 'USD' ? '$' : 'Q';
-        $total = number_format($this->attributes['total'] ?? 0, 5);
+        $total = number_format($this->attributes['total'] ?? 0, self::DECIMALES_MONEDA);
         
         return $simbolo . ' ' . $total;
     }

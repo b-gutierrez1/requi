@@ -167,10 +167,17 @@ View::startSection('content');
                                 <?php
                                 $flujo = $req->autorizacionFlujo();
                                 if ($flujo):
+                                    // Las tres variantes pendiente_autorizacion_* son el estado
+                                    // mas comun del sistema. Si faltan aqui caen al default gris
+                                    // con signo de interrogacion, y el solicitante ve "estado
+                                    // desconocido" en lo que el admin ve como "en curso".
                                     $badgeClass = match($flujo->estado) {
                                         'pendiente_revision' => 'bg-warning',
                                         'rechazado_revision' => 'bg-danger',
-                                        'pendiente_autorizacion' => 'bg-info',
+                                        'pendiente_autorizacion',
+                                        'pendiente_autorizacion_centros',
+                                        'pendiente_autorizacion_pago',
+                                        'pendiente_autorizacion_cuenta' => 'bg-info',
                                         'rechazado_autorizacion' => 'bg-danger',
                                         'autorizado' => 'bg-success',
                                         'rechazado' => 'bg-danger',
@@ -180,6 +187,9 @@ View::startSection('content');
                                         'pendiente_revision' => 'En Revisión',
                                         'rechazado_revision' => 'Rechazada en Revisión',
                                         'pendiente_autorizacion' => 'En Autorización',
+                                        'pendiente_autorizacion_centros' => 'Pendiente de Autorización',
+                                        'pendiente_autorizacion_pago' => 'Pendiente Autorización de Pago',
+                                        'pendiente_autorizacion_cuenta' => 'Pendiente Autorización de Cuenta',
                                         'rechazado_autorizacion' => 'Rechazada en Autorización',
                                         'autorizado' => 'Autorizada',
                                         'rechazado' => 'Rechazada',
@@ -188,7 +198,10 @@ View::startSection('content');
                                     $icon = match($flujo->estado) {
                                         'pendiente_revision' => 'clock',
                                         'rechazado_revision' => 'times-circle',
-                                        'pendiente_autorizacion' => 'hourglass-half',
+                                        'pendiente_autorizacion',
+                                        'pendiente_autorizacion_centros',
+                                        'pendiente_autorizacion_pago',
+                                        'pendiente_autorizacion_cuenta' => 'hourglass-half',
                                         'rechazado_autorizacion' => 'times-circle',
                                         'autorizado' => 'check-circle',
                                         'rechazado' => 'times-circle',

@@ -171,7 +171,10 @@ View::startSection('content');
                                     $estadoTexto = match($reg['estado_actual']) {
                                         'pendiente_revision'      => 'En Revisión',
                                         'rechazado_revision'      => 'Rechazada',
-                                        'pendiente_autorizacion'  => 'En Autorización',
+                                        'pendiente_autorizacion',
+                                        'pendiente_autorizacion_centros',
+                                        'pendiente_autorizacion_pago',
+                                        'pendiente_autorizacion_cuenta' => 'En Autorización',
                                         'rechazado_autorizacion'  => 'Rechazada',
                                         'autorizado'              => 'Autorizada',
                                         'rechazado'               => 'Rechazada',
@@ -180,7 +183,11 @@ View::startSection('content');
                                     $badgeEstado = match($reg['estado_actual']) {
                                         'autorizado' => 'bg-success',
                                         'rechazado','rechazado_revision','rechazado_autorizacion' => 'bg-danger',
-                                        'pendiente_revision','pendiente_autorizacion' => 'bg-warning text-dark',
+                                        'pendiente_revision' => 'bg-warning text-dark',
+                                        'pendiente_autorizacion',
+                                        'pendiente_autorizacion_centros',
+                                        'pendiente_autorizacion_pago',
+                                        'pendiente_autorizacion_cuenta' => 'bg-info',
                                         default => 'bg-secondary'
                                     };
                                     ?>
@@ -283,7 +290,10 @@ View::startSection('content');
                             $estadoTexto = match($estadoActual) {
                                 'pendiente_revision'     => 'En Revisión',
                                 'rechazado_revision'     => 'Rechazada en Revisión',
-                                'pendiente_autorizacion' => 'En Autorización',
+                                'pendiente_autorizacion',
+                                'pendiente_autorizacion_centros',
+                                'pendiente_autorizacion_pago',
+                                'pendiente_autorizacion_cuenta' => 'En Autorización',
                                 'rechazado_autorizacion' => 'Rechazada',
                                 'autorizado'             => 'Autorizada',
                                 'rechazado'              => 'Rechazada',
@@ -292,7 +302,11 @@ View::startSection('content');
                             $badgeEstado = match($estadoActual) {
                                 'autorizado' => 'bg-success',
                                 'rechazado','rechazado_revision','rechazado_autorizacion' => 'bg-danger',
-                                'pendiente_revision','pendiente_autorizacion' => 'bg-warning text-dark',
+                                'pendiente_revision' => 'bg-warning text-dark',
+                                        'pendiente_autorizacion',
+                                        'pendiente_autorizacion_centros',
+                                        'pendiente_autorizacion_pago',
+                                        'pendiente_autorizacion_cuenta' => 'bg-info',
                                 default => 'bg-secondary'
                             };
                             ?>

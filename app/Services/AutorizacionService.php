@@ -1631,7 +1631,7 @@ class AutorizacionService
                     r.proveedor_nombre as nombre_razon_social,
                     r.monto_total,
                     r.moneda,
-                    COALESCE(af.estado, r.estado, 'pendiente') as estado_actual,
+                    COALESCE(af.estado, 'pendiente') as estado_actual,
                     CASE 
                         WHEN a.estado = 'aprobada' AND a.tipo = 'unidad_negocio' THEN 'centro_autorizado'
                         WHEN a.estado = 'rechazada' AND a.tipo = 'unidad_negocio' THEN 'centro_rechazado'

@@ -249,46 +249,11 @@ View::startSection('content');
         </div>
     </div>
 
-    <!-- Estadísticas Generales -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="stats-card">
-                <div class="card-body text-center">
-                    <div class="stats-icon requisitions">
-                        <i class="fas fa-file-invoice"></i>
-                    </div>
-                    <h3 class="text-primary"><?php echo $estadisticas['total_requisiciones'] ?? 0; ?></h3>
-                    <p class="text-muted mb-0">Solicitudes Registradas</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="stats-card">
-                <div class="card-body text-center">
-                    <div class="stats-icon pendientes">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <h3 class="text-warning"><?php echo $estadisticas['pendientes'] ?? 0; ?></h3>
-                    <p class="text-muted mb-0">En Proceso de Evaluación</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="stats-card">
-                <div class="card-body text-center">
-                    <div class="stats-icon autorizadas">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <h3 class="text-success"><?php echo $estadisticas['autorizadas'] ?? 0; ?></h3>
-                    <p class="text-muted mb-0">Solicitudes Aprobadas</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <?php if (!empty($estadisticas_generales)): $eg = $estadisticas_generales; ?>
     <!-- Estadísticas Generales (solo admin): antes se calculaban en cada
-         carga y la vista nunca las mostraba. -->
+         carga y la vista nunca las mostraba. Va primero, justo debajo del
+         banner de bienvenida: es lo que un admin quiere ver antes que sus
+         propias solicitudes. -->
     <div class="row mb-4">
         <div class="col-12">
             <h6 class="text-muted mb-2"><i class="fas fa-chart-bar me-2"></i>Vista general del sistema</h6>
@@ -350,6 +315,43 @@ View::startSection('content');
         </div>
     </div>
     <?php endif; ?>
+
+    <!-- Estadísticas del usuario -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="card-body text-center">
+                    <div class="stats-icon requisitions">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                    <h3 class="text-primary"><?php echo $estadisticas['total_requisiciones'] ?? 0; ?></h3>
+                    <p class="text-muted mb-0">Solicitudes Registradas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="card-body text-center">
+                    <div class="stats-icon pendientes">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h3 class="text-warning"><?php echo $estadisticas['pendientes'] ?? 0; ?></h3>
+                    <p class="text-muted mb-0">En Proceso de Evaluación</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-card">
+                <div class="card-body text-center">
+                    <div class="stats-icon autorizadas">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h3 class="text-success"><?php echo $estadisticas['autorizadas'] ?? 0; ?></h3>
+                    <p class="text-muted mb-0">Solicitudes Aprobadas</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Acciones Rápidas -->
     <div class="quick-actions">

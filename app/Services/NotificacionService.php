@@ -416,6 +416,10 @@ class NotificacionService
             $data['prioridad'] = 'ALTA';
             $resultados = [];
 
+            // Se agrupa POR AUTORIZADOR: quien tenga varias unidades de negocio
+            // en la misma requisicion recibe UN correo con todas, no uno por
+            // cada unidad.
+            $porAutorizador = [];
             foreach ($centrosIds as $centroId) {
                 $centro = UnidadNegocio::find($centroId);
                 if (!$centro) {
@@ -425,23 +429,45 @@ class NotificacionService
                 // Obtener nombre del centro (compatible con objeto o array)
                 $centroNombre = is_object($centro) ? ($centro->nombre ?? '') : ($centro['nombre'] ?? '');
 
-                $autorizadores = $this->getAutorizadoresCentro($centroId);
-                
-                foreach ($autorizadores as $autorizador) {
-                    $data['destinatario_nombre'] = $autorizador['nombre'];
-                    $data['unidad_negocio'] = $centroNombre;
-                    $data['url_revision'] = $this->obtenerUrlAccion($ordenId, 'autorizar');
-                    $data['tiempo_limite'] = '24 horas'; // Tiempo límite para respuesta
+                foreach ($this->getAutorizadoresCentro($centroId) as $autorizador) {
+                    $email = trim((string)($autorizador['email'] ?? ''));
+                    if ($email === '') {
+                        continue;
+                    }
+                    $clave = strtolower($email);
 
-                    $result = $this->emailService->sendWithTemplate(
-                        $autorizador['email'],
-                        "URGENTE: Requisición #{$data['numero_orden']} Pendiente de Autorización",
-                        'urgente_autorizacion',
-                        $data
-                    );
-
-                    $resultados[] = $result;
+                    if (!isset($porAutorizador[$clave])) {
+                        $porAutorizador[$clave] = [
+                            'email'    => $email,
+                            'nombre'   => $autorizador['nombre'] ?? $email,
+                            'unidades' => [],
+                        ];
+                    }
+                    if ($centroNombre !== '' && !in_array($centroNombre, $porAutorizador[$clave]['unidades'], true)) {
+                        $porAutorizador[$clave]['unidades'][] = $centroNombre;
+                    }
                 }
+            }
+
+            foreach ($porAutorizador as $destinatario) {
+                $cuantas = count($destinatario['unidades']);
+                $listado = implode(', ', $destinatario['unidades']);
+
+                $data['destinatario_nombre'] = $destinatario['nombre'];
+                $data['unidad_negocio'] = $listado;
+                $data['url_revision'] = $this->obtenerUrlAccion($ordenId, 'autorizar');
+                $data['tiempo_limite'] = '24 horas'; // Tiempo límite para respuesta
+
+                $result = $this->emailService->sendWithTemplate(
+                    $destinatario['email'],
+                    $cuantas === 1
+                        ? "URGENTE: Requisición #{$data['numero_orden']} Pendiente de Autorización"
+                        : "URGENTE: Requisición #{$data['numero_orden']} - {$cuantas} unidades pendientes de autorización",
+                    'urgente_autorizacion',
+                    $data
+                );
+
+                $resultados[] = $result;
             }
 
             return [
@@ -1020,27 +1046,62 @@ class NotificacionService
             $data = $this->formatearDatosOrden($orden);
             $resultados = [];
 
+            // Se agrupa POR AUTORIZADOR antes de enviar. Una requisicion puede
+            // repartirse entre varias unidades de negocio que comparten
+            // autorizador (por ejemplo cinco lineas de COMERCIAL): antes se
+            // enviaba un correo por cada linea, asi que la misma persona
+            // recibia cinco avisos identicos de la misma requisicion.
+            $porAutorizador = [];
             foreach ($registros as $registro) {
-                $email       = $registro['autorizador_email'];
-                $nombre      = $registro['autorizador_nombre'] ?? $email;
-                $centroNombre = $registro['centro_nombre'];
-
-                if (empty($email)) {
+                $email = trim((string)($registro['autorizador_email'] ?? ''));
+                if ($email === '') {
                     continue;
                 }
+                $clave = strtolower($email);
 
-                error_log("notificarAutorizadoresCentros: Enviando correo a {$email} ({$centroNombre})");
+                if (!isset($porAutorizador[$clave])) {
+                    $porAutorizador[$clave] = [
+                        'email'    => $email,
+                        'nombre'   => $registro['autorizador_nombre'] ?? $email,
+                        'unidades' => [],
+                    ];
+                }
 
-                $data['destinatario_nombre'] = $nombre;
-                $data['unidad_negocio']        = $centroNombre;
+                $unidad = $registro['centro_nombre'];
+                // Una misma unidad puede venir repetida si tiene varias lineas
+                // de distribucion; en el correo se nombra una sola vez.
+                if ($unidad !== null && !in_array($unidad, $porAutorizador[$clave]['unidades'], true)) {
+                    $porAutorizador[$clave]['unidades'][] = $unidad;
+                }
+            }
+
+            error_log("notificarAutorizadoresCentros: " . count($registros) . " autorizaciones agrupadas en "
+                . count($porAutorizador) . " destinatarios");
+
+            foreach ($porAutorizador as $destinatario) {
+                $email    = $destinatario['email'];
+                $unidades = $destinatario['unidades'];
+                $cuantas  = count($unidades);
+                $listado  = implode(', ', $unidades);
+
+                error_log("notificarAutorizadoresCentros: Enviando correo a {$email} ({$cuantas} unidad(es): {$listado})");
+
+                $data['destinatario_nombre'] = $destinatario['nombre'];
+                $data['unidad_negocio']      = $listado;
                 $data['url_revision']        = $this->obtenerUrlAccion($ordenId, 'autorizar');
-                $data['accion_requerida']    = "Autorización por Unidad de Negocio: {$centroNombre}";
+                $data['accion_requerida']    = $cuantas === 1
+                    ? "Autorización por Unidad de Negocio: {$listado}"
+                    : "Autorización de {$cuantas} unidades de negocio: {$listado}";
                 $data['mensaje_tipo']        = 'AUTORIZACIÓN DE UNIDAD DE NEGOCIO';
+
+                $asunto = $cuantas === 1
+                    ? "🔔 AUTORIZAR: Requisición #{$data['numero_orden']} - Unidad: {$listado}"
+                    : "🔔 AUTORIZAR: Requisición #{$data['numero_orden']} - {$cuantas} unidades de negocio";
 
                 $result = $this->sendEmailSafe(
                     'sendWithTemplate',
                     $email,
-                    "🔔 AUTORIZAR: Requisición #{$data['numero_orden']} - Unidad: {$centroNombre}",
+                    $asunto,
                     'pendiente_autorizacion_centro',
                     $data
                 );

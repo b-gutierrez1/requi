@@ -173,35 +173,13 @@ View::startSection('content');
                             <p class="mb-2"><strong>Estado Actual:</strong></p>
                             <p>
                                 <?php
-                                    $estadoActual = $flujo['estado'] ?? 'sin_flujo';
-                                    $estadoClass = match($estadoActual) {
-                                        'pendiente_revision' => 'bg-warning text-dark',
-                                        'pendiente_autorizacion',
-                                        'pendiente_autorizacion_pago',
-                                        'pendiente_autorizacion_cuenta',
-                                        'pendiente_autorizacion_centros' => 'bg-info',
-                                        'autorizado' => 'bg-success',
-                                        'rechazado',
-                                        'rechazado_revision',
-                                        'rechazado_autorizacion' => 'bg-danger',
-                                        default => 'bg-secondary'
-                                    };
-                                    $estadoTexto = match($estadoActual) {
-                                        'pendiente_revision' => 'Pendiente de revisión',
-                                        'pendiente_autorizacion',
-                                        'pendiente_autorizacion_pago',
-                                        'pendiente_autorizacion_cuenta',
-                                        'pendiente_autorizacion_centros' => 'Pendiente de autorización',
-                                        'autorizado' => 'Autorizada',
-                                        'rechazado_revision' => 'Rechazada en la revisión',
-                                        'rechazado_autorizacion' => 'Rechazada en la autorización',
-                                        'rechazado' => 'Rechazada',
-                                        'sin_flujo' => 'Sin flujo',
-                                        default => ucfirst(str_replace('_', ' ', $estadoActual))
-                                    };
+                                    // Fuente unica: EstadoHelper (antes, mapa propio duplicado).
+                                    // null cuando no hay flujo: el helper lo rotula "Borrador".
+                                    $badgeFlujo = \App\Helpers\EstadoHelper::getBadgeFlujo($flujo['estado'] ?? null);
                                 ?>
-                                <span class="badge <?php echo $estadoClass; ?> fs-6">
-                                    <?php echo View::e($estadoTexto); ?>
+                                <span class="badge <?php echo $badgeFlujo['class']; ?> fs-6">
+                                    <i class="fas fa-<?php echo $badgeFlujo['icon']; ?> me-1"></i>
+                                    <?php echo View::e($badgeFlujo['text']); ?>
                                 </span>
                             </p>
                         </div>

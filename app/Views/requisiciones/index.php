@@ -165,54 +165,17 @@ View::startSection('content');
                             </td>
                             <td class="text-center">
                                 <?php
+                                // Fuente unica: EstadoHelper. Antes cada vista tenia su propio
+                                // mapa y ninguna cubria las variantes pendiente_autorizacion_*,
+                                // que son el estado mas comun: salian en gris con signo de
+                                // interrogacion para el solicitante.
                                 $flujo = $req->autorizacionFlujo();
-                                if ($flujo):
-                                    // Las tres variantes pendiente_autorizacion_* son el estado
-                                    // mas comun del sistema. Si faltan aqui caen al default gris
-                                    // con signo de interrogacion, y el solicitante ve "estado
-                                    // desconocido" en lo que el admin ve como "en curso".
-                                    $badgeClass = match($flujo->estado) {
-                                        'pendiente_revision' => 'bg-warning',
-                                        'rechazado_revision' => 'bg-danger',
-                                        'pendiente_autorizacion',
-                                        'pendiente_autorizacion_centros',
-                                        'pendiente_autorizacion_pago',
-                                        'pendiente_autorizacion_cuenta' => 'bg-info',
-                                        'rechazado_autorizacion' => 'bg-danger',
-                                        'autorizado' => 'bg-success',
-                                        'rechazado' => 'bg-danger',
-                                        default => 'bg-secondary'
-                                    };
-                                    $estadoText = match($flujo->estado) {
-                                        'pendiente_revision' => 'En Revisión',
-                                        'rechazado_revision' => 'Rechazada en Revisión',
-                                        'pendiente_autorizacion' => 'En Autorización',
-                                        'pendiente_autorizacion_centros' => 'Pendiente de Autorización',
-                                        'pendiente_autorizacion_pago' => 'Pendiente Autorización de Pago',
-                                        'pendiente_autorizacion_cuenta' => 'Pendiente Autorización de Cuenta',
-                                        'rechazado_autorizacion' => 'Rechazada en Autorización',
-                                        'autorizado' => 'Autorizada',
-                                        'rechazado' => 'Rechazada',
-                                        default => 'Pendiente'
-                                    };
-                                    $icon = match($flujo->estado) {
-                                        'pendiente_revision' => 'clock',
-                                        'rechazado_revision' => 'times-circle',
-                                        'pendiente_autorizacion',
-                                        'pendiente_autorizacion_centros',
-                                        'pendiente_autorizacion_pago',
-                                        'pendiente_autorizacion_cuenta' => 'hourglass-half',
-                                        'rechazado_autorizacion' => 'times-circle',
-                                        'autorizado' => 'check-circle',
-                                        'rechazado' => 'times-circle',
-                                        default => 'question-circle'
-                                    };
+                                $badge = \App\Helpers\EstadoHelper::getBadgeFlujo($flujo ? $flujo->estado : null);
                                 ?>
-                                <span class="badge <?php echo $badgeClass; ?>">
-                                    <i class="fas fa-<?php echo $icon; ?> me-1"></i>
-                                    <?php echo $estadoText; ?>
+                                <span class="badge <?php echo $badge['class']; ?>">
+                                    <i class="fas fa-<?php echo $badge['icon']; ?> me-1"></i>
+                                    <?php echo $badge['text']; ?>
                                 </span>
-                                <?php endif; ?>
                             </td>
                             <td class="text-center">
                                 <div class="btn-group" role="group">

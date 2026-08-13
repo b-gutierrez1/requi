@@ -168,28 +168,10 @@ View::startSection('content');
                                         default => 'Desconocida'
                                     };
                                     $badgeAccion = in_array($reg['tipo_accion'], ['revision_aprobada','centro_autorizado']) ? 'bg-success' : 'bg-danger';
-                                    $estadoTexto = match($reg['estado_actual']) {
-                                        'pendiente_revision'      => 'En Revisión',
-                                        'rechazado_revision'      => 'Rechazada',
-                                        'pendiente_autorizacion',
-                                        'pendiente_autorizacion_centros',
-                                        'pendiente_autorizacion_pago',
-                                        'pendiente_autorizacion_cuenta' => 'En Autorización',
-                                        'rechazado_autorizacion'  => 'Rechazada',
-                                        'autorizado'              => 'Autorizada',
-                                        'rechazado'               => 'Rechazada',
-                                        default => 'Pendiente'
-                                    };
-                                    $badgeEstado = match($reg['estado_actual']) {
-                                        'autorizado' => 'bg-success',
-                                        'rechazado','rechazado_revision','rechazado_autorizacion' => 'bg-danger',
-                                        'pendiente_revision' => 'bg-warning text-dark',
-                                        'pendiente_autorizacion',
-                                        'pendiente_autorizacion_centros',
-                                        'pendiente_autorizacion_pago',
-                                        'pendiente_autorizacion_cuenta' => 'bg-info',
-                                        default => 'bg-secondary'
-                                    };
+                                    // Fuente unica: EstadoHelper (antes, mapa propio duplicado).
+                                    $badgeFlujo  = \App\Helpers\EstadoHelper::getBadgeFlujo($reg['estado_actual']);
+                                    $estadoTexto = $badgeFlujo['text'];
+                                    $badgeEstado = $badgeFlujo['class'];
                                     ?>
                                     <tr>
                                         <td><small><?= View::formatDate($reg['fecha_autorizacion']) ?></small></td>
@@ -287,28 +269,10 @@ View::startSection('content');
                             };
                             $badgeAccion = in_array($auth['tipo_accion'], ['revision_aprobada','centro_autorizado']) ? 'bg-success' : 'bg-danger';
                             $estadoActual = $auth['estado_actual'] ?? 'pendiente';
-                            $estadoTexto = match($estadoActual) {
-                                'pendiente_revision'     => 'En Revisión',
-                                'rechazado_revision'     => 'Rechazada en Revisión',
-                                'pendiente_autorizacion',
-                                'pendiente_autorizacion_centros',
-                                'pendiente_autorizacion_pago',
-                                'pendiente_autorizacion_cuenta' => 'En Autorización',
-                                'rechazado_autorizacion' => 'Rechazada',
-                                'autorizado'             => 'Autorizada',
-                                'rechazado'              => 'Rechazada',
-                                default => 'Pendiente'
-                            };
-                            $badgeEstado = match($estadoActual) {
-                                'autorizado' => 'bg-success',
-                                'rechazado','rechazado_revision','rechazado_autorizacion' => 'bg-danger',
-                                'pendiente_revision' => 'bg-warning text-dark',
-                                        'pendiente_autorizacion',
-                                        'pendiente_autorizacion_centros',
-                                        'pendiente_autorizacion_pago',
-                                        'pendiente_autorizacion_cuenta' => 'bg-info',
-                                default => 'bg-secondary'
-                            };
+                            // Fuente unica: EstadoHelper (antes, mapa propio duplicado).
+                            $badgeFlujo  = \App\Helpers\EstadoHelper::getBadgeFlujo($estadoActual);
+                            $estadoTexto = $badgeFlujo['text'];
+                            $badgeEstado = $badgeFlujo['class'];
                             ?>
                             <tr>
                                 <td><small><?= View::formatDate($auth['fecha_autorizacion']) ?></small></td>

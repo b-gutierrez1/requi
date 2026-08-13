@@ -206,33 +206,12 @@ View::startSection('content');
                             <td>
                                 <?php if ($estadoFlujoReq): ?>
                                     <?php
-                                        $estadoFlujoClass = match($estadoFlujoReq) {
-                                            'pendiente_revision' => 'bg-warning text-dark',
-                                            'pendiente_autorizacion',
-                                            'pendiente_autorizacion_pago',
-                                            'pendiente_autorizacion_cuenta',
-                                            'pendiente_autorizacion_centros' => 'bg-info',
-                                            'autorizado' => 'bg-success',
-                                            'rechazado',
-                                            'rechazado_revision',
-                                            'rechazado_autorizacion' => 'bg-danger',
-                                            default => 'bg-secondary'
-                                        };
-                                        $estadoFlujoTexto = match($estadoFlujoReq) {
-                                            'pendiente_revision' => 'Pendiente de revisión',
-                                            'pendiente_autorizacion',
-                                            'pendiente_autorizacion_pago',
-                                            'pendiente_autorizacion_cuenta',
-                                            'pendiente_autorizacion_centros' => 'Pendiente de autorización',
-                                            'autorizado' => 'Autorizada',
-                                            'rechazado_revision' => 'Rechazada en la revisión',
-                                            'rechazado_autorizacion' => 'Rechazada en la autorización',
-                                            'rechazado' => 'Rechazada',
-                                            default => ucfirst(str_replace('_', ' ', $estadoFlujoReq))
-                                        };
+                                        // Fuente unica: EstadoHelper (antes, mapa propio duplicado).
+                                        $badgeFlujo = \App\Helpers\EstadoHelper::getBadgeFlujo($estadoFlujoReq);
                                     ?>
-                                    <span class="badge <?php echo $estadoFlujoClass; ?>">
-                                        <?php echo View::e($estadoFlujoTexto); ?>
+                                    <span class="badge <?php echo $badgeFlujo['class']; ?>">
+                                        <i class="fas fa-<?php echo $badgeFlujo['icon']; ?> me-1"></i>
+                                        <?php echo View::e($badgeFlujo['text']); ?>
                                     </span>
 
                                     <?php if ($fueRechazada): ?>

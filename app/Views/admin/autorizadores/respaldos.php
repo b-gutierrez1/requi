@@ -239,7 +239,9 @@ $title = 'Autorizadores de Respaldo';
                 
                 $estado = 'inactivo';
                 $estadoTexto = 'Inactivo';
-                $estadoClass = 'badge-secondary';
+                // bg-* (Bootstrap 5): badge-secondary es de Bootstrap 4 y no
+                // existe en la version que carga el layout, salia sin color.
+                $estadoClass = 'bg-secondary';
                 
                 if ($fechaInicio && $fechaFin) {
                     if ($fechaHoy >= $fechaInicio && $fechaHoy <= $fechaFin) {

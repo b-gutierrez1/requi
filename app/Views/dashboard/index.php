@@ -220,6 +220,14 @@ View::startSection('content');
         color: #6c757d;
         font-size: 1.1rem;
     }
+
+    /* Gira el chevron del gadget "Vista general del sistema" al desplegarse */
+    [data-bs-toggle="collapse"] .fa-chevron-down {
+        transition: transform 0.2s ease-in-out;
+    }
+    [data-bs-toggle="collapse"][aria-expanded="true"] .fa-chevron-down {
+        transform: rotate(180deg);
+    }
 </style>
 
 <div class="container py-4" style="max-width: 1200px;">
@@ -234,6 +242,15 @@ View::startSection('content');
                 <p class="lead mb-0">
                     Sistema de Gestión de Requisiciones de Compra - Panel de Control
                 </p>
+                <?php if (!empty($estadisticas_generales)): ?>
+                <button class="btn btn-sm btn-light bg-opacity-25 text-white border-0 mt-3"
+                        type="button" data-bs-toggle="collapse" data-bs-target="#panelVistaGeneral"
+                        aria-expanded="false" aria-controls="panelVistaGeneral"
+                        style="background-color: rgba(255,255,255,0.15);">
+                    <i class="fas fa-chart-bar me-2"></i>Vista general del sistema
+                    <i class="fas fa-chevron-down ms-2 small"></i>
+                </button>
+                <?php endif; ?>
             </div>
             <div class="col-md-4 text-end">
                 <div class="d-flex align-items-center justify-content-end">
@@ -251,10 +268,11 @@ View::startSection('content');
 
     <?php if (!empty($estadisticas_generales)): $eg = $estadisticas_generales; ?>
     <!-- Estadísticas Generales (solo admin): antes se calculaban en cada
-         carga y la vista nunca las mostraba. Va primero, justo debajo del
-         banner de bienvenida: es lo que un admin quiere ver antes que sus
-         propias solicitudes. -->
-    <div class="row mb-4">
+         carga y la vista nunca las mostraba. Ahora es un gadget desplegable
+         desde el boton del banner de bienvenida, en vez de ocupar espacio
+         fijo siempre. -->
+    <div class="collapse mb-4" id="panelVistaGeneral">
+    <div class="row">
         <div class="col-12">
             <h6 class="text-muted mb-2"><i class="fas fa-chart-bar me-2"></i>Vista general del sistema</h6>
         </div>
@@ -314,6 +332,7 @@ View::startSection('content');
             </div>
         </div>
     </div>
+    </div><!-- /#panelVistaGeneral -->
     <?php endif; ?>
 
     <!-- Estadísticas del usuario -->

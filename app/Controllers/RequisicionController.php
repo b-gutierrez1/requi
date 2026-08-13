@@ -810,9 +810,19 @@ class RequisicionController extends Controller
             }
             unset($row);
 
-            // Enriquecer con cargo desde autorizadores
+            // Enriquecer con cargo. Prioridad: el cargo capturado a mano en
+            // autorizadores; si esta vacio (la mayoria lo esta: solo 2 de 12
+            // lo tienen cargado), se cae al puesto que Azure AD ya sincronizo
+            // en usuarios al iniciar sesion, que cubre varios mas.
             $stmtCargo = $pdo->prepare(
-                "SELECT cargo FROM autorizadores WHERE LOWER(email) = LOWER(?) LIMIT 1"
+                "SELECT COALESCE(
+                    NULLIF(a.cargo, ''),
+                    NULLIF(u.job_title, ''),
+                    NULLIF(u.azure_job_title, '')
+                 ) AS cargo
+                 FROM autorizadores a
+                 LEFT JOIN usuarios u ON LOWER(u.azure_email) = LOWER(a.email)
+                 WHERE LOWER(a.email) = LOWER(?) LIMIT 1"
             );
             foreach ($autorizacionesAprobadas as &$row) {
                 $stmtCargo->execute([$row['autorizador_email'] ?? '']);

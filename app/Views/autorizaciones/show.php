@@ -1787,66 +1787,6 @@ function createCompleteRequisitionDetail() {
                             </div>
                         </div>
 
-                        <!-- Información de Presupuesto -->
-                        <div class="modal-card mb-3">
-                            <div class="modal-card-header">
-                                <h6 class="modal-card-title">
-                                    <i class="fas fa-chart-line me-1"></i>
-                                    Análisis Presupuestal
-                                </h6>
-                            </div>
-                            <div class="modal-card-body">
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <div class="modal-info-field">
-                                            <label class="modal-info-label">Impacto Presupuestal</label>
-                                            <div class="modal-info-value">
-                                                <?php 
-                                                $impacto = 'Bajo';
-                                                $impactoClass = 'text-success';
-                                                $impactoIcon = 'fa-arrow-down';
-                                                
-                                                if ($montoTotal > 50000000) {
-                                                    $impacto = 'Crítico';
-                                                    $impactoClass = 'text-danger';
-                                                    $impactoIcon = 'fa-arrow-up';
-                                                } elseif ($montoTotal > 20000000) {
-                                                    $impacto = 'Alto';
-                                                    $impactoClass = 'text-warning';
-                                                    $impactoIcon = 'fa-arrow-up';
-                                                } elseif ($montoTotal > 5000000) {
-                                                    $impacto = 'Moderado';
-                                                    $impactoClass = 'text-info';
-                                                    $impactoIcon = 'fa-minus';
-                                                }
-                                                ?>
-                                                <i class="fas <?php echo $impactoIcon; ?> me-1 <?php echo $impactoClass; ?>"></i>
-                                                <span class="<?php echo $impactoClass; ?>"><?php echo $impacto; ?></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="modal-info-field">
-                                            <label class="modal-info-label">Nivel de Aprobación</label>
-                                            <div class="modal-info-value">
-                                                <?php 
-                                                $nivel = 'Estándar';
-                                                if ($montoTotal > 50000000) {
-                                                    $nivel = 'Directivo';
-                                                } elseif ($montoTotal > 20000000) {
-                                                    $nivel = 'Gerencial';
-                                                } elseif ($montoTotal > 10000000) {
-                                                    $nivel = 'Supervisión';
-                                                }
-                                                ?>
-                                                <i class="fas fa-layer-group me-1"></i>
-                                                <?php echo $nivel; ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
             </div>
         </div>
     `;

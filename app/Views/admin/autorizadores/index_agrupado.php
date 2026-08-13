@@ -326,7 +326,6 @@ $title = 'Gestión de Autorizadores';
                         'metodo_pago'     => $autorizador->puede_autorizar_metodo_pago ?? false,
                         'respaldo'        => $autorizador->puede_autorizar_respaldo ?? false,
                     ],
-                    'monto_limite_max' => $autorizador->monto_limite ?? 0,
                     'registros_count'  => 1,
                 ];
                 ?>
@@ -388,19 +387,6 @@ $title = 'Gestión de Autorizadores';
                                         </span>
                                     <?php endif; ?>
                                     <span class="centros-count"><?= count($grupo['centros']) ?></span>
-                                </div>
-                                <div class="mt-1">
-                                    <?php
-                                    // Tope configurado del autorizador, no el monto de una requisicion.
-                                    // No existe columna de moneda para los limites en la BD; por
-                                    // definicion del negocio se fijan en quetzales, asi que este "Q"
-                                    // es fijo a proposito y no debe pasar por View::money().
-                                    ?>
-                                    <?php if (!empty($grupo['monto_limite_max'])): ?>
-                                        <small class="text-success">Límite: Q <?= number_format($grupo['monto_limite_max'], 2) ?></small>
-                                    <?php else: ?>
-                                        <small class="text-muted">Sin límite</small>
-                                    <?php endif; ?>
                                 </div>
                             </div>
                             <div class="col-md-2 text-end">

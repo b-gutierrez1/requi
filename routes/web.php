@@ -101,7 +101,6 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
         // APIs
         $router->get('/api/buscar', [RequisicionController::class, 'apiBuscar']);
         $router->get('/api/buscar-cuentas', [RequisicionController::class, 'apiBuscarCuentas']);
-        $router->post('/api/validar-presupuesto', [RequisicionController::class, 'apiValidarPresupuesto']);
         $router->get('/api/export', [RequisicionController::class, 'export']);
     });
     

@@ -887,23 +887,6 @@ class RequisicionController extends Controller
     }
 
     /**
-     * API: Valida presupuesto
-     * 
-     * @return void
-     */
-    public function apiValidarPresupuesto()
-    {
-        $data = json_decode(file_get_contents('php://input'), true);
-
-        // TODO: Implementar validación de presupuesto
-        $this->jsonResponse([
-            'success' => true,
-            'disponible' => true,
-            'monto_disponible' => 10000
-        ]);
-    }
-
-    /**
      * API: Busca cuentas contables
      * 
      * @return void

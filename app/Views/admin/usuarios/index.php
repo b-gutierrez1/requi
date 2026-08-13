@@ -475,13 +475,14 @@ function toggleUsuario(id, nuevoEstado) {
     });
 }
 
-// Eliminar usuario
+// Desactivar usuario. El endpoint desactiva, no borra: el texto lo refleja.
+// Se usa url() porque la aplicacion no vive en la raiz del dominio.
 function eliminarUsuario(id) {
-    if (!confirm('¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.')) {
+    if (!confirm('¿Desactivar este usuario? Dejará de tener acceso al sistema.')) {
         return;
     }
-    
-    fetch(`/admin/usuarios/${id}/eliminar`, {
+
+    fetch(`<?= url('/admin/usuarios/') ?>${id}/desactivar`, {
         method: 'DELETE',
         headers: {
             'Content-Type': 'application/json'

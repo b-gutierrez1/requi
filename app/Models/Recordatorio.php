@@ -51,9 +51,9 @@ class Recordatorio extends Model
      */
     public static function pendientes()
     {
-        $instance = new static();
+        $tabla = static::getTable();
         
-        $sql = "SELECT * FROM {$instance->table} 
+        $sql = "SELECT * FROM {$tabla} 
                 WHERE estado = 'pendiente' 
                 AND intentos < 3 
                 ORDER BY fecha_creacion ASC";
@@ -72,9 +72,9 @@ class Recordatorio extends Model
      */
     public static function porOrdenCompra($ordenCompraId)
     {
-        $instance = new static();
+        $tabla = static::getTable();
         
-        $sql = "SELECT * FROM {$instance->table} 
+        $sql = "SELECT * FROM {$tabla} 
                 WHERE requisicion_id = ? 
                 ORDER BY fecha_creacion DESC";
         
@@ -204,9 +204,9 @@ class Recordatorio extends Model
      */
     public static function cancelarPorOrden($ordenCompraId)
     {
-        $instance = new static();
+        $tabla = static::getTable();
         
-        $sql = "UPDATE {$instance->table} 
+        $sql = "UPDATE {$tabla} 
                 SET estado = 'cancelado' 
                 WHERE requisicion_id = ? 
                 AND estado = 'pendiente'";
@@ -223,10 +223,12 @@ class Recordatorio extends Model
      */
     public static function necesitanEnvio($horasDesdeUltimo = 24)
     {
-        $instance = new static();
+        $tabla = static::getTable();
         
-        $sql = "SELECT r.*, oc.id as orden_id, oc.nombre_razon_social
-                FROM {$instance->table} r
+        // La columna se llama proveedor_nombre; se conserva el alias viejo
+        // porque los consumidores leen 'nombre_razon_social'.
+        $sql = "SELECT r.*, oc.id as orden_id, oc.proveedor_nombre as nombre_razon_social
+                FROM {$tabla} r
                 INNER JOIN requisiciones oc ON r.requisicion_id = oc.id
                 WHERE r.estado = 'pendiente'
                 AND r.intentos < 3
@@ -249,7 +251,7 @@ class Recordatorio extends Model
      */
     public static function getEstadisticas()
     {
-        $instance = new static();
+        $tabla = static::getTable();
         
         $sql = "SELECT 
                     COUNT(*) as total,
@@ -257,7 +259,7 @@ class Recordatorio extends Model
                     SUM(CASE WHEN estado = 'enviado' THEN 1 ELSE 0 END) as enviados,
                     SUM(CASE WHEN estado = 'fallido' THEN 1 ELSE 0 END) as fallidos,
                     SUM(CASE WHEN estado = 'cancelado' THEN 1 ELSE 0 END) as cancelados
-                FROM {$instance->table}";
+                FROM {$tabla}";
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute();
@@ -279,9 +281,9 @@ class Recordatorio extends Model
      */
     public static function limpiarAntiguos($dias = 30)
     {
-        $instance = new static();
+        $tabla = static::getTable();
         
-        $sql = "DELETE FROM {$instance->table} 
+        $sql = "DELETE FROM {$tabla} 
                 WHERE fecha_creacion < DATE_SUB(NOW(), INTERVAL ? DAY)
                 AND estado IN ('enviado', 'cancelado', 'fallido')";
         

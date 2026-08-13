@@ -337,7 +337,7 @@ View::startSection('content');
                                                 onclick="rechazarEspecial(<?php echo $auth['id']; ?>, '<?php echo $auth['tipo']; ?>')">
                                             <i class="fas fa-times me-1"></i>Rechazar
                                         </button>
-                                        <?php elseif ($estadoAuth === 'autorizada'): ?>
+                                        <?php elseif ($estadoAuth === 'aprobada'): ?>
                                         <span class="badge bg-success">
                                             <i class="fas fa-check me-1"></i>Autorizado
                                         </span>
@@ -441,13 +441,17 @@ View::startSection('content');
                                                 <br><small>Asignado a: <?php echo View::e($autorizadorCentro); ?></small>
                                             </span>
                                             <?php endif; ?>
-                                        <?php elseif ($estadoCentro === 'autorizado'): ?>
+                                        <?php elseif ($estadoCentro === 'aprobada'): ?>
                                         <span class="badge bg-success">
                                             <i class="fas fa-check me-1"></i>Autorizado
                                         </span>
-                                        <?php elseif ($estadoCentro === 'rechazado'): ?>
+                                        <?php elseif ($estadoCentro === 'rechazada'): ?>
                                         <span class="badge bg-danger">
                                             <i class="fas fa-times me-1"></i>Rechazado
+                                        </span>
+                                        <?php elseif ($estadoCentro === 'omitida'): ?>
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-forward me-1"></i>Omitida
                                         </span>
                                         <?php else: ?>
                                         <span class="badge bg-secondary">
@@ -558,12 +562,12 @@ View::startSection('content');
                             $autorizacionesCompletas = 0;
                             
                             foreach ($centrosAutorizaciones ?? [] as $centro) {
-                                if (($centro['estado'] ?? 'pendiente') === 'autorizado') {
+                                if (($centro['estado'] ?? 'pendiente') === 'aprobada') {
                                     $autorizacionesCompletas++;
                                 }
                             }
                             foreach ($autorizaciones_especiales ?? [] as $auth) {
-                                if (($auth['estado'] ?? 'pendiente') === 'autorizada') {
+                                if (($auth['estado'] ?? 'pendiente') === 'aprobada') {
                                     $autorizacionesCompletas++;
                                 }
                             }
@@ -811,7 +815,13 @@ function autorizarEspecial(authId, tipo) {
     formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
     formData.append('comentario', '');
     
-    fetch('<?= url('/autorizaciones/especial/') ?>' + authId + '/autorizar', {
+    // La ruta depende del tipo: no existe un endpoint /especial/ generico.
+    // Mismo criterio que usan autorizaciones/especial.php e index.php.
+    const url = tipo === 'forma_pago'
+        ? '<?= url('/autorizaciones/pago/') ?>' + authId + '/aprobar'
+        : '<?= url('/autorizaciones/cuenta/') ?>' + authId + '/aprobar';
+
+    fetch(url, {
         method: 'POST',
         body: formData
     })
@@ -876,7 +886,12 @@ function rechazarEspecial(authId, tipo) {
     formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
     formData.append('motivo', motivo);
     
-    fetch('<?= url('/autorizaciones/especial/') ?>' + authId + '/rechazar', {
+    // Igual que al autorizar: la ruta depende del tipo.
+    const url = tipo === 'forma_pago'
+        ? '<?= url('/autorizaciones/pago/') ?>' + authId + '/rechazar'
+        : '<?= url('/autorizaciones/cuenta/') ?>' + authId + '/rechazar';
+
+    fetch(url, {
         method: 'POST',
         body: formData
     })
@@ -1481,7 +1496,7 @@ function createCompleteRequisitionDetail() {
                                                 <span class="badge bg-warning text-dark badge-sm">
                                                     <i class="fas fa-clock me-1"></i>Pendiente
                                                 </span>
-                                                <?php elseif ($estadoAuth === 'autorizada'): ?>
+                                                <?php elseif ($estadoAuth === 'aprobada'): ?>
                                                 <span class="badge bg-success badge-sm">
                                                     <i class="fas fa-check me-1"></i>Autorizado
                                                 </span>
@@ -1546,9 +1561,9 @@ function createCompleteRequisitionDetail() {
                                                     </small>
                                                     <?php if ($estadoCentro === 'pendiente'): ?>
                                                         <span class="badge bg-warning text-dark badge-sm">Pendiente</span>
-                                                    <?php elseif ($estadoCentro === 'autorizado'): ?>
+                                                    <?php elseif ($estadoCentro === 'aprobada'): ?>
                                                         <span class="badge bg-success badge-sm">Autorizado</span>
-                                                    <?php elseif ($estadoCentro === 'rechazado'): ?>
+                                                    <?php elseif ($estadoCentro === 'rechazada'): ?>
                                                         <span class="badge bg-danger badge-sm">Rechazado</span>
                                                     <?php endif; ?>
                                                 </div>
@@ -1703,12 +1718,12 @@ function createCompleteRequisitionDetail() {
                                             $autorizacionesCompletas = 0;
                                             
                                             foreach ($centrosAutorizaciones ?? [] as $centro) {
-                                                if (($centro['estado'] ?? 'pendiente') === 'autorizado') {
+                                                if (($centro['estado'] ?? 'pendiente') === 'aprobada') {
                                                     $autorizacionesCompletas++;
                                                 }
                                             }
                                             foreach ($autorizaciones_especiales ?? [] as $auth) {
-                                                if (($auth['estado'] ?? 'pendiente') === 'autorizada') {
+                                                if (($auth['estado'] ?? 'pendiente') === 'aprobada') {
                                                     $autorizacionesCompletas++;
                                                 }
                                             }

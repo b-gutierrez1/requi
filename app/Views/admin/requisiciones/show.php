@@ -14,6 +14,10 @@ function getValue($data, $key, $default = null) {
 // Rechazos consolidados (revisión inicial y autorizaciones). Puede venir vacío.
 $rechazos = (isset($rechazos) && is_array($rechazos)) ? $rechazos : [];
 
+// Moneda de la requisición (GTQ, USD, EUR). Todos los montos de esta pantalla
+// pertenecen a una sola requisición, así que comparten esta moneda.
+$monedaOrden = getValue($orden, 'moneda') ?: 'GTQ';
+
 View::startSection('content');
 ?>
 
@@ -164,7 +168,7 @@ View::startSection('content');
                         </div>
                         <div class="col-md-6">
                             <p class="mb-2"><strong>Monto Total:</strong></p>
-                            <p class="text-success fs-4">Q<?php echo number_format(getValue($orden, 'monto_total'), 2); ?></p>
+                            <p class="text-success fs-4"><?php echo View::money(getValue($orden, 'monto_total'), $monedaOrden); ?></p>
                             
                             <p class="mb-2"><strong>Estado Actual:</strong></p>
                             <p>
@@ -304,9 +308,9 @@ View::startSection('content');
                                     <td><?php echo $i + 1; ?></td>
                                     <td><?php echo View::e($item['descripcion']); ?></td>
                                     <td><?php echo number_format($item['cantidad']); ?></td>
-                                    <td class="text-end">Q<?php echo number_format($item['precio_unitario'], 2); ?></td>
+                                    <td class="text-end"><?php echo View::money($item['precio_unitario'], $monedaOrden, 3); ?></td>
                                     <td class="text-end">
-                                        <strong>Q<?php echo number_format($item['total'], 2); ?></strong>
+                                        <strong><?php echo View::money($item['total'], $monedaOrden); ?></strong>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
@@ -350,7 +354,7 @@ View::startSection('content');
                                     </td>
                                     <td class="text-end"><?php echo number_format($dist['porcentaje'], 2); ?>%</td>
                                     <td class="text-end">
-                                        <strong>Q<?php echo number_format($dist['cantidad'], 2); ?></strong>
+                                        <strong><?php echo View::money($dist['cantidad'], $monedaOrden); ?></strong>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>

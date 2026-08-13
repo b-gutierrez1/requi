@@ -37,6 +37,7 @@ class RequisicionesController extends Controller
                     COALESCE(r.proveedor_nombre, '') as nombre_razon_social,
                     COALESCE(r.forma_pago, '') as forma_pago,
                     COALESCE((SELECT SUM(total) FROM detalle_items WHERE requisicion_id = r.id), 0) as monto_total,
+                    COALESCE(r.moneda, 'GTQ') as moneda,
                     COALESCE(r.fecha_solicitud, NOW()) as fecha,
                     COALESCE(af.estado, '') as estado_flujo,
                     af.fecha_creacion as fecha_inicio_flujo,

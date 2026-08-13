@@ -183,7 +183,7 @@ View::startSection('content');
                                 </div>
                             </td>
                             <td>
-                                <strong class="text-success">Q<?php echo number_format($req['monto_total'], 2); ?></strong>
+                                <strong class="text-success"><?php echo View::money($req['monto_total'], $req['moneda'] ?? 'GTQ'); ?></strong>
                             </td>
                             <td>
                                 <small><?php echo date('d/m/Y', strtotime($req['fecha'])); ?></small>

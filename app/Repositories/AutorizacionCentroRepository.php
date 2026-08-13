@@ -204,7 +204,16 @@ class AutorizacionCentroRepository
         ";
 
         $stmt = $this->pdo->prepare($sql);
-        return $stmt->execute([$comentario, $id, $autorizadorEmail]);
+        $stmt->execute([$comentario, $id, $autorizadorEmail]);
+
+        // Se devuelve rowCount(), NO execute(). execute() responde true con
+        // solo haber podido correr la consulta, aunque no coincida ninguna
+        // fila. Como el WHERE filtra por autorizador_email, quien no es el
+        // autorizador asignado no modificaba nada... pero recibia true, y el
+        // servicio seguia adelante marcando el flujo como autorizado y
+        // omitiendo la autorizacion real. La requisicion quedaba aprobada sin
+        // que el autorizador de verdad hubiera aprobado.
+        return $stmt->rowCount() > 0;
     }
 
     /**
@@ -224,7 +233,10 @@ class AutorizacionCentroRepository
         ";
 
         $stmt = $this->pdo->prepare($sql);
-        return $stmt->execute([$motivo, $id, $autorizadorEmail]);
+        $stmt->execute([$motivo, $id, $autorizadorEmail]);
+
+        // Mismo criterio que authorize(): rowCount(), no execute().
+        return $stmt->rowCount() > 0;
     }
 
     /**

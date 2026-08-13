@@ -166,7 +166,7 @@ View::startSection('content');
                                     <td><?php echo $i + 1; ?></td>
                                     <td><?php echo View::e($item['descripcion']); ?></td>
                                     <td><?php echo number_format($item['cantidad'], 2); ?></td>
-                                    <td class="text-end"><?php echo View::money($item['precio_unitario'], $moneda); ?></td>
+                                    <td class="text-end"><?php echo View::money($item['precio_unitario'], $moneda, 3); ?></td>
                                     <td class="text-end"><strong><?php echo View::money($item['cantidad'] * $item['precio_unitario'], $moneda); ?></strong></td>
                                 </tr>
                                 <?php endforeach; ?>

@@ -273,14 +273,28 @@ class AutorizacionFlujo extends Model
                 return false;
             }
 
-            // El motivo se guarda en el flujo, no solo en el historial: de lo
-            // contrario la pantalla de seguimiento solo puede recuperarlo por
-            // cercania temporal, que es una heuristica y puede cruzarse.
-            self::updateById($id, [
+            // El motivo, QUIEN rechazo y CUANDO se guardan en el flujo, no solo
+            // en el historial: de lo contrario la pantalla de seguimiento tiene
+            // que adivinarlos por cercania temporal, y mostraba "Autorizador no
+            // registrado" y "Fecha no registrada".
+            $datos = [
                 'estado' => self::ESTADO_RECHAZADO_REVISION,
                 'fecha_completado' => date('Y-m-d H:i:s'),
                 'motivo_rechazo' => $motivo,
-            ]);
+                'revisor_fecha' => date('Y-m-d H:i:s'),
+            ];
+
+            $revisor = \App\Models\Usuario::find($usuarioId);
+            if ($revisor) {
+                $email = is_object($revisor)
+                    ? ($revisor->azure_email ?? $revisor->email ?? null)
+                    : ($revisor['azure_email'] ?? $revisor['email'] ?? null);
+                if ($email) {
+                    $datos['revisor_email'] = $email;
+                }
+            }
+
+            self::updateById($id, $datos);
 
             $ordenCompraId = is_object($flujo) ? $flujo->requisicion_id : $flujo['requisicion_id'];
             HistorialRequisicion::registrarRechazo(

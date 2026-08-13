@@ -302,7 +302,7 @@ class RequisicionService
                     'requisicion_id' => $ordenId,
                     'descripcion' => $item['descripcion'],
                     'cantidad' => DetalleItem::normalizarCantidad($item['cantidad'] ?? 0),
-                    'precio_unitario' => DetalleItem::normalizarMonto($item['precio_unitario'] ?? 0),
+                    'precio_unitario' => DetalleItem::normalizarPrecio($item['precio_unitario'] ?? 0),
                     'unidad_medida' => $item['unidad_medida'] ?? 'unidad'
                 ]);
             }
@@ -367,7 +367,7 @@ class RequisicionService
             // Cada item se redondea a 2 decimales ANTES de sumarse, para que
             // el total coincida con la suma de los importes mostrados.
             $cantidad = DetalleItem::normalizarCantidad($item['cantidad'] ?? 0);
-            $precio = DetalleItem::normalizarMonto($item['precio_unitario'] ?? 0);
+            $precio = DetalleItem::normalizarPrecio($item['precio_unitario'] ?? 0);
             $total = round($total + DetalleItem::normalizarMonto($cantidad * $precio), 2);
         }
         return $total;
@@ -1301,7 +1301,7 @@ class RequisicionService
                 // unitario se maneja con 2 decimales.
                 // Ver docs/PRECISION_DECIMAL.md
                 $cantidad = DetalleItem::normalizarCantidad($item['cantidad'] ?? 0);
-                $precioUnitario = DetalleItem::normalizarMonto($item['precio_unitario'] ?? 0);
+                $precioUnitario = DetalleItem::normalizarPrecio($item['precio_unitario'] ?? 0);
                 $total = DetalleItem::normalizarMonto($cantidad * $precioUnitario);
 
                 $items[] = [
@@ -1415,7 +1415,7 @@ class RequisicionService
                 // Los items ya vienen normalizados desde procesarDatosRequisicion();
                 // se vuelve a normalizar por si el metodo se invoca desde otro punto.
                 $cantidad = DetalleItem::normalizarCantidad($item['cantidad'] ?? 0);
-                $precioUnitario = DetalleItem::normalizarMonto($item['precio_unitario'] ?? 0);
+                $precioUnitario = DetalleItem::normalizarPrecio($item['precio_unitario'] ?? 0);
 
                 $detalleItem = new DetalleItem([
                     'requisicion_id' => $ordenId,

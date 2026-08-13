@@ -520,9 +520,12 @@ class View
      * 
      * @param float $amount Cantidad
      * @param string $currency Código o símbolo de moneda (GTQ, USD, EUR, Q, $, etc.)
+     * @param int $decimales Decimales a mostrar. 2 por defecto porque los
+     *                       importes se pagan en centavos; usar 3 solo para el
+     *                       precio unitario, que admite mayor precision.
      * @return string Cantidad formateada
      */
-    public static function money($amount, $currency = 'Q')
+    public static function money($amount, $currency = 'Q', $decimales = 2)
     {
         $amount = $amount ?? 0;
         
@@ -539,7 +542,7 @@ class View
         // Obtener el símbolo correcto
         $symbol = $currencySymbols[$currency] ?? $currency;
         
-        return $symbol . ' ' . number_format((float)$amount, 2, '.', ',');
+        return $symbol . ' ' . number_format((float)$amount, (int)$decimales, '.', ',');
     }
     
     /**

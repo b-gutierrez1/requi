@@ -591,7 +591,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                         <textarea class="form-control item-descripcion" name="items[<?php echo $index; ?>][descripcion]" rows="2" required><?php echo View::e($item['descripcion'] ?? ''); ?></textarea>
                                     </td>
                                     <td>
-                                        <input type="number" class="form-control item-precio" name="items[<?php echo $index; ?>][precio_unitario]" min="0" step="0.01" value="<?php echo number_format($itemPrecio, 2, '.', ''); ?>" required>
+                                        <input type="number" class="form-control item-precio" name="items[<?php echo $index; ?>][precio_unitario]" min="0" step="0.001" value="<?php echo number_format($itemPrecio, 3, '.', ''); ?>" required>
                                     </td>
                                     <td>
                                         <input type="number" class="form-control item-total" name="items[<?php echo $index; ?>][total]" value="<?php echo number_format($itemTotal, 2, '.', ''); ?>" readonly>
@@ -612,7 +612,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                     <textarea class="form-control item-descripcion" name="items[0][descripcion]" rows="2" required></textarea>
                                 </td>
                                 <td>
-                                    <input type="number" class="form-control item-precio" name="items[0][precio_unitario]" min="0" step="0.01" required>
+                                    <input type="number" class="form-control item-precio" name="items[0][precio_unitario]" min="0" step="0.001" required>
                                 </td>
                                 <td>
                                     <input type="number" class="form-control item-total" name="items[0][total]" readonly>
@@ -991,6 +991,15 @@ function redondear2(valor) {
     return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+// Redondeo explicito a 3 decimales, solo para el PRECIO UNITARIO.
+// Los importes que resultan de multiplicarlo siguen redondeandose a 2
+// con redondear2(), porque es lo que se cobra. Ver docs/PRECISION_DECIMAL.md
+function redondear3(valor) {
+    const n = Number(valor);
+    if (!isFinite(n)) return 0;
+    return Math.round((n + Number.EPSILON) * 1000) / 1000;
+}
+
 // Función para formatear monto con símbolo de moneda
 function formatearMonto(monto) {
     return getSimboloMoneda() + ' ' + redondear2(monto).toFixed(2);
@@ -1003,7 +1012,7 @@ function agregarItem() {
     newRow.innerHTML = `
         <td><input type="number" class="form-control item-cantidad" name="items[${contadorItems}][cantidad]" min="1" step="1" value="1" required></td>
         <td><textarea class="form-control item-descripcion" name="items[${contadorItems}][descripcion]" rows="2" required></textarea></td>
-        <td><input type="number" class="form-control item-precio" name="items[${contadorItems}][precio_unitario]" min="0" step="0.01" required></td>
+        <td><input type="number" class="form-control item-precio" name="items[${contadorItems}][precio_unitario]" min="0" step="0.001" required></td>
         <td><input type="number" class="form-control item-total" name="items[${contadorItems}][total]" readonly></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="eliminarItem(this)"><i class="fas fa-trash"></i></button></td>
     `;
@@ -1028,7 +1037,7 @@ function calcularTotalItem(row) {
     // La cantidad es entera (columna int en BD) y el precio unitario tiene
     // 2 decimales; el total se redondea explícitamente a 2 decimales.
     const cantidad = Math.round(parseFloat(row.querySelector('.item-cantidad').value) || 0);
-    const precio = redondear2(parseFloat(row.querySelector('.item-precio').value) || 0);
+    const precio = redondear3(parseFloat(row.querySelector('.item-precio').value) || 0);
     row.querySelector('.item-total').value = redondear2(cantidad * precio).toFixed(2);
     calcularTotalGeneral();
 }

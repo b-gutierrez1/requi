@@ -166,7 +166,7 @@ $moneda = getData($orden, 'moneda') ?: 'GTQ';
                     <tr>
                         <td><?= htmlspecialchars(getData($item, 'descripcion')) ?></td>
                         <td class="text-center"><?= number_format($cantidad, 0) ?></td>
-                        <td class="text-end"><?= View::money($precio, $moneda) ?></td>
+                        <td class="text-end"><?= View::money($precio, $moneda, 3) ?></td>
                         <td class="text-end"><?= View::money($total, $moneda) ?></td>
                     </tr>
                     <?php endforeach; ?>

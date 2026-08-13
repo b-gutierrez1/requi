@@ -14,14 +14,21 @@ namespace App\Models;
 class DetalleItem extends Model
 {
     /**
-     * Decimales oficiales para importes de cara al usuario.
+     * Decimales de los IMPORTES (totales de item, monto de la requisicion).
      *
-     * El precio unitario y el total se manejan SIEMPRE con 2 decimales
-     * (GTQ/USD/EUR son monedas de 2 decimales y las facturas se guardan
-     * con 2). Las columnas de BD admiten mas decimales, pero solo como
-     * colchon para calculos intermedios. Ver docs/PRECISION_DECIMAL.md
+     * Son 2 porque es lo que se paga: GTQ/USD/EUR son monedas de 2 decimales
+     * y las facturas se guardan con 2. Ver docs/PRECISION_DECIMAL.md
      */
     const DECIMALES_MONEDA = 2;
+
+    /**
+     * Decimales del PRECIO UNITARIO.
+     *
+     * Se admiten 3 para poder cotizar articulos cuyo precio por unidad no
+     * cae en centavos exactos. El importe que resulta de multiplicarlo por
+     * la cantidad si se redondea a 2, porque es el que se cobra.
+     */
+    const DECIMALES_PRECIO = 3;
 
     protected static $table = 'detalle_items';
     protected static $primaryKey = 'id';
@@ -67,7 +74,7 @@ class DetalleItem extends Model
     }
 
     /**
-     * Normaliza un importe (precio unitario o total) a 2 decimales.
+     * Normaliza un importe (total de item, monto total) a 2 decimales.
      *
      * @param mixed $monto
      * @return float
@@ -78,11 +85,21 @@ class DetalleItem extends Model
     }
 
     /**
+     * Normaliza el precio unitario a 3 decimales.
+     *
+     * @param mixed $precio
+     * @return float
+     */
+    public static function normalizarPrecio($precio)
+    {
+        return round(floatval($precio), self::DECIMALES_PRECIO);
+    }
+
+    /**
      * Calcula el total del item (cantidad * precio_unitario)
      *
-     * Redondeado a 2 decimales. Con cantidad entera y precio de 2
-     * decimales el resultado ya es exacto en centavos; el round() protege
-     * frente a datos heredados con mas decimales.
+     * El precio admite 3 decimales, pero el total se redondea a 2 porque es
+     * el importe que se cobra y que termina en la factura.
      *
      * @return float
      */
@@ -94,7 +111,7 @@ class DetalleItem extends Model
 
         return self::normalizarMonto(
             self::normalizarCantidad($this->attributes['cantidad'])
-            * self::normalizarMonto($this->attributes['precio_unitario'])
+            * self::normalizarPrecio($this->attributes['precio_unitario'])
         );
     }
 
@@ -202,9 +219,9 @@ class DetalleItem extends Model
             return ['errores' => $errores];
         }
 
-        // Normalizar y calcular el total (2 decimales, cantidad entera)
+        // Normalizar: cantidad entera, precio 3 decimales, total 2
         $data['cantidad'] = self::normalizarCantidad($data['cantidad']);
-        $data['precio_unitario'] = self::normalizarMonto($data['precio_unitario']);
+        $data['precio_unitario'] = self::normalizarPrecio($data['precio_unitario']);
         $data['total'] = self::normalizarMonto($data['cantidad'] * $data['precio_unitario']);
 
         return self::create($data);
@@ -237,7 +254,7 @@ class DetalleItem extends Model
             foreach ($items as $item) {
                 $item['requisicion_id'] = $ordenCompraId;
                 $item['cantidad'] = self::normalizarCantidad($item['cantidad'] ?? 0);
-                $item['precio_unitario'] = self::normalizarMonto($item['precio_unitario'] ?? 0);
+                $item['precio_unitario'] = self::normalizarPrecio($item['precio_unitario'] ?? 0);
                 $item['total'] = self::normalizarMonto($item['cantidad'] * $item['precio_unitario']);
                 self::create($item);
             }
@@ -264,7 +281,7 @@ class DetalleItem extends Model
     public function getPrecioFormateado($moneda = 'GTQ')
     {
         $simbolo = $moneda === 'USD' ? '$' : 'Q';
-        $precio = number_format($this->attributes['precio_unitario'] ?? 0, self::DECIMALES_MONEDA);
+        $precio = number_format($this->attributes['precio_unitario'] ?? 0, self::DECIMALES_PRECIO);
         
         return $simbolo . ' ' . $precio;
     }

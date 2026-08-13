@@ -388,7 +388,7 @@ $border = '#c0c0c0';
             <tr>
                 <td class="tc"><?= $it ? number_format((float)$it['cantidad'], 0) : '' ?></td>
                 <td><?= $it ? View::e($it['descripcion']) : '' ?></td>
-                <td class="tr"><?= $it ? View::money((float)$it['precio_unitario'], $moneda) : '' ?></td>
+                <td class="tr"><?= $it ? View::money((float)$it['precio_unitario'], $moneda, 3) : '' ?></td>
                 <td class="tr"><?= $it ? View::money((float)$it['total'], $moneda) : '' ?></td>
             </tr>
             <?php endfor; ?>

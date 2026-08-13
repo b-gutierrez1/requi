@@ -325,7 +325,7 @@ View::startSection('content');
                         <tr>
                             <td class="text-center"><?php echo number_format($item['cantidad'], 2); ?></td>
                             <td><?php echo View::e($item['descripcion']); ?></td>
-                            <td class="text-end"><?php echo View::money($item['precio_unitario'], $moneda); ?></td>
+                            <td class="text-end"><?php echo View::money($item['precio_unitario'], $moneda, 3); ?></td>
                             <td class="text-end"><strong><?php echo View::money($totalItem, $moneda); ?></strong></td>
                         </tr>
                         <?php endforeach; ?>

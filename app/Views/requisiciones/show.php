@@ -715,7 +715,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                             </td>
                                     <td><?php echo View::e(getData($item, 'descripcion', '')); ?></td>
                                     <td class="text-end">
-                                        <?php echo View::money(getData($item, 'precio_unitario', 0), $moneda); ?>
+                                        <?php echo View::money(getData($item, 'precio_unitario', 0), $moneda, 3); ?>
                             </td>
                                     <td class="text-end">
                                         <strong><?php echo View::money($totalItem, $moneda); ?></strong>

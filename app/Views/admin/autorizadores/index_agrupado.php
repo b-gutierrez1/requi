@@ -319,12 +319,15 @@ $title = 'Gestión de Autorizadores';
                 $grupo = [
                     'autorizador'     => $autorizador,
                     'centros'         => $centrosDelAut,
+                    // Permisos DERIVADOS de las tablas de relacion (los trae el
+                    // controlador). Antes se leian columnas puede_autorizar_*
+                    // que no existen, asi que con el ?? false TODOS salian
+                    // "Sin permisos" aunque tuvieran asignaciones.
                     'permisos'        => [
-                        'unidad_negocio'    => $autorizador->puede_autorizar_unidad_negocio ?? false,
-                        'flujo'           => $autorizador->puede_autorizar_flujo ?? false,
-                        'cuenta_contable' => $autorizador->puede_autorizar_cuenta_contable ?? false,
-                        'metodo_pago'     => $autorizador->puede_autorizar_metodo_pago ?? false,
-                        'respaldo'        => $autorizador->puede_autorizar_respaldo ?? false,
+                        'unidad_negocio'  => (int)($autorizador->num_unidades ?? 0),
+                        'cuenta_contable' => (int)($autorizador->num_cuentas ?? 0),
+                        'metodo_pago'     => (int)($autorizador->num_metodos_pago ?? 0),
+                        'revisor'         => (int)($autorizador->es_revisor ?? 0) > 0,
                     ],
                     'registros_count'  => 1,
                 ];
@@ -355,23 +358,26 @@ $title = 'Gestión de Autorizadores';
                             </div>
                             <div class="col-md-3">
                                 <div class="tipo-badge-container">
-                                    <?php if ($grupo['permisos']['unidad_negocio']): ?>
-                                        <span class="badge badge-tipo badge-centro">Unidad</span>
+                                    <?php if ($grupo['permisos']['unidad_negocio'] > 0): ?>
+                                        <span class="badge badge-tipo badge-centro" title="Unidades de negocio que autoriza">
+                                            <?= $grupo['permisos']['unidad_negocio'] ?> Unidad<?= $grupo['permisos']['unidad_negocio'] == 1 ? '' : 'es' ?>
+                                        </span>
                                     <?php endif; ?>
-                                    <?php if ($grupo['permisos']['flujo']): ?>
-                                        <span class="badge badge-tipo badge-flujo">Flujo</span>
+                                    <?php if ($grupo['permisos']['cuenta_contable'] > 0): ?>
+                                        <span class="badge badge-tipo badge-cuenta" title="Cuentas contables que autoriza">
+                                            <?= $grupo['permisos']['cuenta_contable'] ?> Cuenta<?= $grupo['permisos']['cuenta_contable'] == 1 ? '' : 's' ?>
+                                        </span>
                                     <?php endif; ?>
-                                    <?php if ($grupo['permisos']['cuenta_contable']): ?>
-                                        <span class="badge badge-tipo badge-cuenta">Cuenta</span>
+                                    <?php if ($grupo['permisos']['metodo_pago'] > 0): ?>
+                                        <span class="badge badge-tipo badge-metodo" title="Métodos de pago que autoriza">
+                                            <?= $grupo['permisos']['metodo_pago'] ?> Método<?= $grupo['permisos']['metodo_pago'] == 1 ? '' : 's' ?>
+                                        </span>
                                     <?php endif; ?>
-                                    <?php if ($grupo['permisos']['metodo_pago']): ?>
-                                        <span class="badge badge-tipo badge-metodo">Método</span>
-                                    <?php endif; ?>
-                                    <?php if ($grupo['permisos']['respaldo']): ?>
-                                        <span class="badge badge-tipo badge-respaldo">Respaldo</span>
+                                    <?php if ($grupo['permisos']['revisor']): ?>
+                                        <span class="badge badge-tipo badge-flujo" title="Puede revisar requisiciones">Revisor</span>
                                     <?php endif; ?>
                                     <?php if (!array_filter($grupo['permisos'])): ?>
-                                        <span class="badge badge-tipo text-muted">Sin permisos</span>
+                                        <span class="badge badge-tipo text-muted">Sin asignaciones</span>
                                     <?php endif; ?>
                                 </div>
                             </div>

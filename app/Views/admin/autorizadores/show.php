@@ -360,31 +360,10 @@ $title = 'Detalles del Autorizador';
                     </div>
                 </div>
                 
-                <div class="detail-row">
-                    <div class="detail-label">Prioridad</div>
-                    <div class="detail-value">
-                        <?php 
-                        $prioridad = $autorizador['prioridad'] ?? 1;
-                        $prioridadTexto = ['1' => 'Alta', '2' => 'Media', '3' => 'Baja'];
-                        $prioridadColor = ['1' => 'danger', '2' => 'warning', '3' => 'info'];
-                        ?>
-                        <span class="badge bg-<?= $prioridadColor[$prioridad] ?? 'secondary' ?>">
-                            <?= $prioridadTexto[$prioridad] ?? 'No definida' ?>
-                        </span>
-                    </div>
-                </div>
-                
-                <div class="detail-row">
-                    <div class="detail-label">Fecha de Inicio</div>
-                    <div class="detail-value">
-                        <?php if (!empty($autorizador['fecha_inicio'])): ?>
-                            <i class="fas fa-calendar-alt text-info me-2"></i>
-                            <?= date('d/m/Y', strtotime($autorizador['fecha_inicio'])) ?>
-                        <?php else: ?>
-                            <span class="text-muted">No especificada</span>
-                        <?php endif; ?>
-                    </div>
-                </div>
+                <?php // Se quitaron "Prioridad" y "Fecha de Inicio": ninguna de las
+                      // dos columnas existe en la tabla autorizadores. La prioridad
+                      // caia siempre en el default 1 y mostraba "Alta" en rojo para
+                      // todos, con aspecto de dato critico. ?>
 
                 <?php if (!empty($autorizador['fecha_creacion'])): ?>
                 <div class="detail-row">
@@ -410,32 +389,40 @@ $title = 'Detalles del Autorizador';
                     <div class="detail-label">Permisos Asignados</div>
                     <div class="detail-value">
                         <div>
-                            <?php 
+                            <?php
+                            // Permisos DERIVADOS de las tablas de relacion, que son el
+                            // modelo real. Antes se leian columnas puede_autorizar_*
+                            // que no existen: con el ?? false todos caian en "No tiene
+                            // permisos especiales asignados", aunque si autorizaran.
                             $permisos = [
-                                'puede_autorizar_unidad_negocio' => 'Unidad de Negocio',
-                                'puede_autorizar_flujo' => 'Flujo de Trabajo',
-                                'puede_autorizar_cuenta_contable' => 'Cuenta Contable',
-                                'puede_autorizar_metodo_pago' => 'Método de Pago',
-                                'puede_autorizar_respaldo' => 'Respaldo'
+                                'Unidad de Negocio' => (int)($autorizador['num_unidades'] ?? 0),
+                                'Cuenta Contable'   => (int)($autorizador['num_cuentas'] ?? 0),
+                                'Método de Pago'    => (int)($autorizador['num_metodos_pago'] ?? 0),
                             ];
-                            
-                            $tienePermisos = false;
-                            foreach ($permisos as $key => $label):
-                                if ($autorizador[$key] ?? false):
-                                    $tienePermisos = true;
+                            $esRevisor     = (int)($autorizador['es_revisor'] ?? 0) > 0;
+                            $tienePermisos = $esRevisor || array_sum($permisos) > 0;
+
+                            foreach ($permisos as $label => $cantidad):
+                                if ($cantidad > 0):
                             ?>
                                 <span class="permission-badge permission-active">
-                                    <i class="fas fa-check me-1"></i><?= $label ?>
+                                    <i class="fas fa-check me-1"></i><?= $cantidad ?> <?= View::e($label) ?><?= $cantidad == 1 ? '' : 's' ?>
                                 </span>
-                            <?php 
+                            <?php
                                 endif;
                             endforeach;
-                            
-                            if (!$tienePermisos):
+
+                            if ($esRevisor):
                             ?>
+                                <span class="permission-badge permission-active">
+                                    <i class="fas fa-check me-1"></i>Revisor
+                                </span>
+                            <?php endif; ?>
+
+                            <?php if (!$tienePermisos): ?>
                                 <div class="no-data">
                                     <i class="fas fa-exclamation-circle fa-2x mb-2"></i>
-                                    <p>No tiene permisos especiales asignados</p>
+                                    <p>No tiene asignaciones de autorización</p>
                                 </div>
                             <?php endif; ?>
                         </div>

@@ -53,11 +53,27 @@ class AutorizadorController extends Controller
         $offset     = ($page - 1) * $perPage;
 
         // 2) Una fila por autorizador (paginado)
+        //
+        // Los permisos se DERIVAN de las tablas de relacion, que son el modelo
+        // real: no existen columnas puede_autorizar_*. Antes la vista las leia
+        // con ?? false, asi que TODOS salian con el badge "Sin permisos" pese a
+        // tener asignaciones. Derivarlos ademas dice cuantas, no solo si/no.
         $stmtAut = $conn->prepare(
-            "SELECT id, nombre, email, cargo, activo
-             FROM autorizadores
-             WHERE activo = 1
-             ORDER BY nombre ASC
+            "SELECT a.id, a.nombre, a.email, a.cargo, a.activo,
+                    (SELECT COUNT(*) FROM autorizador_unidad_negocio x
+                      WHERE x.autorizador_id = a.id AND x.activo = 1)          AS num_unidades,
+                    (SELECT COUNT(*) FROM autorizadores_cuentas_contables c
+                      WHERE LOWER(c.autorizador_email) = LOWER(a.email)
+                        AND c.activo = 1)                                       AS num_cuentas,
+                    (SELECT COUNT(*) FROM autorizadores_metodos_pago m
+                      WHERE LOWER(m.autorizador_email) = LOWER(a.email)
+                        AND m.activo = 1)                                       AS num_metodos_pago,
+                    (SELECT COUNT(*) FROM usuarios u
+                      WHERE LOWER(u.azure_email) = LOWER(a.email)
+                        AND u.is_revisor = 1)                                   AS es_revisor
+             FROM autorizadores a
+             WHERE a.activo = 1
+             ORDER BY a.nombre ASC
              LIMIT :lim OFFSET :off"
         );
         $stmtAut->bindValue(':lim', $perPage, \PDO::PARAM_INT);
@@ -696,7 +712,25 @@ class AutorizadorController extends Controller
     private function findAutorizadorById(int $id): ?PersonaAutorizada
     {
         $pdo  = PersonaAutorizada::getConnection();
-        $stmt = $pdo->prepare("SELECT id, nombre, email, cargo, activo FROM autorizadores WHERE id = ? LIMIT 1");
+        // Se agregan fecha_creacion (existia y se estaba descartando, asi que
+        // la vista nunca la mostraba) y los permisos derivados de las tablas
+        // de relacion, que sustituyen a las columnas puede_autorizar_*
+        // inexistentes que la vista intentaba leer.
+        $stmt = $pdo->prepare(
+            "SELECT a.id, a.nombre, a.email, a.cargo, a.activo, a.fecha_creacion,
+                    (SELECT COUNT(*) FROM autorizador_unidad_negocio x
+                      WHERE x.autorizador_id = a.id AND x.activo = 1)     AS num_unidades,
+                    (SELECT COUNT(*) FROM autorizadores_cuentas_contables c
+                      WHERE LOWER(c.autorizador_email) = LOWER(a.email)
+                        AND c.activo = 1)                                  AS num_cuentas,
+                    (SELECT COUNT(*) FROM autorizadores_metodos_pago m
+                      WHERE LOWER(m.autorizador_email) = LOWER(a.email)
+                        AND m.activo = 1)                                  AS num_metodos_pago,
+                    (SELECT COUNT(*) FROM usuarios u
+                      WHERE LOWER(u.azure_email) = LOWER(a.email)
+                        AND u.is_revisor = 1)                              AS es_revisor
+             FROM autorizadores a WHERE a.id = ? LIMIT 1"
+        );
         $stmt->execute([$id]);
         $row  = $stmt->fetch(\PDO::FETCH_ASSOC);
 

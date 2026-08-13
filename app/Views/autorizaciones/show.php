@@ -601,49 +601,6 @@ View::startSection('content');
                 </div>
             </div>
 
-            <!-- Alertas Inteligentes -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-bell me-2"></i>
-                        Alertas del Sistema
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <!-- Alerta de monto alto -->
-                    <?php if ($montoTotal > 10000000): ?>
-                    <div class="alert alert-warning alert-sm mb-2">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Monto Alto:</strong> Esta requisición supera los $10M.
-                    </div>
-                    <?php endif; ?>
-
-                    <!-- Alerta de tiempo -->
-                    <?php if (isset($dias) && $dias > 5): ?>
-                    <div class="alert alert-info alert-sm mb-2">
-                        <i class="fas fa-clock me-2"></i>
-                        <strong>Tiempo Extendido:</strong> <?php echo $dias; ?> días pendiente.
-                    </div>
-                    <?php endif; ?>
-
-                    <!-- Alerta de autorizaciones especiales -->
-                    <?php if (!empty($autorizaciones_especiales)): ?>
-                    <div class="alert alert-secondary alert-sm mb-2">
-                        <i class="fas fa-star me-2"></i>
-                        <strong>Especiales:</strong> <?php echo count($autorizaciones_especiales); ?> autorizaciones adicionales.
-                    </div>
-                    <?php endif; ?>
-
-                    <!-- Estado general -->
-                    <?php if (empty($autorizaciones_especiales) && $montoTotal <= 10000000 && (!isset($dias) || $dias <= 5)): ?>
-                    <div class="alert alert-success alert-sm mb-0">
-                        <i class="fas fa-check-circle me-2"></i>
-                        <strong>Todo en Orden:</strong> Requisición lista para autorizar.
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-
             <!-- Instrucciones -->
             <div class="alert alert-warning">
                 <h6><i class="fas fa-exclamation-triangle me-2"></i>Importante:</h6>

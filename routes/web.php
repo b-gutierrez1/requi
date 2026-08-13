@@ -9,7 +9,6 @@
  */
 
 use App\Controllers\AuthController;
-use App\Controllers\DevAuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\RequisicionController;
 use App\Controllers\AutorizacionController;
@@ -19,16 +18,6 @@ use App\Controllers\Admin\UnidadNegocioController;
 use App\Controllers\Admin\AutorizadorController;
 use App\Controllers\Admin\AutorizadorEspecialController;
 use App\Helpers\Redirect;
-
-// ============================================================================
-// RUTAS DE DESARROLLO (Solo para desarrollo local)
-// ============================================================================
-
-/**
- * Login de desarrollo (bypasea Azure AD)
- * Solo habilitado cuando APP_ENV=development
- */
-if (false) {} // Se deshabilitan las rutas de desarrollo
 
 // ============================================================================
 // RUTAS PÚBLICAS
@@ -109,23 +98,6 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
 
     // Descarga de archivos adjuntos
     $router->get('/archivos/{id}/descargar', [RequisicionController::class, 'descargarArchivo']);
-    
-    // ------------------------------------------------------------------------
-    // RUTA DE PRUEBA TEMPORAL
-    // ------------------------------------------------------------------------
-    $router->get('/test-layout', function() {
-        \App\Helpers\View::render('test-layout', ['title' => 'Test Layout']);
-    });
-    
-    $router->get('/test-edit', function() {
-        $data = [
-            'requisicion' => [
-                'orden' => (object)['id' => 10, 'justificacion' => 'Prueba de justificación'],
-                'flujo' => (object)['estado' => 'rechazado_revision']
-            ]
-        ];
-        \App\Helpers\View::render('requisiciones/edit-simple', $data);
-    });
     
     // ------------------------------------------------------------------------
     // AUTORIZACIONES
@@ -326,31 +298,5 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
 // RUTA DE PRUEBA
 // ============================================================================
 
-/**
- * Endpoint de prueba para verificar el routing
- */
-$router->get('/test', function() {
-    echo json_encode([
-        'success' => true,
-        'message' => 'El sistema de routing está funcionando correctamente',
-        'timestamp' => date('Y-m-d H:i:s'),
-        'session_active' => isset($_SESSION['user_id']),
-        'php_version' => PHP_VERSION,
-        'routes_loaded' => true
-    ]);
-});
-
-
-/**
- * Ruta de prueba con parámetros
- */
-$router->get('/test/{param}', function($param) {
-    echo json_encode([
-        'success' => true,
-        'message' => 'Parámetro recibido correctamente',
-        'param' => $param,
-        'timestamp' => date('Y-m-d H:i:s')
-    ]);
-});
 
 

@@ -172,9 +172,6 @@
     <!-- Bootstrap Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- JavaScript personalizado -->
-    <script src="<?php echo \App\Helpers\View::asset('js/app.js?v=' . time()); ?>"></script>
-    
     <!-- CSRF Token for AJAX -->
     <script>
         // Configurar token CSRF para todas las peticiones AJAX

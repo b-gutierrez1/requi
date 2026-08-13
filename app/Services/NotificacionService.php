@@ -661,14 +661,15 @@ class NotificacionService
         $usuarioId = is_object($orden) ? $orden->usuario_id : $orden['usuario_id'];
         $moneda = is_object($orden) ? ($orden->moneda ?? 'GTQ') : ($orden['moneda'] ?? 'GTQ');
 
-        $simbolo = $moneda === 'USD' ? '$ ' : 'Q ';
+        // Se usa el helper y no un ternario: el ternario solo contemplaba USD,
+        // asi que una requisicion en EUR salia con simbolo de quetzales.
 
         $numeroOrden = str_pad($ordenId, 6, '0', STR_PAD_LEFT);
 
         return [
             'numero_orden' => $numeroOrden,
             'proveedor' => $nombreRazon,
-            'monto_total' => $simbolo . number_format($montoTotal, 2),
+            'monto_total' => \App\Helpers\View::money($montoTotal, $moneda),
             'fecha_creacion' => date('d/m/Y', strtotime($fecha)),
             'solicitante_nombre' => $this->getNombreUsuario($usuarioId),
             'year' => date('Y'),

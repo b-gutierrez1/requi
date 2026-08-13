@@ -574,11 +574,17 @@ class ReporteController extends Controller
         }
     }
 
+    /**
+     * OJO: este CSV agrega montos SIN separar por moneda, asi que la cifra
+     * mezcla quetzales con dolares y euros. Por eso va sin simbolo: ponerle
+     * uno seria afirmar algo falso. El arreglo de fondo es agrupar por
+     * moneda, como hace el reporte de gasto por unidad requirente.
+     */
     private function generarCSVRequisiciones($output, $datos)
     {
         fputcsv($output, ['Estadísticas']);
         fputcsv($output, ['Total Requisiciones', $datos['estadisticas']['total']]);
-        fputcsv($output, ['Monto Total', 'Q ' . number_format($datos['estadisticas']['monto_total'], 5)]);
+        fputcsv($output, ['Monto Total', number_format($datos['estadisticas']['monto_total'], 2)]);
         fputcsv($output, []);
 
         fputcsv($output, ['Detalle de Requisiciones']);
@@ -617,10 +623,14 @@ class ReporteController extends Controller
         }
     }
 
+    /**
+     * OJO: igual que generarCSVRequisiciones, agrega sin separar por moneda.
+     * Los montos van sin simbolo a proposito.
+     */
     private function generarCSVFinanciero($output, $datos)
     {
         fputcsv($output, ['Resumen Financiero']);
-        fputcsv($output, ['Monto Total General', 'Q ' . number_format($datos['monto_total_general'], 5)]);
+        fputcsv($output, ['Monto Total General', number_format($datos['monto_total_general'], 2)]);
         fputcsv($output, []);
 
         fputcsv($output, ['Gasto por Unidad de Negocio']);
@@ -630,7 +640,7 @@ class ReporteController extends Controller
             fputcsv($output, [
                 $centro['codigo'],
                 $centro['nombre'],
-                'Q ' . number_format($centro['monto_total'] ?? 0, 5),
+                number_format($centro['monto_total'] ?? 0, 2),
                 $centro['total_requisiciones'] ?? 0
             ]);
         }

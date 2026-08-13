@@ -182,7 +182,7 @@ class DashboardController extends Controller
                 'pendientes_revision' => $stats['pendientes_revision'] ?? 0,
                 'pendientes_autorizacion' => $stats['pendientes_autorizacion'] ?? 0,
                 'autorizadas_hoy' => $stats['autorizadas_hoy'] ?? 0,
-                'monto_total_mes' => $stats['monto_total_mes'] ?? 0,
+                'monto_total_mes_por_moneda' => $stats['monto_total_mes_por_moneda'] ?? [],
                 'usuarios_activos' => $stats['usuarios_activos'] ?? 0,
                 'tiempo_promedio_autorizacion' => $stats['tiempo_promedio'] ?? 0
             ];

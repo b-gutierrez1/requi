@@ -286,6 +286,71 @@ View::startSection('content');
         </div>
     </div>
 
+    <?php if (!empty($estadisticas_generales)): $eg = $estadisticas_generales; ?>
+    <!-- Estadísticas Generales (solo admin): antes se calculaban en cada
+         carga y la vista nunca las mostraba. -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h6 class="text-muted mb-2"><i class="fas fa-chart-bar me-2"></i>Vista general del sistema</h6>
+        </div>
+        <div class="col-md-2">
+            <div class="stats-card">
+                <div class="card-body text-center py-3">
+                    <h4 class="text-primary mb-0"><?= (int)($eg['total_requisiciones'] ?? 0) ?></h4>
+                    <p class="text-muted mb-0 small">Total del sistema</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stats-card">
+                <div class="card-body text-center py-3">
+                    <h4 class="text-warning mb-0"><?= (int)($eg['pendientes_revision'] ?? 0) ?></h4>
+                    <p class="text-muted mb-0 small">Pend. de revisión</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stats-card">
+                <div class="card-body text-center py-3">
+                    <h4 class="text-info mb-0"><?= (int)($eg['pendientes_autorizacion'] ?? 0) ?></h4>
+                    <p class="text-muted mb-0 small">Pend. de autorización</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stats-card">
+                <div class="card-body text-center py-3">
+                    <h4 class="text-success mb-0"><?= (int)($eg['autorizadas_hoy'] ?? 0) ?></h4>
+                    <p class="text-muted mb-0 small">Autorizadas hoy</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stats-card">
+                <div class="card-body text-center py-3">
+                    <h4 class="text-secondary mb-0"><?= (int)($eg['usuarios_activos'] ?? 0) ?></h4>
+                    <p class="text-muted mb-0 small">Usuarios activos (30d)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="stats-card">
+                <div class="card-body text-center py-3">
+                    <?php $montos = $eg['monto_total_mes_por_moneda'] ?? []; ?>
+                    <?php if (empty($montos)): ?>
+                        <h4 class="text-dark mb-0">—</h4>
+                    <?php else: ?>
+                        <?php foreach ($montos as $moneda => $monto): ?>
+                            <h6 class="text-dark mb-0"><?= View::money((float)$monto, $moneda) ?></h6>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    <p class="text-muted mb-0 small">Monto del mes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Acciones Rápidas -->
     <div class="quick-actions">
         <a href="<?= url('/requisiciones/crear') ?>" class="quick-action">

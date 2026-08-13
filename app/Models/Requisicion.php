@@ -678,20 +678,33 @@ class Requisicion extends Model
     {
         try {
             $pdo = static::getConnection();
-            
+
             $stmt = $pdo->prepare("
-                SELECT 
+                SELECT
                     COUNT(DISTINCT r.id) as total,
                     SUM(CASE WHEN af.estado IN ('pendiente_revision') THEN 1 ELSE 0 END) as pendientes_revision,
                     SUM(CASE WHEN af.estado IN ('pendiente_autorizacion_pago', 'pendiente_autorizacion_cuenta', 'pendiente_autorizacion_centros', 'pendiente_autorizacion') THEN 1 ELSE 0 END) as pendientes_autorizacion,
-                    SUM(CASE WHEN af.estado = 'autorizado' AND DATE(r.fecha_completada) = CURDATE() THEN 1 ELSE 0 END) as autorizadas_hoy,
-                    COALESCE(SUM(CASE WHEN DATE_FORMAT(r.fecha_solicitud, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m') THEN r.monto_total ELSE 0 END), 0) as monto_total_mes
+                    SUM(CASE WHEN af.estado = 'autorizado' AND DATE(r.fecha_completada) = CURDATE() THEN 1 ELSE 0 END) as autorizadas_hoy
                 FROM requisiciones r
                 LEFT JOIN autorizacion_flujo af ON r.id = af.requisicion_id
             ");
             $stmt->execute();
             $stats = $stmt->fetch(\PDO::FETCH_ASSOC);
-            
+
+            // Monto del mes, agrupado por moneda: sumar GTQ con USD y EUR en
+            // una sola cifra da un numero que no significa nada.
+            $stmt = $pdo->prepare("
+                SELECT r.moneda, COALESCE(SUM(r.monto_total), 0) as monto
+                FROM requisiciones r
+                WHERE DATE_FORMAT(r.fecha_solicitud, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')
+                GROUP BY r.moneda
+            ");
+            $stmt->execute();
+            $montoPorMoneda = [];
+            foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $fila) {
+                $montoPorMoneda[$fila['moneda']] = (float)$fila['monto'];
+            }
+
             // Usuarios activos (que han creado requisiciones)
             $stmt = $pdo->prepare("
                 SELECT COUNT(DISTINCT usuario_id) as usuarios_activos
@@ -700,24 +713,27 @@ class Requisicion extends Model
             ");
             $stmt->execute();
             $usersStats = $stmt->fetch(\PDO::FETCH_ASSOC);
-            
-            // Tiempo promedio de autorización
+
+            // Tiempo promedio de autorización. El estado final del flujo es
+            // 'autorizado', no 'completado' (ese valor no existe en el enum
+            // de autorizacion_flujo.estado): con 'completado' esto siempre
+            // devolvia null/0.
             $stmt = $pdo->prepare("
                 SELECT AVG(TIMESTAMPDIFF(HOUR, fecha_creacion, fecha_completado)) as tiempo_promedio
                 FROM autorizacion_flujo
-                WHERE estado = 'completado'
+                WHERE estado = 'autorizado'
                 AND fecha_completado IS NOT NULL
                 AND fecha_completado >= DATE_SUB(NOW(), INTERVAL 30 DAY)
             ");
             $stmt->execute();
             $timeStats = $stmt->fetch(\PDO::FETCH_ASSOC);
-            
+
             return [
                 'total' => (int)($stats['total'] ?? 0),
                 'pendientes_revision' => (int)($stats['pendientes_revision'] ?? 0),
                 'pendientes_autorizacion' => (int)($stats['pendientes_autorizacion'] ?? 0),
                 'autorizadas_hoy' => (int)($stats['autorizadas_hoy'] ?? 0),
-                'monto_total_mes' => (float)($stats['monto_total_mes'] ?? 0),
+                'monto_total_mes_por_moneda' => $montoPorMoneda,
                 'usuarios_activos' => (int)($usersStats['usuarios_activos'] ?? 0),
                 'tiempo_promedio' => (float)($timeStats['tiempo_promedio'] ?? 0)
             ];
@@ -728,7 +744,7 @@ class Requisicion extends Model
                 'pendientes_revision' => 0,
                 'pendientes_autorizacion' => 0,
                 'autorizadas_hoy' => 0,
-                'monto_total_mes' => 0,
+                'monto_total_mes_por_moneda' => [],
                 'usuarios_activos' => 0,
                 'tiempo_promedio' => 0
             ];

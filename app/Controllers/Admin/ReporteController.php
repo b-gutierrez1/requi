@@ -100,6 +100,14 @@ class ReporteController extends Controller
             $fechaInicio = $_POST['fecha_inicio'] ?? date('Y-m-01');
             $fechaFin    = $_POST['fecha_fin']    ?? date('Y-m-t');
 
+            // OJO: este reporte suma distribucion_gasto.cantidad, NO
+            // requisiciones.monto_total, y esta bien asi: mide cuanto gasto se
+            // cargo a cada unidad de negocio, que es otra pregunta.
+            // Consecuencia esperada: su total puede diferir en centavos del
+            // total de los reportes que suman monto_total, porque el reparto
+            // por porcentaje no siempre cuadra exacto (3 lineas al 33.33% de
+            // Q100 suman Q99.99). No es un error: no lo "corrijas" apuntandolo
+            // a monto_total. Ver docs/PRECISION_DECIMAL.md
             $sql = "SELECT cc.nombre AS unidad_negocio,
                            COUNT(DISTINCT dg.requisicion_id) AS total_requisiciones,
                            SUM(dg.cantidad) AS monto_total

@@ -36,7 +36,13 @@ class RequisicionesController extends Controller
                     r.id,
                     COALESCE(r.proveedor_nombre, '') as nombre_razon_social,
                     COALESCE(r.forma_pago, '') as forma_pago,
-                    COALESCE((SELECT SUM(total) FROM detalle_items WHERE requisicion_id = r.id), 0) as monto_total,
+                    -- Fuente unica del monto: la columna. El servidor la recalcula
+                    -- desde los items al guardar (RequisicionService), asi que es
+                    -- fiel, existe siempre y es la que usan las demas pantallas.
+                    -- Antes aqui se resumaban los items, de modo que una diferencia
+                    -- de un centavo hacia que la misma requisicion mostrara un monto
+                    -- distinto en Seguimiento que en el resto del sistema.
+                    COALESCE(r.monto_total, 0) as monto_total,
                     COALESCE(r.moneda, 'GTQ') as moneda,
                     COALESCE(r.fecha_solicitud, NOW()) as fecha,
                     COALESCE(af.estado, '') as estado_flujo,

@@ -729,6 +729,20 @@ class AutorizacionController extends Controller
                         
                         error_log("=== FIN AUTORIZACIÃ“N DE CENTROS ===");
 
+                        // El success se fija en true ANTES de intentar autorizar, asi
+                        // que si ninguna autorizacion prospero hay que corregirlo: de
+                        // lo contrario se le responde "autorizada exitosamente" a quien
+                        // no autorizo nada (por ejemplo, quien no es el autorizador
+                        // asignado, cuyo UPDATE no afecta ninguna fila).
+                        if (empty($response['centros_autorizados'])) {
+                            $response = [
+                                'success' => false,
+                                'error'   => 'No se autorizo ninguna unidad de negocio. '
+                                           . 'Verifica que seas el autorizador asignado y que siga pendiente.',
+                            ];
+                            error_log("autorizarCentro: ninguna autorizacion prospero para $usuarioEmail");
+                        }
+
                         // FORZAR verificaciÃ³n y completado del flujo
                         try {
                             error_log("=== FORZANDO VERIFICACIÃ“N DEL FLUJO $flujoId ===");

@@ -36,8 +36,8 @@ pero conviene saberlo antes de que alguien lo reporte como error.
 | Capa | Qué hace |
 |---|---|
 | Formulario (`create.php`, `edit.php`) | Los inputs de precio unitario son `step="0.001"` `min="0"`. Aplica a la fila inicial estática, a la fila de ítems ya guardados en edición **y** a la plantilla JavaScript que agrega filas nuevas. |
-| JavaScript | `redondear3()` para el precio; `redondear2()` para el total del ítem, el acumulado del total general y el monto de cada línea de distribución. Se redondea el acumulado en cada suma, no solo al final, para evitar el clásico `0.1 + 0.2 = 0.30000000000000004`. |
-| Servidor (`RequisicionService::procesarDatosRequisicion`) | Vuelve a normalizar cantidad (entero) y precio (3 decimales) y **recalcula** el total (2 decimales). Nunca se confía en lo que envió el navegador; el `monto_total` que se guarda es la suma de los totales ya redondeados, no el valor del campo oculto. |
+| JavaScript | `redondear3()` para el precio; `redondear2()` para el total del ítem, el acumulado del total general y lo que se **muestra** en la columna "Cantidad" de cada línea de distribución. Se redondea el acumulado en cada suma, no solo al final, para evitar el clásico `0.1 + 0.2 = 0.30000000000000004`. |
+| Servidor (`RequisicionService::procesarDatosFormulario`) | Vuelve a normalizar cantidad (entero) y precio (3 decimales) y **recalcula** el total del ítem (2 decimales). Nunca se confía en lo que envió el navegador; el `monto_total` que se guarda es la suma de los totales ya redondeados, no el valor del campo oculto. Para la distribución, el `cantidad` de cada línea también se **recalcula siempre en servidor** desde `porcentaje`, con 5 decimales (no se usa el valor redondeado a 2 que mandó el navegador para mostrarse en pantalla). |
 | Modelo (`DetalleItem`) | Punto único de verdad: `normalizarCantidad()` (entero), `normalizarPrecio()` (`DECIMALES_PRECIO = 3`) y `normalizarMonto()` (`DECIMALES_MONEDA = 2`). |
 | Presentación (`View::money`) | Tercer parámetro opcional de decimales. Por defecto 2; las vistas pasan `3` **solo** para la columna de precio unitario. |
 
@@ -76,15 +76,29 @@ en PHP siempre coincide con lo que la BD termina guardando. Antes se calculaba e
 el valor fraccionario y la BD truncaba, produciendo un `total` guardado que no
 correspondía a `cantidad × precio_unitario`.
 
-## Descuadre conocido: distribución y facturas
+## Descuadre de distribución y facturas: resuelto redondeando solo una vez
 
-Cuando el porcentaje de una línea no reparte exacto en centavos (por ejemplo 3 líneas al
-33.33333% de Q 100.00), la suma de los importes redondeados de las líneas puede quedar a
-uno o dos centavos del `monto_total`. Lo mismo aplica a las facturas automáticas, que se
-guardan con 2 decimales (`RequisicionService::generarFacturasAutomaticas`).
+Hasta agosto de 2026 esto era un descuadre conocido: si el porcentaje de una línea no
+repartía exacto en centavos (por ejemplo 3 líneas al 33.33333% de Q 100.00), la suma de
+los importes de las líneas —y las facturas automáticas, que se arman sumándolas— podía
+quedar a uno o dos centavos del `monto_total`.
 
-Esto **no** se origina en el precio unitario: los ítems siempre cuadran exactamente. Es
-inherente a repartir un importe por porcentaje. Corregirlo requiere asignar el residuo a
-una de las líneas (típicamente la mayor o la última), lo que cambia la lógica de
-distribución y está pendiente como decisión aparte. Las validaciones actuales toleran
-±0.01.
+La causa real no era el reparto por porcentaje en sí, sino **dónde se redondeaba**: el
+navegador calculaba el `cantidad` de cada línea con `redondear2()` para mostrarlo en el
+campo, y el servidor guardaba ese mismo valor ya redondeado. Con varias líneas, esos
+redondeos independientes se acumulaban y el total dejaba de cuadrar.
+
+La solución no fue asignar el residuo a una línea (una regla de negocio arbitraria), sino
+dejar de redondear antes de tiempo: `RequisicionService::procesarDatosFormulario` calcula
+ahora `cantidad = (porcentaje / 100) * monto_total` con **5 decimales** —lo que la columna
+`distribucion_gasto.cantidad` ya admitía como colchón, sin usarlo— y solo se redondea a 2
+**una vez**, al agrupar por número de factura en `generarFacturasAutomaticas`. Es la
+práctica contable estándar: redondear al final, no en cada paso.
+
+Con porcentajes que suman exactamente 100.00% (ya validado en el formulario), la suma de
+las líneas con precisión completa da el `monto_total` exacto, y las facturas —redondeadas
+una sola vez al agrupar— también. Verificado con un caso real de 14 líneas de distribución
+que antes quedaba 2 centavos corto.
+
+Las validaciones siguen tolerando ±0.01 como margen de seguridad, pero ya no debería
+necesitarse en la práctica.

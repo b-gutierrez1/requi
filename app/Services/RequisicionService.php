@@ -1354,12 +1354,17 @@ class RequisicionService
                     $porcentaje = $porcentaje * $factorAjuste;
                 }
                 
-                $cantidad = floatval($dist['cantidad'] ?? 0);
-                
-                // Si la cantidad es 0 o negativa, calcular basado en porcentaje
-                if ($cantidad <= 0 && $porcentaje > 0) {
-                    $cantidad = ($porcentaje / 100) * $montoTotal;
-                }
+                // Se recalcula SIEMPRE en servidor, nunca se confia en el
+                // "cantidad" que mando el navegador: ese valor ya viene
+                // redondeado a 2 decimales (redondear2() en create.php/
+                // edit.php), y si cada linea se guarda asi, la suma de las
+                // lineas -y las facturas, que se generan sumandolas- queda
+                // uno o dos centavos corta del monto_total cuando hay varias
+                // lineas. Aqui se guarda con la precision que admite la
+                // columna (decimal(12,5)) y solo se redondea a 2 una vez, al
+                // agrupar por factura en generarFacturasAutomaticas(). Ver
+                // docs/PRECISION_DECIMAL.md
+                $cantidad = $porcentaje > 0 ? round(($porcentaje / 100) * $montoTotal, 5) : 0.0;
                 
                 // Limpiar IDs vacíos
                 $centroCostoId = (!empty($dist['centro_costo_id']) && $dist['centro_costo_id'] !== '') ? $dist['centro_costo_id'] : null;

@@ -7,6 +7,7 @@
  *
  * Variables esperadas:
  *   $fecha_inicio, $fecha_fin  string Y-m-d
+ *   $moneda                    string|null Filtro de moneda aplicado (GTQ/USD/EUR) o null
  *   $por_moneda                array  [MONEDA => ['filas'=>[], 'monto_total'=>, ...]]
  *   $total_requisiciones       int
  *   $error_reporte             string|null
@@ -19,6 +20,7 @@ $total_requisiciones = (int)($total_requisiciones ?? 0);
 $error_reporte       = $error_reporte ?? null;
 $fecha_inicio        = $fecha_inicio ?? date('Y-m-01');
 $fecha_fin           = $fecha_fin ?? date('Y-m-t');
+$moneda              = $moneda ?? '';
 
 $nombresMoneda = [
     'GTQ' => 'Quetzales',
@@ -66,14 +68,23 @@ View::startSection('content');
                         <input type="date" class="form-control" id="fecha_fin" name="fecha_fin"
                                value="<?= View::e($fecha_fin) ?>">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold" for="moneda">Moneda</label>
+                        <select class="form-select" id="moneda" name="moneda">
+                            <option value="">Todas</option>
+                            <?php foreach (['GTQ', 'USD', 'EUR'] as $m): ?>
+                                <option value="<?= $m ?>" <?= $moneda === $m ? 'selected' : '' ?>><?= $m ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
                         <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-filter me-1"></i>Aplicar filtro
+                            <i class="fas fa-filter me-1"></i>Filtrar
                         </button>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <button type="submit" form="formDescargarCsv" class="btn btn-outline-info w-100">
-                            <i class="fas fa-download me-1"></i>Descargar CSV
+                            <i class="fas fa-download me-1"></i>CSV
                         </button>
                     </div>
                 </div>
@@ -85,6 +96,7 @@ View::startSection('content');
                 <input type="hidden" name="_token" value="<?= View::e(csrf_token()) ?>">
                 <input type="hidden" name="fecha_inicio" value="<?= View::e($fecha_inicio) ?>">
                 <input type="hidden" name="fecha_fin" value="<?= View::e($fecha_fin) ?>">
+                <input type="hidden" name="moneda" value="<?= View::e($moneda) ?>">
             </form>
 
             <div class="text-muted small mt-3">

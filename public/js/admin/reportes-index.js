@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', function () {
 function descargar(tipo) {
     const fechaInicio = document.getElementById('fecha_inicio').value;
     const fechaFin    = document.getElementById('fecha_fin').value;
+    const unidadRequirenteId = document.getElementById('unidad_requirente_id')?.value || '';
+    const moneda = document.getElementById('moneda')?.value || '';
 
     if (!fechaInicio || !fechaFin) {
         alert('Selecciona un rango de fechas antes de descargar.');
@@ -33,7 +35,15 @@ function descargar(tipo) {
     form.method = 'POST';
     form.action = url;
 
-    [['fecha_inicio', fechaInicio], ['fecha_fin', fechaFin], ['_token', csrfToken]].forEach(([name, value]) => {
+    const campos = [
+        ['fecha_inicio', fechaInicio],
+        ['fecha_fin', fechaFin],
+        ['unidad_requirente_id', unidadRequirenteId],
+        ['moneda', moneda],
+        ['_token', csrfToken],
+    ];
+    campos.forEach(([name, value]) => {
+        if (value === '') { return; }
         const input = document.createElement('input');
         input.type  = 'hidden';
         input.name  = name;

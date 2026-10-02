@@ -12,11 +12,23 @@ namespace App\Controllers\Admin;
 
 use App\Controllers\Controller;
 use App\Helpers\View;
-use App\Helpers\EstadoHelper;
 use App\Models\Requisicion;
+use App\Models\UnidadRequirente;
 
 class ReporteController extends Controller
 {
+    /**
+     * Reportes que tienen vista en pantalla genérica (además del CSV).
+     * "gasto-unidad-requirente" no está aquí: tiene su propia vista porque
+     * se agrupa por moneda de una forma que no encaja en la tabla genérica.
+     */
+    private const TIPOS_REPORTE = [
+        'estado-requisiciones' => ['metodo' => 'datosEstadoRequisiciones', 'titulo' => 'Estado de Requisiciones'],
+        'gasto-unidad-negocio' => ['metodo' => 'datosGastoUnidadNegocio', 'titulo' => 'Gasto por Unidad de Negocio'],
+        'tasa-rechazo'         => ['metodo' => 'datosTasaRechazo',        'titulo' => 'Tasa de Rechazo'],
+        'forma-pago'           => ['metodo' => 'datosFormaPago',          'titulo' => 'Distribución por Forma de Pago'],
+    ];
+
     public function __construct()
     {
         parent::__construct();
@@ -40,169 +52,216 @@ class ReporteController extends Controller
     public function reportes()
     {
         View::render('admin/reportes/index', [
-            'title' => 'Reportes'
+            'title'                => 'Reportes',
+            'unidades_requirentes' => UnidadRequirente::activas(),
         ]);
     }
 
+    /**
+     * Datos para las gráficas del apartado de reportes: monto por mes
+     * (últimos 6 meses, agrupado por moneda, respetando los filtros de
+     * unidad/moneda) y distribución por estado dentro del rango de fechas
+     * seleccionado.
+     *
+     * @return void
+     */
+    public function apiResumenGrafico()
+    {
+        try {
+            $filtros = $this->filtrosDesdeRequest($_GET);
+
+            // Monto por mes: UNA sola consulta agrupada (antes eran 6, una
+            // por mes, con la misma vuelta a la base de datos repetida).
+            $meses = [];
+            for ($i = 5; $i >= 0; $i--) {
+                $meses[] = date('Y-m', strtotime("-{$i} months"));
+            }
+            $filtrosMensual = [
+                'fecha_inicio'          => $meses[0] . '-01',
+                'fecha_fin'             => date('Y-m-t'),
+                'unidad_requirente_id'  => $filtros['unidad_requirente_id'],
+                'moneda'                => $filtros['moneda'],
+            ];
+            [$condMensual, $paramsMensual] = $this->condicionesFiltro($filtrosMensual);
+
+            $filas = Requisicion::query(
+                "SELECT DATE_FORMAT(r.fecha_solicitud, '%Y-%m') AS ym,
+                        r.moneda AS moneda,
+                        COALESCE(SUM(r.monto_total), 0) AS monto
+                 FROM requisiciones r
+                 WHERE {$condMensual}
+                 GROUP BY ym, r.moneda",
+                $paramsMensual
+            )->fetchAll(\PDO::FETCH_ASSOC);
+
+            $montosPorMes = array_fill_keys($meses, []);
+            foreach ($filas as $fila) {
+                if (isset($montosPorMes[$fila['ym']])) {
+                    $montosPorMes[$fila['ym']][$fila['moneda']] = (float)$fila['monto'];
+                }
+            }
+
+            // Cada serie de moneda debe tener un valor por mes (0 si no tuvo
+            // movimiento), sin importar en qué mes apareció primero.
+            $monedas = [];
+            foreach ($montosPorMes as $montos) {
+                $monedas = array_merge($monedas, array_keys($montos));
+            }
+            $monedas = array_values(array_unique($monedas));
+
+            $series = [];
+            foreach ($monedas as $moneda) {
+                $series[$moneda] = array_map(
+                    fn($ym) => $montosPorMes[$ym][$moneda] ?? 0,
+                    $meses
+                );
+            }
+
+            $labels = array_map(fn($ym) => date('M Y', strtotime($ym . '-01')), $meses);
+
+            // Distribución por estado dentro del rango de fechas + filtros
+            // elegidos en la pantalla de reportes.
+            [$condEstado, $paramsEstado] = $this->condicionesFiltro($filtros);
+            $estados = Requisicion::query(
+                "SELECT
+                    SUM(CASE WHEN af.estado IN ('pendiente_revision','pendiente_autorizacion_pago','pendiente_autorizacion_cuenta','pendiente_autorizacion_centros','pendiente_autorizacion') THEN 1 ELSE 0 END) as pendientes,
+                    SUM(CASE WHEN af.estado = 'autorizado' THEN 1 ELSE 0 END) as autorizadas,
+                    SUM(CASE WHEN af.estado IN ('rechazado_revision','rechazado_autorizacion','rechazado') THEN 1 ELSE 0 END) as rechazadas
+                 FROM requisiciones r
+                 LEFT JOIN autorizacion_flujo af ON r.id = af.requisicion_id
+                 WHERE {$condEstado}",
+                $paramsEstado
+            )->fetch(\PDO::FETCH_ASSOC) ?: [];
+
+            $this->jsonResponse([
+                'success' => true,
+                'mensual' => ['labels' => $labels, 'series' => $series],
+                'estados' => [
+                    'pendientes'  => (int)($estados['pendientes'] ?? 0),
+                    'autorizadas' => (int)($estados['autorizadas'] ?? 0),
+                    'rechazadas'  => (int)($estados['rechazadas'] ?? 0),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            error_log("Error en apiResumenGrafico: " . $e->getMessage());
+            $this->jsonResponse(['success' => false, 'error' => 'Error al generar los datos'], 500);
+        }
+    }
+
+    // ========================================================================
+    // DESCARGA CSV
+    // ========================================================================
+
     public function reporteEstadoRequisiciones()
     {
-        if (!$this->validateCSRF()) {
-            $this->jsonResponse(['success' => false, 'error' => 'Token inválido'], 403);
-            return;
-        }
-        try {
-            $fechaInicio = $_POST['fecha_inicio'] ?? date('Y-m-01');
-            $fechaFin    = $_POST['fecha_fin']    ?? date('Y-m-t');
-
-            $sql = "SELECT r.numero_requisicion,
-                           u.azure_display_name AS solicitante,
-                           r.proveedor_nombre, r.monto_total, r.moneda,
-                           r.fecha_solicitud, af.estado
-                    FROM requisiciones r
-                    LEFT JOIN autorizacion_flujo af ON r.id = af.requisicion_id
-                    LEFT JOIN usuarios u ON r.usuario_id = u.id
-                    WHERE DATE(r.fecha_solicitud) BETWEEN ? AND ?
-                    ORDER BY r.fecha_solicitud DESC";
-
-            $stmt = Requisicion::query($sql, [$fechaInicio, $fechaFin]);
-            $filas = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-            $columnas = ['# Requisición', 'Solicitante', 'Proveedor', 'Monto', 'Moneda', 'Fecha', 'Estado'];
-            $datos = array_map(fn($r) => [
-                $r['numero_requisicion'],
-                $r['solicitante'] ?? '',
-                $r['proveedor_nombre'],
-                $r['monto_total'],
-                $r['moneda'],
-                $r['fecha_solicitud'],
-                $r['estado'] ?? '',
-            ], $filas);
-
-            $this->exportarCSV(
-                'reporte_estado_requisiciones_' . date('Y-m-d'),
-                'Estado de Requisiciones',
-                "Del $fechaInicio al $fechaFin",
-                $columnas, $datos
-            );
-        } catch (\Exception $e) {
-            error_log("Error reporte estado requisiciones: " . $e->getMessage());
-            $this->jsonResponse(['success' => false, 'message' => 'Error al generar el reporte'], 500);
-        }
+        $this->descargarReporte('estado-requisiciones', 'reporte_estado_requisiciones_');
     }
 
     public function reporteGastoUnidadNegocio()
     {
-        if (!$this->validateCSRF()) {
-            $this->jsonResponse(['success' => false, 'error' => 'Token inválido'], 403);
-            return;
-        }
-        try {
-            $fechaInicio = $_POST['fecha_inicio'] ?? date('Y-m-01');
-            $fechaFin    = $_POST['fecha_fin']    ?? date('Y-m-t');
-
-            // OJO: este reporte suma distribucion_gasto.cantidad, NO
-            // requisiciones.monto_total, y esta bien asi: mide cuanto gasto se
-            // cargo a cada unidad de negocio, que es otra pregunta.
-            // Consecuencia esperada: su total puede diferir en centavos del
-            // total de los reportes que suman monto_total, porque el reparto
-            // por porcentaje no siempre cuadra exacto (3 lineas al 33.33% de
-            // Q100 suman Q99.99). No es un error: no lo "corrijas" apuntandolo
-            // a monto_total. Ver docs/PRECISION_DECIMAL.md
-            $sql = "SELECT cc.nombre AS unidad_negocio,
-                           COUNT(DISTINCT dg.requisicion_id) AS total_requisiciones,
-                           SUM(dg.cantidad) AS monto_total
-                    FROM unidad_de_negocio cc
-                    INNER JOIN distribucion_gasto dg ON cc.id = dg.unidad_negocio_id
-                    INNER JOIN requisiciones r ON dg.requisicion_id = r.id
-                    WHERE DATE(r.fecha_solicitud) BETWEEN ? AND ?
-                    GROUP BY cc.id, cc.nombre
-                    ORDER BY monto_total DESC";
-
-            $stmt = Requisicion::query($sql, [$fechaInicio, $fechaFin]);
-            $filas = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-            $columnas = ['Unidad de Negocio', 'Total Requisiciones', 'Monto Total'];
-            $datos = array_map(fn($r) => [
-                $r['unidad_negocio'],
-                $r['total_requisiciones'],
-                $r['monto_total'],
-            ], $filas);
-
-            $this->exportarCSV(
-                'reporte_gasto_unidad_negocio_' . date('Y-m-d'),
-                'Gasto por Unidad de Negocio',
-                "Del $fechaInicio al $fechaFin",
-                $columnas, $datos
-            );
-        } catch (\Exception $e) {
-            error_log("Error reporte gasto centro costo: " . $e->getMessage());
-            $this->jsonResponse(['success' => false, 'message' => 'Error al generar el reporte'], 500);
-        }
+        $this->descargarReporte('gasto-unidad-negocio', 'reporte_gasto_unidad_negocio_');
     }
 
-    public function reporteGastoUnidadRequirente()
+    public function reporteTasaRechazo()
+    {
+        $this->descargarReporte('tasa-rechazo', 'reporte_tasa_rechazo_');
+    }
+
+    public function reporteFormaPago()
+    {
+        $this->descargarReporte('forma-pago', 'reporte_forma_pago_');
+    }
+
+    /**
+     * Descarga en CSV cualquiera de los reportes de TIPOS_REPORTE. Reutiliza
+     * exactamente la misma consulta que la vista en pantalla (datosXxx()),
+     * así que nunca pueden mostrar números distintos entre sí.
+     */
+    private function descargarReporte(string $tipo, string $prefijoArchivo): void
     {
         if (!$this->validateCSRF()) {
             $this->jsonResponse(['success' => false, 'error' => 'Token inválido'], 403);
             return;
         }
         try {
-            [$fechaInicio, $fechaFin] = $this->normalizarRangoFechas(
-                $_POST['fecha_inicio'] ?? null,
-                $_POST['fecha_fin'] ?? null
-            );
-
-            $filas = $this->consultarGastoUnidadRequirente($fechaInicio, $fechaFin);
-
-            // Las monedas NO se suman entre sí: cada fila lleva su moneda y el CSV
-            // sale ordenado por moneda para que Excel pueda subtotalizar por grupo.
-            $columnas = [
-                'Unidad Requirente', 'Moneda', 'Total Requisiciones', 'Monto Total',
-                'Aprobadas', 'Rechazadas', 'En Proceso', 'Sin Flujo',
-            ];
-            $datos = array_map(fn($r) => [
-                $r['unidad'],
-                $r['moneda'],
-                $r['total_requisiciones'],
-                $r['monto_total'],
-                $r['aprobadas'],
-                $r['rechazadas'],
-                $r['en_proceso'],
-                $r['sin_flujo'],
-            ], $filas);
+            $filtros = $this->filtrosDesdeRequest($_POST);
+            $config  = self::TIPOS_REPORTE[$tipo];
+            $datos   = $this->{$config['metodo']}($filtros);
 
             $this->exportarCSV(
-                'reporte_gasto_unidad_requirente_' . date('Y-m-d'),
-                'Gasto por Unidad Requirente',
-                "Del $fechaInicio al $fechaFin",
-                $columnas, $datos
+                $prefijoArchivo . date('Y-m-d'),
+                $config['titulo'],
+                $this->descripcionPeriodo($filtros),
+                $datos['columnas'],
+                $datos['filas']
             );
         } catch (\Exception $e) {
-            error_log("Error reporte gasto unidad requirente: " . $e->getMessage());
+            error_log("Error generando reporte {$tipo}: " . $e->getMessage());
             $this->jsonResponse(['success' => false, 'message' => 'Error al generar el reporte'], 500);
         }
+    }
+
+    // ========================================================================
+    // VISTA EN PANTALLA (genérica)
+    // ========================================================================
+
+    /**
+     * Vista en pantalla genérica para cualquiera de los reportes en
+     * TIPOS_REPORTE. Solo lectura (GET): el filtro viaja en la query string,
+     * igual que el resto de listados administrativos, sin pasar por CSRF.
+     *
+     * @param string $tipo
+     * @return void
+     */
+    public function verReporte(string $tipo)
+    {
+        if (!isset(self::TIPOS_REPORTE[$tipo])) {
+            \App\Helpers\Redirect::to('/admin/reportes')
+                ->withError('Reporte no reconocido')
+                ->send();
+            return;
+        }
+
+        $filtros = $this->filtrosDesdeRequest($_GET);
+        $config  = self::TIPOS_REPORTE[$tipo];
+
+        $datos = ['columnas' => [], 'filas' => []];
+        $error = null;
+        try {
+            $datos = $this->{$config['metodo']}($filtros);
+        } catch (\Exception $e) {
+            error_log("Error viendo reporte {$tipo}: " . $e->getMessage());
+            $error = 'No se pudo generar el reporte. Revisa el log del sistema.';
+        }
+
+        View::render('admin/reportes/ver', [
+            'title'         => $config['titulo'],
+            'tipo'          => $tipo,
+            'columnas'      => $datos['columnas'],
+            'filas'         => $datos['filas'],
+            'periodo'       => $this->descripcionPeriodo($filtros),
+            'error_reporte' => $error,
+        ]);
     }
 
     /**
      * Vista en pantalla del reporte "Gasto por Unidad Requirente".
      *
-     * Es de solo lectura (GET), por eso no pasa por CSRF: el filtro de fechas
-     * viaja en la query string igual que el resto de listados administrativos.
+     * Tiene su propia vista (no la genérica) porque se agrupa por moneda:
+     * cada moneda es su propio bloque con su propio total, en vez de una
+     * sola tabla con una columna "Moneda" más.
      *
      * @return void
      */
     public function verGastoUnidadRequirente()
     {
-        [$fechaInicio, $fechaFin] = $this->normalizarRangoFechas(
-            $_GET['fecha_inicio'] ?? null,
-            $_GET['fecha_fin'] ?? null
-        );
+        $filtros = $this->filtrosDesdeRequest($_GET);
 
         $filas = [];
         $error = null;
 
         try {
-            $filas = $this->consultarGastoUnidadRequirente($fechaInicio, $fechaFin);
+            $filas = $this->consultarGastoUnidadRequirente($filtros);
         } catch (\Exception $e) {
             error_log("Error vista gasto unidad requirente: " . $e->getMessage());
             $error = 'No se pudo generar el reporte. Revisa el log del sistema.';
@@ -245,12 +304,52 @@ class ReporteController extends Controller
 
         View::render('admin/reportes/gasto_unidad_requirente', [
             'title'               => 'Gasto por Unidad Requirente',
-            'fecha_inicio'        => $fechaInicio,
-            'fecha_fin'           => $fechaFin,
+            'fecha_inicio'        => $filtros['fecha_inicio'],
+            'fecha_fin'           => $filtros['fecha_fin'],
+            'moneda'              => $filtros['moneda'],
             'por_moneda'          => $porMoneda,
             'total_requisiciones' => $totalRequisiciones,
             'error_reporte'       => $error,
         ]);
+    }
+
+    public function reporteGastoUnidadRequirente()
+    {
+        if (!$this->validateCSRF()) {
+            $this->jsonResponse(['success' => false, 'error' => 'Token inválido'], 403);
+            return;
+        }
+        try {
+            $filtros = $this->filtrosDesdeRequest($_POST);
+            $filas   = $this->consultarGastoUnidadRequirente($filtros);
+
+            // Las monedas NO se suman entre sí: cada fila lleva su moneda y el CSV
+            // sale ordenado por moneda para que Excel pueda subtotalizar por grupo.
+            $columnas = [
+                'Unidad Requirente', 'Moneda', 'Total Requisiciones', 'Monto Total',
+                'Aprobadas', 'Rechazadas', 'En Proceso', 'Sin Flujo',
+            ];
+            $datos = array_map(fn($r) => [
+                $r['unidad'],
+                $r['moneda'],
+                $r['total_requisiciones'],
+                $r['monto_total'],
+                $r['aprobadas'],
+                $r['rechazadas'],
+                $r['en_proceso'],
+                $r['sin_flujo'],
+            ], $filas);
+
+            $this->exportarCSV(
+                'reporte_gasto_unidad_requirente_' . date('Y-m-d'),
+                'Gasto por Unidad Requirente',
+                $this->descripcionPeriodo($filtros),
+                $columnas, $datos
+            );
+        } catch (\Exception $e) {
+            error_log("Error reporte gasto unidad requirente: " . $e->getMessage());
+            $this->jsonResponse(['success' => false, 'message' => 'Error al generar el reporte'], 500);
+        }
     }
 
     /**
@@ -266,12 +365,13 @@ class ReporteController extends Controller
      * requisiciones se pueda duplicar al resolver el nombre.
      *
      * El resultado viene desglosado por moneda porque GTQ/USD/EUR no son sumables.
+     * No aplica el filtro de unidad_requirente_id (es la dimensión que agrupa
+     * este reporte); sí aplica moneda si se seleccionó una.
      *
-     * @param string $fechaInicio Y-m-d
-     * @param string $fechaFin    Y-m-d
+     * @param array $filtros
      * @return array
      */
-    private function consultarGastoUnidadRequirente(string $fechaInicio, string $fechaFin): array
+    private function consultarGastoUnidadRequirente(array $filtros): array
     {
         $etiquetaUnidad = "COALESCE(
                 (SELECT cat_id.nombre
@@ -288,6 +388,13 @@ class ReporteController extends Controller
                   LIMIT 1),
                 NULLIF(TRIM(r.unidad_requirente), '')
             )";
+
+        $params = [$filtros['fecha_inicio'], $filtros['fecha_fin']];
+        $condMoneda = '';
+        if (!empty($filtros['moneda'])) {
+            $condMoneda = ' AND r.moneda = ?';
+            $params[] = $filtros['moneda'];
+        }
 
         // Un solo registro de flujo por requisición (el más reciente), para que
         // el desglose por estado no infle los conteos ni los montos.
@@ -311,15 +418,239 @@ class ReporteController extends Controller
                         GROUP BY requisicion_id
                     ) ult ON ult.max_id = af.id
                 ) fl ON fl.requisicion_id = r.id
-                WHERE DATE(r.fecha_solicitud) BETWEEN ? AND ?
+                WHERE DATE(r.fecha_solicitud) BETWEEN ? AND ?{$condMoneda}
                   AND r.unidad_requirente IS NOT NULL
                   AND TRIM(r.unidad_requirente) <> ''
                 GROUP BY unidad, r.moneda
                 ORDER BY r.moneda ASC, monto_total DESC";
 
-        $stmt = Requisicion::query($sql, [$fechaInicio, $fechaFin]);
+        return Requisicion::query($sql, $params)->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+    }
 
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+    // ========================================================================
+    // DATOS POR REPORTE (compartidos entre CSV y vista en pantalla)
+    // ========================================================================
+
+    private function datosEstadoRequisiciones(array $filtros): array
+    {
+        [$cond, $params] = $this->condicionesFiltro($filtros);
+
+        $sql = "SELECT r.numero_requisicion,
+                       u.azure_display_name AS solicitante,
+                       r.proveedor_nombre, r.monto_total, r.moneda,
+                       r.fecha_solicitud, af.estado
+                FROM requisiciones r
+                LEFT JOIN autorizacion_flujo af ON r.id = af.requisicion_id
+                LEFT JOIN usuarios u ON r.usuario_id = u.id
+                WHERE {$cond}
+                ORDER BY r.fecha_solicitud DESC";
+
+        $filas = Requisicion::query($sql, $params)->fetchAll(\PDO::FETCH_ASSOC);
+
+        $columnas = ['# Requisición', 'Solicitante', 'Proveedor', 'Monto', 'Moneda', 'Fecha', 'Estado'];
+        $datos = array_map(fn($r) => [
+            $r['numero_requisicion'],
+            $r['solicitante'] ?? '',
+            $r['proveedor_nombre'],
+            $r['monto_total'],
+            $r['moneda'],
+            $r['fecha_solicitud'],
+            $r['estado'] ?? '',
+        ], $filas);
+
+        return ['columnas' => $columnas, 'filas' => $datos];
+    }
+
+    /**
+     * OJO: este reporte suma distribucion_gasto.cantidad, NO
+     * requisiciones.monto_total, y esta bien asi: mide cuanto gasto se
+     * cargo a cada unidad de negocio, que es otra pregunta. Consecuencia
+     * esperada: su total puede diferir en centavos del total de los
+     * reportes que suman monto_total, porque el reparto por porcentaje no
+     * siempre cuadra exacto (3 lineas al 33.33% de Q100 suman Q99.99). No
+     * es un error: no lo "corrijas" apuntandolo a monto_total. Ver
+     * docs/PRECISION_DECIMAL.md
+     */
+    private function datosGastoUnidadNegocio(array $filtros): array
+    {
+        [$cond, $params] = $this->condicionesFiltro($filtros);
+
+        $sql = "SELECT cc.nombre AS unidad_negocio,
+                       COUNT(DISTINCT dg.requisicion_id) AS total_requisiciones,
+                       SUM(dg.cantidad) AS monto_total
+                FROM unidad_de_negocio cc
+                INNER JOIN distribucion_gasto dg ON cc.id = dg.unidad_negocio_id
+                INNER JOIN requisiciones r ON dg.requisicion_id = r.id
+                WHERE {$cond}
+                GROUP BY cc.id, cc.nombre
+                ORDER BY monto_total DESC";
+
+        $filas = Requisicion::query($sql, $params)->fetchAll(\PDO::FETCH_ASSOC);
+
+        $columnas = ['Unidad de Negocio', 'Total Requisiciones', 'Monto Total'];
+        $datos = array_map(fn($r) => [
+            $r['unidad_negocio'],
+            $r['total_requisiciones'],
+            $r['monto_total'],
+        ], $filas);
+
+        return ['columnas' => $columnas, 'filas' => $datos];
+    }
+
+    private function datosTasaRechazo(array $filtros): array
+    {
+        [$cond, $params] = $this->condicionesFiltro($filtros);
+
+        $sqlResumen = "SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN af.estado IN ('rechazado','rechazado_revision','rechazado_autorizacion') THEN 1 ELSE 0 END) AS rechazadas,
+            SUM(CASE WHEN af.estado = 'autorizado' THEN 1 ELSE 0 END) AS aprobadas,
+            ROUND(SUM(CASE WHEN af.estado IN ('rechazado','rechazado_revision','rechazado_autorizacion') THEN 1 ELSE 0 END) / COUNT(*) * 100, 2) AS tasa_rechazo
+        FROM autorizacion_flujo af
+        INNER JOIN requisiciones r ON af.requisicion_id = r.id
+        WHERE {$cond}";
+
+        $resumen = Requisicion::query($sqlResumen, $params)->fetch(\PDO::FETCH_ASSOC);
+
+        $sqlMotivos = "SELECT COALESCE(af.motivo_rechazo, '(sin motivo)') AS motivo,
+                              COUNT(*) AS cantidad
+                       FROM autorizacion_flujo af
+                       INNER JOIN requisiciones r ON af.requisicion_id = r.id
+                       WHERE af.estado IN ('rechazado','rechazado_revision','rechazado_autorizacion')
+                         AND {$cond}
+                       GROUP BY af.motivo_rechazo
+                       ORDER BY cantidad DESC";
+
+        $motivos = Requisicion::query($sqlMotivos, $params)->fetchAll(\PDO::FETCH_ASSOC);
+
+        $columnas = ['Concepto', 'Valor'];
+        $datos = [
+            ['Total Requisiciones', $resumen['total'] ?? 0],
+            ['Aprobadas',           $resumen['aprobadas'] ?? 0],
+            ['Rechazadas',          $resumen['rechazadas'] ?? 0],
+            ['Tasa de Rechazo (%)', $resumen['tasa_rechazo'] ?? 0],
+            [],
+            ['Motivo de Rechazo', 'Cantidad'],
+        ];
+        foreach ($motivos as $m) {
+            $datos[] = [$m['motivo'], $m['cantidad']];
+        }
+
+        return ['columnas' => $columnas, 'filas' => $datos];
+    }
+
+    private function datosFormaPago(array $filtros): array
+    {
+        [$cond, $params] = $this->condicionesFiltro($filtros);
+
+        // El porcentaje se calcula con una funcion de ventana en vez de una
+        // subconsulta correlacionada: una sola pasada por la tabla en vez
+        // de repetir el COUNT total por cada fila agrupada.
+        $sql = "SELECT r.forma_pago,
+                       COUNT(r.id) AS cantidad,
+                       SUM(r.monto_total) AS monto_total,
+                       ROUND(COUNT(r.id) / SUM(COUNT(r.id)) OVER () * 100, 2) AS porcentaje
+                FROM requisiciones r
+                WHERE {$cond}
+                GROUP BY r.forma_pago
+                ORDER BY cantidad DESC";
+
+        $filas = Requisicion::query($sql, $params)->fetchAll(\PDO::FETCH_ASSOC);
+
+        $columnas = ['Forma de Pago', 'Cantidad', 'Monto Total', '% del Total'];
+        $datos = array_map(fn($r) => [
+            $r['forma_pago'] ?? '(sin especificar)',
+            $r['cantidad'],
+            $r['monto_total'],
+            ($r['porcentaje'] ?? 0) . '%',
+        ], $filas);
+
+        return ['columnas' => $columnas, 'filas' => $datos];
+    }
+
+    // ========================================================================
+    // FILTROS COMPARTIDOS
+    // ========================================================================
+
+    /**
+     * Normaliza los filtros comunes a todos los reportes (fecha, unidad
+     * requirente, moneda) desde $_GET o $_POST, con valores por defecto
+     * seguros. Centralizar esto evita que cada reporte reinvente su propia
+     * validación (y su propio bug) para lo mismo.
+     *
+     * @param array $origen $_GET o $_POST
+     * @return array{fecha_inicio:string,fecha_fin:string,unidad_requirente_id:?int,moneda:?string}
+     */
+    private function filtrosDesdeRequest(array $origen): array
+    {
+        [$fechaInicio, $fechaFin] = $this->normalizarRangoFechas(
+            $origen['fecha_inicio'] ?? null,
+            $origen['fecha_fin'] ?? null
+        );
+
+        $unidadRequirenteId = (!empty($origen['unidad_requirente_id']) && is_numeric($origen['unidad_requirente_id']))
+            ? (int)$origen['unidad_requirente_id']
+            : null;
+
+        $moneda = (!empty($origen['moneda']) && in_array($origen['moneda'], ['GTQ', 'USD', 'EUR'], true))
+            ? $origen['moneda']
+            : null;
+
+        return [
+            'fecha_inicio'         => $fechaInicio,
+            'fecha_fin'            => $fechaFin,
+            'unidad_requirente_id' => $unidadRequirenteId,
+            'moneda'               => $moneda,
+        ];
+    }
+
+    /**
+     * Construye el fragmento WHERE (sin la palabra WHERE) y sus parámetros
+     * a partir de los filtros normalizados. Reutilizado por todos los
+     * reportes que consultan `requisiciones` bajo el alias indicado.
+     *
+     * @param array $filtros
+     * @param string $alias Alias de la tabla requisiciones en la consulta
+     * @return array{0:string,1:array}
+     */
+    private function condicionesFiltro(array $filtros, string $alias = 'r'): array
+    {
+        $sql = "DATE({$alias}.fecha_solicitud) BETWEEN ? AND ?";
+        $params = [$filtros['fecha_inicio'], $filtros['fecha_fin']];
+
+        if (!empty($filtros['unidad_requirente_id'])) {
+            $sql .= " AND TRIM({$alias}.unidad_requirente) = ?";
+            $params[] = (string)$filtros['unidad_requirente_id'];
+        }
+
+        if (!empty($filtros['moneda'])) {
+            $sql .= " AND {$alias}.moneda = ?";
+            $params[] = $filtros['moneda'];
+        }
+
+        return [$sql, $params];
+    }
+
+    /**
+     * Texto descriptivo del período + filtros aplicados, usado como
+     * subtítulo tanto en el CSV como en la vista en pantalla.
+     */
+    private function descripcionPeriodo(array $filtros): string
+    {
+        $desc = "Del {$filtros['fecha_inicio']} al {$filtros['fecha_fin']}";
+
+        if (!empty($filtros['moneda'])) {
+            $desc .= " · Moneda: {$filtros['moneda']}";
+        }
+
+        if (!empty($filtros['unidad_requirente_id'])) {
+            $unidad = UnidadRequirente::find($filtros['unidad_requirente_id']);
+            if ($unidad) {
+                $desc .= " · Unidad: " . ($unidad->nombre ?? '');
+            }
+        }
+
+        return $desc;
     }
 
     /**
@@ -355,107 +686,6 @@ class ReporteController extends Controller
         return [$fechaInicio, $fechaFin];
     }
 
-    public function reporteTasaRechazo()
-    {
-        if (!$this->validateCSRF()) {
-            $this->jsonResponse(['success' => false, 'error' => 'Token inválido'], 403);
-            return;
-        }
-        try {
-            $fechaInicio = $_POST['fecha_inicio'] ?? date('Y-m-01');
-            $fechaFin    = $_POST['fecha_fin']    ?? date('Y-m-t');
-
-            $sqlResumen = "SELECT
-                COUNT(*) AS total,
-                SUM(CASE WHEN af.estado IN ('rechazado','rechazado_revision','rechazado_autorizacion') THEN 1 ELSE 0 END) AS rechazadas,
-                SUM(CASE WHEN af.estado = 'autorizado' THEN 1 ELSE 0 END) AS aprobadas,
-                ROUND(SUM(CASE WHEN af.estado IN ('rechazado','rechazado_revision','rechazado_autorizacion') THEN 1 ELSE 0 END) / COUNT(*) * 100, 2) AS tasa_rechazo
-            FROM autorizacion_flujo af
-            INNER JOIN requisiciones r ON af.requisicion_id = r.id
-            WHERE DATE(r.fecha_solicitud) BETWEEN ? AND ?";
-
-            $resumen = Requisicion::query($sqlResumen, [$fechaInicio, $fechaFin])
-                ->fetch(\PDO::FETCH_ASSOC);
-
-            $sqlMotivos = "SELECT COALESCE(af.motivo_rechazo, '(sin motivo)') AS motivo,
-                                  COUNT(*) AS cantidad
-                           FROM autorizacion_flujo af
-                           INNER JOIN requisiciones r ON af.requisicion_id = r.id
-                           WHERE af.estado IN ('rechazado','rechazado_revision','rechazado_autorizacion')
-                             AND DATE(r.fecha_solicitud) BETWEEN ? AND ?
-                           GROUP BY af.motivo_rechazo
-                           ORDER BY cantidad DESC";
-
-            $motivos = Requisicion::query($sqlMotivos, [$fechaInicio, $fechaFin])
-                ->fetchAll(\PDO::FETCH_ASSOC);
-
-            $columnas = ['Concepto', 'Valor'];
-            $datos = [
-                ['Total Requisiciones', $resumen['total'] ?? 0],
-                ['Aprobadas',           $resumen['aprobadas'] ?? 0],
-                ['Rechazadas',          $resumen['rechazadas'] ?? 0],
-                ['Tasa de Rechazo (%)', $resumen['tasa_rechazo'] ?? 0],
-                [],
-                ['Motivo de Rechazo', 'Cantidad'],
-            ];
-            foreach ($motivos as $m) {
-                $datos[] = [$m['motivo'], $m['cantidad']];
-            }
-
-            $this->exportarCSV(
-                'reporte_tasa_rechazo_' . date('Y-m-d'),
-                'Tasa de Rechazo',
-                "Del $fechaInicio al $fechaFin",
-                $columnas, $datos
-            );
-        } catch (\Exception $e) {
-            error_log("Error reporte tasa rechazo: " . $e->getMessage());
-            $this->jsonResponse(['success' => false, 'message' => 'Error al generar el reporte'], 500);
-        }
-    }
-
-    public function reporteFormaPago()
-    {
-        if (!$this->validateCSRF()) {
-            $this->jsonResponse(['success' => false, 'error' => 'Token inválido'], 403);
-            return;
-        }
-        try {
-            $fechaInicio = $_POST['fecha_inicio'] ?? date('Y-m-01');
-            $fechaFin    = $_POST['fecha_fin']    ?? date('Y-m-t');
-
-            $sql = "SELECT r.forma_pago,
-                           COUNT(r.id) AS cantidad,
-                           SUM(r.monto_total) AS monto_total,
-                           ROUND(COUNT(r.id) / (SELECT COUNT(*) FROM requisiciones WHERE DATE(fecha_solicitud) BETWEEN ? AND ?) * 100, 2) AS porcentaje
-                    FROM requisiciones r
-                    WHERE DATE(r.fecha_solicitud) BETWEEN ? AND ?
-                    GROUP BY r.forma_pago
-                    ORDER BY cantidad DESC";
-
-            $stmt = Requisicion::query($sql, [$fechaInicio, $fechaFin, $fechaInicio, $fechaFin]);
-            $filas = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-            $columnas = ['Forma de Pago', 'Cantidad', 'Monto Total', '% del Total'];
-            $datos = array_map(fn($r) => [
-                $r['forma_pago'] ?? '(sin especificar)',
-                $r['cantidad'],
-                $r['monto_total'],
-                ($r['porcentaje'] ?? 0) . '%',
-            ], $filas);
-
-            $this->exportarCSV(
-                'reporte_forma_pago_' . date('Y-m-d'),
-                'Distribución por Forma de Pago',
-                "Del $fechaInicio al $fechaFin",
-                $columnas, $datos
-            );
-        } catch (\Exception $e) {
-            error_log("Error reporte forma pago: " . $e->getMessage());
-            $this->jsonResponse(['success' => false, 'message' => 'Error al generar el reporte'], 500);
-        }
-    }
-
     // ========================================================================
     // MÉTODOS PRIVADOS DE GENERACIÓN
     // ========================================================================
@@ -487,190 +717,5 @@ class ReporteController extends Controller
 
         fclose($output);
         exit;
-    }
-
-    private function generarArchivoReporte($tipo, $datos, $formato)
-    {
-        $timestamp = date('Y-m-d_H-i-s');
-        $nombreArchivo = "reporte_{$tipo}_{$timestamp}";
-
-        switch ($formato) {
-            case 'csv':
-                $this->generarCSV($datos, $nombreArchivo);
-                break;
-            case 'excel':
-                $this->generarExcel($datos, $nombreArchivo);
-                break;
-            case 'pdf':
-            default:
-                $this->generarPDF($datos, $nombreArchivo);
-                break;
-        }
-    }
-
-    private function generarCSV($datos, $nombreArchivo)
-    {
-        $tieneFilas = !empty($datos['usuarios'])
-            || !empty($datos['requisiciones'])
-            || !empty($datos['autorizaciones'])
-            || !empty($datos['datos_financieros']);
-
-        if (!$tieneFilas) {
-            $this->jsonResponse([
-                'success' => false,
-                'message' => 'No hay datos para el período seleccionado',
-            ], 422);
-            return;
-        }
-
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="' . $nombreArchivo . '.csv"');
-
-        $output = fopen('php://output', 'w');
-        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-
-        fputcsv($output, [$datos['titulo']]);
-        fputcsv($output, ['Generado el: ' . $datos['fecha_generacion']]);
-        fputcsv($output, ['Período: ' . $datos['periodo']]);
-        fputcsv($output, []);
-
-        if (isset($datos['usuarios'])) {
-            $this->generarCSVUsuarios($output, $datos);
-        } elseif (isset($datos['requisiciones'])) {
-            $this->generarCSVRequisiciones($output, $datos);
-        } elseif (isset($datos['autorizaciones'])) {
-            $this->generarCSVAutorizaciones($output, $datos);
-        } elseif (isset($datos['datos_financieros'])) {
-            $this->generarCSVFinanciero($output, $datos);
-        }
-
-        fclose($output);
-        exit;
-    }
-
-    private function generarCSVUsuarios($output, $datos)
-    {
-        fputcsv($output, ['Estadísticas']);
-        fputcsv($output, ['Total Usuarios', $datos['estadisticas']['total']]);
-        fputcsv($output, ['Activos', $datos['estadisticas']['activos']]);
-        fputcsv($output, ['Inactivos', $datos['estadisticas']['inactivos']]);
-        fputcsv($output, ['Administradores', $datos['estadisticas']['admins']]);
-        fputcsv($output, ['Revisores', $datos['estadisticas']['revisores']]);
-        fputcsv($output, ['Autorizadores', $datos['estadisticas']['autorizadores']]);
-        fputcsv($output, []);
-
-        fputcsv($output, ['Detalle de Usuarios']);
-        fputcsv($output, ['ID', 'Nombre', 'Email', 'Departamento', 'Cargo', 'Rol', 'Estado', 'Último Acceso']);
-
-        foreach ($datos['usuarios'] as $usuario) {
-            $rol = [];
-            if ($usuario->is_admin) $rol[] = 'Admin';
-            if ($usuario->is_revisor) $rol[] = 'Revisor';
-            if ($usuario->is_autorizador) $rol[] = 'Autorizador';
-            if (empty($rol)) $rol[] = 'Usuario';
-
-            fputcsv($output, [
-                $usuario->id,
-                $usuario->azure_display_name ?? '',
-                $usuario->azure_email ?? '',
-                $usuario->azure_department ?? '',
-                $usuario->azure_job_title ?? '',
-                implode(', ', $rol),
-                $usuario->activo ? 'Activo' : 'Inactivo',
-                $usuario->last_login ?? 'Nunca'
-            ]);
-        }
-    }
-
-    /**
-     * OJO: este CSV agrega montos SIN separar por moneda, asi que la cifra
-     * mezcla quetzales con dolares y euros. Por eso va sin simbolo: ponerle
-     * uno seria afirmar algo falso. El arreglo de fondo es agrupar por
-     * moneda, como hace el reporte de gasto por unidad requirente.
-     */
-    private function generarCSVRequisiciones($output, $datos)
-    {
-        fputcsv($output, ['Estadísticas']);
-        fputcsv($output, ['Total Requisiciones', $datos['estadisticas']['total']]);
-        fputcsv($output, ['Monto Total', number_format($datos['estadisticas']['monto_total'], 2)]);
-        fputcsv($output, []);
-
-        fputcsv($output, ['Detalle de Requisiciones']);
-        fputcsv($output, ['ID', 'Fecha', 'Proveedor', 'Usuario', 'Monto', 'Estado']);
-
-        foreach ($datos['requisiciones'] as $req) {
-            $simbolo = ($req['moneda'] ?? 'GTQ') === 'USD' ? '$' : 'Q';
-            fputcsv($output, [
-                $req['id'],
-                $req['fecha'],
-                $req['nombre_razon_social'],
-                $req['usuario_nombre'] ?? '',
-                $simbolo . ' ' . number_format($req['monto_total'], 5),
-                $req['estado']
-            ]);
-        }
-    }
-
-    private function generarCSVAutorizaciones($output, $datos)
-    {
-        fputcsv($output, ['Detalle de Autorizaciones']);
-        fputcsv($output, ['ID Flujo', 'Fecha', 'Proveedor', 'Monto', 'Autorizador', 'Estado', 'Fecha Autorización', 'Unidad de Negocio']);
-
-        foreach ($datos['autorizaciones'] as $auth) {
-            $simbolo = ($auth['moneda'] ?? 'GTQ') === 'USD' ? '$' : 'Q';
-            fputcsv($output, [
-                $auth['id'],
-                $auth['fecha_creacion'],
-                $auth['nombre_razon_social'],
-                $simbolo . ' ' . number_format($auth['monto_total'], 5),
-                $auth['autorizador_email'] ?? '',
-                $auth['estado_auth'] ?? '',
-                $auth['fecha_autorizacion'] ?? '',
-                $auth['unidad_negocio_nombre'] ?? ''
-            ]);
-        }
-    }
-
-    /**
-     * OJO: igual que generarCSVRequisiciones, agrega sin separar por moneda.
-     * Los montos van sin simbolo a proposito.
-     */
-    private function generarCSVFinanciero($output, $datos)
-    {
-        fputcsv($output, ['Resumen Financiero']);
-        fputcsv($output, ['Monto Total General', number_format($datos['monto_total_general'], 2)]);
-        fputcsv($output, []);
-
-        fputcsv($output, ['Gasto por Unidad de Negocio']);
-        fputcsv($output, ['Código', 'Nombre', 'Monto Total', 'Total Requisiciones']);
-
-        foreach ($datos['datos_financieros'] as $centro) {
-            fputcsv($output, [
-                $centro['codigo'],
-                $centro['nombre'],
-                number_format($centro['monto_total'] ?? 0, 2),
-                $centro['total_requisiciones'] ?? 0
-            ]);
-        }
-    }
-
-    private function generarPDF($datos, $nombreArchivo)
-    {
-        $this->generarCSV($datos, $nombreArchivo);
-    }
-
-    private function generarExcel($datos, $nombreArchivo)
-    {
-        $this->generarCSV($datos, $nombreArchivo);
-    }
-
-    private function contarPorEstado($requisiciones)
-    {
-        $conteo = [];
-        foreach ($requisiciones as $req) {
-            $estado = is_object($req) ? $req->getEstadoReal() : EstadoHelper::getEstadoFromData($req);
-            $conteo[$estado] = ($conteo[$estado] ?? 0) + 1;
-        }
-        return $conteo;
     }
 }

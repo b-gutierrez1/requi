@@ -46,6 +46,16 @@ ALTER TABLE autorizador_cuenta_exclusiones CHANGE centro_costo_id unidad_negocio
 ALTER TABLE autorizador_respaldo_centro    CHANGE centro_costo_id unidad_negocio_id INT(11) NOT NULL;
 ALTER TABLE unidad_requirente              CHANGE centro_costo_id unidad_negocio_id INT(11) NULL;
 
+-- El VALOR 'centro_costo' del ENUM autorizaciones.tipo tambien habla del
+-- detalle, asi que migra igual que la columna: ENUM transitorio con ambos
+-- valores -> migrar filas historicas -> ENUM final. En produccion hay filas
+-- con el valor viejo; el paso transitorio evita que el ALTER las rechace.
+ALTER TABLE autorizaciones MODIFY tipo
+  ENUM('revision','centro_costo','unidad_negocio','forma_pago','cuenta_contable') NOT NULL;
+UPDATE autorizaciones SET tipo = 'unidad_negocio' WHERE tipo = 'centro_costo';
+ALTER TABLE autorizaciones MODIFY tipo
+  ENUM('revision','unidad_negocio','forma_pago','cuenta_contable') NOT NULL;
+
 -- ---------------------------------------------------------------------------
 -- 3. Columnas que apuntan al GRUPO: unidad_negocio_id -> centro_costo_id
 -- ---------------------------------------------------------------------------

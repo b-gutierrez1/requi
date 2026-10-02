@@ -265,6 +265,10 @@ $router->group(['middlewares' => ['AuthMiddleware']], function($router) {
         $router->get('/reportes', [ReporteController::class, 'reportes']);
         // Vista en pantalla del reporte por unidad requirente (GET, solo lectura)
         $router->get('/reportes/gasto-unidad-requirente/ver', [ReporteController::class, 'verGastoUnidadRequirente']);
+        // Vista en pantalla generica para el resto de reportes (GET, solo lectura)
+        $router->get('/reportes/ver/{tipo}', [ReporteController::class, 'verReporte']);
+        // Datos para las graficas del apartado de reportes (GET, solo lectura)
+        $router->get('/reportes/api/resumen-grafico', [ReporteController::class, 'apiResumenGrafico']);
 
         $router->group(['middlewares' => ['CsrfMiddleware']], function($router) {
             $router->post('/reportes/estado-requisiciones', [ReporteController::class, 'reporteEstadoRequisiciones']);

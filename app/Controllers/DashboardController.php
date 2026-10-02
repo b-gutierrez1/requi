@@ -532,23 +532,47 @@ class DashboardController extends Controller
         $usuarioId = $usuario['id'];
 
         try {
-            // Obtener datos de los últimos 6 meses
+            // Obtener datos de los últimos 6 meses, agrupados por moneda:
+            // GTQ, USD y EUR no son la misma unidad, sumarlas en un solo
+            // número no significa nada (mismo problema que tenía
+            // Requisicion::getEstadisticasGenerales antes de corregirse).
             $meses = [];
-            $datos = [];
+            $montosPorMes = []; // [indiceMes => [moneda => monto]]
 
             for ($i = 5; $i >= 0; $i--) {
                 $fecha = date('Y-m', strtotime("-{$i} months"));
                 $meses[] = date('M Y', strtotime($fecha . '-01'));
-                
+
                 $requisiciones = Requisicion::porUsuarioYMes($usuarioId, $fecha);
-                $monto = array_sum(array_column($requisiciones, 'monto_total'));
-                $datos[] = $monto;
+                $montosPorMoneda = [];
+                foreach ($requisiciones as $req) {
+                    $moneda = $req->moneda ?? 'GTQ';
+                    $montosPorMoneda[$moneda] = ($montosPorMoneda[$moneda] ?? 0) + (float)$req->monto_total;
+                }
+                $montosPorMes[] = $montosPorMoneda;
+            }
+
+            // Cada serie de moneda debe tener exactamente un valor por mes
+            // (0 en los meses sin movimiento), sin importar en qué mes
+            // apareció esa moneda por primera vez.
+            $monedas = [];
+            foreach ($montosPorMes as $montos) {
+                $monedas = array_merge($monedas, array_keys($montos));
+            }
+            $monedas = array_values(array_unique($monedas));
+
+            $series = [];
+            foreach ($monedas as $moneda) {
+                $series[$moneda] = array_map(
+                    fn($montos) => $montos[$moneda] ?? 0,
+                    $montosPorMes
+                );
             }
 
             $this->jsonResponse([
                 'success' => true,
                 'labels' => $meses,
-                'data' => $datos
+                'series' => $series
             ]);
         } catch (\Exception $e) {
             $this->jsonResponse([

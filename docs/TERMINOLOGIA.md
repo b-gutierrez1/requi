@@ -38,7 +38,7 @@ En la tabla de Distribución de Gasto el usuario **elige la unidad de negocio**
 **número de factura**.
 
 ```
-Usuario elige: "Sistemas"  (unidad de negocio)
+Usuario elige: "Recursos Humanos"  (unidad de negocio)
       ↓ el sistema deduce
 Centro de Costo: OPERACIONES        (automático)
 Factura:         2                  (automático)

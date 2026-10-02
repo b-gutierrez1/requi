@@ -102,3 +102,22 @@ que antes quedaba 2 centavos corto.
 
 Las validaciones siguen tolerando ±0.01 como margen de seguridad, pero ya no debería
 necesitarse en la práctica.
+
+### Freno de seguridad: no se guarda si no cuadra
+
+Además de la corrección de raíz, `RequisicionService` tiene dos verificaciones que
+actúan como red de seguridad y **bloquean el guardado por completo** si alguna vez
+volviera a aparecer un descuadre:
+
+1. En `procesarDatosFormulario()`, justo después de calcular la distribución: si la
+   suma de las líneas no coincide con el `monto_total` (±0.01), se lanza una excepción
+   *antes* de que se abra la transacción — no se crea ni la requisición.
+2. En `generarFacturasAutomaticas()`, antes de guardar cualquier factura: si la suma de
+   las facturas agrupadas no coincide con el `monto_total` (±0.01), se devuelve un error
+   en vez de guardar. Como esto ocurre dentro de la transacción de `crearRequisicion()`,
+   el error hace `rollBack()` de todo lo ya insertado (orden, ítems, distribución) — la
+   requisición completa desaparece, no queda a medias.
+
+Verificado con datos artificialmente descuadrados vía reflexión: el caso roto se
+rechaza con el mensaje correspondiente y no crea ninguna fila; el caso que cuadra pasa
+el freno sin problema.

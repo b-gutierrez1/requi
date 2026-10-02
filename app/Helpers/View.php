@@ -593,8 +593,37 @@ class View
     }
 
     /**
+     * Cache por petición de la verificación de autorizador.
+     *
+     * @var array<string,bool>
+     */
+    private static $cacheAutoriza = [];
+
+    /**
+     * Envuelve Autorizador::autorizaAlgo() para no repetir la consulta en cada
+     * vista que se renderice dentro de la misma petición.
+     *
+     * @param string|null $email
+     * @return bool
+     */
+    private static function autorizaAlgo($email)
+    {
+        if (empty($email)) {
+            return false;
+        }
+
+        $clave = strtolower($email);
+
+        if (!array_key_exists($clave, self::$cacheAutoriza)) {
+            self::$cacheAutoriza[$clave] = \App\Models\Autorizador::autorizaAlgo($email);
+        }
+
+        return self::$cacheAutoriza[$clave];
+    }
+
+    /**
      * Obtiene datos de sesión para incluir automáticamente en todas las vistas
-     * 
+     *
      * @return array Datos de sesión
      */
     private static function getSessionData()
@@ -621,7 +650,14 @@ class View
             $data['isAuthenticated'] = \App\Helpers\Session::isAuthenticated();
             $data['isAdmin'] = \App\Helpers\Session::isAdmin();
             $data['isRevisor'] = \App\Helpers\Session::isRevisor();
-            $data['isAutorizador'] = \App\Helpers\Session::isAutorizador();
+
+            // isAutorizador sale de lo que la persona realmente autoriza, no de
+            // usuarios.is_autorizador: esa columna no la escribe ningun punto
+            // del sistema, asi que estaba en 0 para todos los directores y por
+            // eso no veian el menu de Autorizaciones ni el contador.
+            // Se resuelve una sola vez por peticion.
+            $data['isAutorizador'] = \App\Helpers\Session::isAutorizador()
+                || self::autorizaAlgo($usuario['email'] ?? $usuario['azure_email'] ?? null);
         }
 
         // Agregar mensajes flash si existen

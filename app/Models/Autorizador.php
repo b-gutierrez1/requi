@@ -237,9 +237,53 @@ class Autorizador extends Model
         
         $stmt = self::getConnection()->prepare($sql);
         $stmt->execute([$email, $unidadNegocioId]);
-        
+
         $result = $stmt->fetch(\PDO::FETCH_ASSOC);
         return ($result['total'] ?? 0) > 0;
+    }
+
+    /**
+     * Indica si el correo autoriza algo en el sistema, sea unidad de negocio,
+     * forma de pago o cuenta contable.
+     *
+     * Se consulta la realidad —las tablas de asignaciones— en vez de la bandera
+     * usuarios.is_autorizador, que ningun punto del sistema escribe: dar de alta
+     * un autorizador en el panel nunca la encendia, asi que a los directores no
+     * les aparecia ni el menu de Autorizaciones ni el contador de pendientes.
+     *
+     * @param string|null $email
+     * @return bool
+     */
+    public static function autorizaAlgo($email)
+    {
+        if (empty($email)) {
+            return false;
+        }
+
+        $sql = "SELECT
+                    EXISTS(
+                        SELECT 1 FROM autorizadores a
+                        INNER JOIN autorizador_unidad_negocio aun ON aun.autorizador_id = a.id
+                        WHERE LOWER(a.email) = LOWER(?) AND a.activo = 1 AND aun.activo = 1
+                    )
+                    OR EXISTS(
+                        SELECT 1 FROM autorizadores_metodos_pago
+                        WHERE LOWER(autorizador_email) = LOWER(?) AND activo = 1
+                    )
+                    OR EXISTS(
+                        SELECT 1 FROM autorizadores_cuentas_contables
+                        WHERE LOWER(autorizador_email) = LOWER(?) AND activo = 1
+                    ) AS autoriza";
+
+        try {
+            $stmt = self::getConnection()->prepare($sql);
+            $stmt->execute([$email, $email, $email]);
+
+            return (bool) $stmt->fetchColumn();
+        } catch (\Exception $e) {
+            error_log('Error verificando si autoriza algo (' . $email . '): ' . $e->getMessage());
+            return false;
+        }
     }
 }
 

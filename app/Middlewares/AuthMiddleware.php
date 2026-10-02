@@ -64,7 +64,7 @@ class AuthMiddleware
         // Verificar que la sesión no haya expirado
         if ($this->isSessionExpired()) {
             $this->logout();
-            $this->redirectToLogin('Sesión expirada. Por favor inicie sesión nuevamente.');
+            $this->redirectToLogin(null, true);
             return false;
         }
 
@@ -151,9 +151,21 @@ class AuthMiddleware
             return true;
         }
 
-        // Verificar rutas con parámetros (test/{param})
+        // Verificar rutas con parámetros (/test/{param}, /auth/azure/callback...)
+        //
+        // OJO: antes esto era str_starts_with($route, rtrim($publicRoute, '/')).
+        // Como la lista incluye '/', al quitarle la barra quedaba '' y toda
+        // cadena empieza por '': TODAS las rutas resultaban publicas, asi que
+        // el middleware no verificaba sesion, no la expiraba por inactividad y
+        // no actualizaba last_activity. La raiz '/' solo debe coincidir exacta.
         foreach ($this->publicRoutes as $publicRoute) {
-            if (str_starts_with($route, rtrim($publicRoute, '/'))) {
+            $prefijo = rtrim($publicRoute, '/');
+
+            if ($prefijo === '') {
+                continue;
+            }
+
+            if ($route === $prefijo || str_starts_with($route, $prefijo . '/')) {
                 return true;
             }
         }
@@ -194,8 +206,15 @@ class AuthMiddleware
      * @param string|null $message Mensaje flash opcional
      * @return void
      */
-    private function redirectToLogin($message = null)
+    private function redirectToLogin($message = null, $expirada = false)
     {
+        // Cuando la sesion expiro ya se destruyo antes de llegar aqui, asi que
+        // el flash se escribiria en una sesion que nadie va a leer: el aviso
+        // viaja en la URL (?expirada=1), que la vista de login sabe mostrar.
+        if ($expirada) {
+            $message = null;
+        }
+
         if ($message) {
             $_SESSION['flash'] = [
                 'type' => 'warning',
@@ -221,7 +240,7 @@ class AuthMiddleware
         }
 
         // Redirección normal usando helper url() que considera el subdirectorio
-        header('Location: ' . \App\Helpers\Redirect::url('/login'));
+        header('Location: ' . \App\Helpers\Redirect::url('/login') . ($expirada ? '?expirada=1' : ''));
         exit;
     }
 

@@ -149,7 +149,15 @@ if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
     ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) ? 1 : 0);
-    
+
+    // Duracion real de la sesion = la configurada en config/app.php.
+    // Sin esto manda el valor por defecto de PHP (24 minutos), asi que la
+    // sesion moria mucho antes de los 120 minutos que dice la configuracion
+    // y que aplica AuthMiddleware.
+    $configApp = require CONFIG_PATH . '/app.php';
+    $minutosSesion = (int) ($configApp['session']['lifetime'] ?? 120);
+    ini_set('session.gc_maxlifetime', $minutosSesion * 60);
+
     // Iniciar sesión
     session_start();
 }

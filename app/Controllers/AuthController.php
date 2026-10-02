@@ -26,6 +26,14 @@ class AuthController extends Controller
      */
     public function showLogin()
     {
+        // Llega con ?expirada=1 cuando el vigilante de sesión del navegador
+        // detectó que caducó por inactividad. Se cierra aquí; si no, este
+        // metodo la daria por buena y rebotaria al dashboard, dejando al
+        // usuario en un ciclo entre login y dashboard.
+        if (isset($_GET['expirada'])) {
+            Session::logout();
+        }
+
         // Si ya está autenticado, redirigir al dashboard
         if ($this->isAuthenticated()) {
             Redirect::dashboard()->send();
@@ -108,6 +116,16 @@ class AuthController extends Controller
 
             if (!$azureUser) {
                 Redirect::toLogin('Error al obtener información del usuario');
+            }
+
+            // Solo cuentas institucionales. Se valida ANTES de buscar o crear
+            // al usuario: una cuenta de otro dominio no entra y tampoco deja
+            // ficha creada en la tabla de usuarios.
+            $correoAzure = $azureUser['mail'] ?? $azureUser['userPrincipalName'] ?? '';
+
+            if (!$this->dominioPermitido($correoAzure)) {
+                error_log("Login rechazado por dominio no permitido: " . $correoAzure);
+                Redirect::toLogin('Debe iniciar sesión con su cuenta institucional (@sp.iga.edu).');
             }
 
             // Buscar o crear usuario en la base de datos
@@ -280,8 +298,48 @@ class AuthController extends Controller
     }
 
     /**
+     * Indica si el correo pertenece a un dominio autorizado a entrar.
+     *
+     * La lista vive en config/azure.php ('allowed_domains'). Estaba definida
+     * desde antes pero no la leia nadie, asi que cualquier cuenta que Azure
+     * dejara pasar entraba y se creaba sola; de ahi salieron usuarios
+     * duplicados con otro dominio.
+     *
+     * Se compara el dominio completo, no el final del correo: terminar en
+     * "sp.iga.edu" tambien lo cumpliria algo como "@falsosp.iga.edu".
+     *
+     * @param string $correo Correo que reporta Azure
+     * @return bool
+     */
+    private function dominioPermitido($correo)
+    {
+        $permitidos = Config::get('azure.allowed_domains', []);
+
+        // Sin lista configurada no se restringe (evita dejar a todos fuera
+        // por un despliegue con la configuracion incompleta).
+        if (empty($permitidos)) {
+            return true;
+        }
+
+        $posicion = strrpos((string) $correo, '@');
+        if ($posicion === false) {
+            return false;
+        }
+
+        $dominio = strtolower(substr($correo, $posicion + 1));
+
+        foreach ($permitidos as $permitido) {
+            if ($dominio === strtolower(trim($permitido))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Busca o crea un usuario en la base de datos
-     * 
+     *
      * @param array $azureUser Datos del usuario de Azure
      * @param array $tokenData Datos del token
      * @return Usuario|null Usuario
@@ -408,7 +466,7 @@ class AuthController extends Controller
 
     /**
      * Registra el login del usuario
-     * 
+     *  
      * @param int $usuarioId ID del usuario
      * @return void
      */
@@ -486,9 +544,26 @@ class AuthController extends Controller
      */
     public function status()
     {
+        // Esta ruta es publica, asi que AuthMiddleware no la toca y consultarla
+        // NO renueva la sesion: el vigilante del navegador puede preguntar cada
+        // minuto sin mantener viva una sesion que deberia expirar.
+        $minutos = \App\Helpers\Config::get('app.session.lifetime', null)
+            ?? \App\Helpers\Config::get('app.security.session_timeout', 30);
+
+        $ultimaActividad = $_SESSION['last_activity'] ?? null;
+        $restante = null;
+
+        if ($ultimaActividad !== null) {
+            $restante = ((int) $minutos * 60) - (time() - $ultimaActividad);
+        }
+
+        // Sesion viva = hay usuario y todavia no se pasa del tiempo de inactividad
+        $activa = $this->isAuthenticated() && ($restante === null || $restante > 0);
+
         $this->jsonResponse([
-            'authenticated' => $this->isAuthenticated(),
-            'user' => $this->isAuthenticated() ? Session::getUser() : null
+            'authenticated'      => $activa,
+            'restante_segundos'  => $restante !== null ? max(0, $restante) : null,
+            'user'               => $activa ? Session::getUser() : null,
         ]);
     }
 

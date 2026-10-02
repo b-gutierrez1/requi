@@ -83,7 +83,7 @@
                             <i class="fas fa-file-alt me-1"></i> Requisiciones
                         </a>
                     </li>
-                    <?php if (isset($usuario) && (($usuario['is_revisor'] ?? 0) == 1 || ($usuario['is_autorizador'] ?? 0) == 1 || ($usuario['is_admin'] ?? $usuario['es_admin'] ?? 0) == 1)): ?>
+                    <?php if (isset($usuario) && (($usuario['is_revisor'] ?? 0) == 1 || !empty($isAutorizador) || ($usuario['is_admin'] ?? $usuario['es_admin'] ?? 0) == 1)): ?>
                     <li class="nav-item">
                         <a class="nav-link position-relative" href="<?= url('/autorizaciones') ?>" id="navAutorizaciones">
                             <i class="fas fa-check-circle me-1"></i> Autorizaciones
@@ -194,7 +194,7 @@
         };
     </script>
     
-    <?php if (isset($usuario) && (($usuario['is_revisor'] ?? 0) == 1 || ($usuario['is_autorizador'] ?? 0) == 1 || ($usuario['is_admin'] ?? $usuario['es_admin'] ?? 0) == 1)): ?>
+    <?php if (isset($usuario) && (($usuario['is_revisor'] ?? 0) == 1 || !empty($isAutorizador) || ($usuario['is_admin'] ?? $usuario['es_admin'] ?? 0) == 1)): ?>
     <script>
     (function() {
         const badge = document.getElementById('badgePendientes');
@@ -218,6 +218,56 @@
 
         fetchPendientes();
         setInterval(fetchPendientes, 60000);
+    })();
+    </script>
+    <?php endif; ?>
+
+    <?php if (App\Helpers\Session::isAuthenticated()): ?>
+    <!-- Vigilante de sesión -->
+    <script>
+    (function () {
+        // Una pestaña que se queda abierta no se entera de que la sesión
+        // caducó: sigue mostrando la página vieja y cualquier acción falla.
+        // Esto le pregunta al servidor cada minuto y la manda al login cuando
+        // ya no hay sesión. /auth/status es ruta pública, así que preguntar NO
+        // renueva la sesión: el tiempo de inactividad sigue corriendo.
+        const URL_ESTADO = '<?= App\Helpers\View::url('/auth/status') ?>';
+        const URL_LOGIN  = '<?= App\Helpers\View::url('/login') ?>?expirada=1';
+        const CADA_MS = 60000;
+        let revisando = false;
+
+        async function revisarSesion() {
+            if (revisando || document.hidden) return;
+            revisando = true;
+            try {
+                const r = await fetch(URL_ESTADO, {
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store',
+                    credentials: 'same-origin'
+                });
+                // Si el servidor responde con la página de login (redirección)
+                // o con un 401, la sesión también se acabó.
+                if (r.status === 401 || r.redirected) {
+                    window.location.href = URL_LOGIN;
+                    return;
+                }
+                const datos = await r.json();
+                if (datos && datos.authenticated === false) {
+                    window.location.href = URL_LOGIN;
+                }
+            } catch (e) {
+                // Sin conexión no se concluye nada: se reintenta al siguiente turno.
+            } finally {
+                revisando = false;
+            }
+        }
+
+        setInterval(revisarSesion, CADA_MS);
+        // Al volver a la pestaña, revisar de una vez: es justo cuando el
+        // usuario va a hacer clic en algo.
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) revisarSesion();
+        });
     })();
     </script>
     <?php endif; ?>

@@ -252,10 +252,11 @@ return [
     |--------------------------------------------------------------------------
     | Lista de dominios de email permitidos para autenticación
     */
+    // Solo la cuenta institucional. Lo aplica AuthController::dominioPermitido()
+    // al volver de Azure: un correo de otro dominio no entra ni se registra.
+    // Si la lista queda vacia no se restringe nada.
     'allowed_domains' => [
-        'iga.edu',
         'sp.iga.edu',
-        // Agregar más dominios según sea necesario
     ],
 
     /*

@@ -151,7 +151,15 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
                 <?php endif; ?>
-                
+
+                <?php if (isset($_GET['expirada'])): ?>
+                <!-- Llega aqui el vigilante de sesion del layout, que no puede dejar flash -->
+                <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert">
+                    Su sesión se cerró por inactividad. Vuelva a iniciar sesión.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <?php endif; ?>
+
                 <h3 class="text-center mb-4" style="color: #333; font-size: 1.3rem;">
                     Iniciar Sesión
                 </h3>

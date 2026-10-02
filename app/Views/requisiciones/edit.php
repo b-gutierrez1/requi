@@ -519,8 +519,14 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                         <option value="">Seleccione...</option>
                         <?php if (!empty($unidades_requirentes)): ?>
                             <?php foreach ($unidades_requirentes as $unidad): ?>
-                                <option value="<?= $unidad['id'] ?>" <?php echo ($unidad['id'] == ($requisicion['orden']->unidad_requirente ?? '')) ? 'selected' : ''; ?>>
-                                    <?= View::e($unidad['nombre'] ?? $unidad['descripcion'] ?? 'Sin nombre') ?>
+                                <?php
+                                // La que ya trae la requisicion queda seleccionable aunque este
+                                // desactivada, para no perder el dato al guardar.
+                                $requirenteSeleccionada = ($unidad['id'] == ($requisicion['orden']->unidad_requirente ?? ''));
+                                $requirenteActiva       = (bool)($unidad['activo'] ?? 1);
+                                ?>
+                                <option value="<?= $unidad['id'] ?>" <?php echo $requirenteSeleccionada ? 'selected' : ''; ?> <?= (!$requirenteActiva && !$requirenteSeleccionada) ? 'disabled' : '' ?>>
+                                    <?= View::e($unidad['nombre'] ?? $unidad['descripcion'] ?? 'Sin nombre') ?><?= $requirenteActiva ? '' : ' — no disponible' ?>
                                 </option>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -698,11 +704,18 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                             <option value="">Seleccione...</option>
                                             <?php if (!empty($unidades_negocio)): ?>
                                                 <?php foreach ($unidades_negocio as $centro): ?>
-                                                    <option value="<?= $centro['id'] ?>" <?php echo ($centro['id'] == ($dist['unidad_negocio_id'] ?? '')) ? 'selected' : ''; ?>
+                                                    <?php
+                                                    // La unidad que la requisicion ya trae se deja seleccionable
+                                                    // aunque este desactivada: bloquearla haria perder ese
+                                                    // renglon de la distribucion al guardar una requisicion vieja.
+                                                    $esLaSeleccionada = ($centro['id'] == ($dist['unidad_negocio_id'] ?? ''));
+                                                    $unidadActiva     = (bool)($centro['activo'] ?? 1);
+                                                    ?>
+                                                    <option value="<?= $centro['id'] ?>" <?php echo $esLaSeleccionada ? 'selected' : ''; ?> <?= (!$unidadActiva && !$esLaSeleccionada) ? 'disabled' : '' ?>
                                                             data-centro-costo-id="<?= $centro['rel_centro_costo_id'] ?? $centro['centro_costo_id'] ?? '' ?>"
                                                             data-centro-costo-nombre="<?= View::e($centro['centro_costo_nombre'] ?? 'CENTRO DE COSTO GENERAL') ?>"
                                                             data-factura="<?= $centro['factura'] ?? 1 ?>">
-                                                        <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
+                                                        <?= View::e($centro['nombre'] ?? 'Sin nombre') ?><?= $unidadActiva ? '' : ' — no disponible' ?>
                                                     </option>
                                                 <?php endforeach; ?>
                                             <?php endif; ?>
@@ -771,12 +784,12 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                                     <select class="form-select" name="distribucion[0][unidad_negocio_id]" required>
                                         <option value="">Seleccione...</option>
                                         <?php if (!empty($unidades_negocio)): ?>
-                                            <?php foreach ($unidades_negocio as $centro): ?>
-                                                <option value="<?= $centro['id'] ?>"
+                                            <?php foreach ($unidades_negocio as $centro): $unidadActiva = (bool)($centro['activo'] ?? 1); ?>
+                                                <option value="<?= $centro['id'] ?>" <?= $unidadActiva ? '' : 'disabled' ?>
                                                         data-centro-costo-id="<?= $centro['rel_centro_costo_id'] ?? $centro['centro_costo_id'] ?? '' ?>"
                                                         data-centro-costo-nombre="<?= View::e($centro['centro_costo_nombre'] ?? 'CENTRO DE COSTO GENERAL') ?>"
                                                         data-factura="<?= $centro['factura'] ?? 1 ?>">
-                                                    <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
+                                                    <?= View::e($centro['nombre'] ?? 'Sin nombre') ?><?= $unidadActiva ? '' : ' — no disponible' ?>
                                             </option>
                                         <?php endforeach; ?>
                                         <?php endif; ?>
@@ -945,7 +958,7 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                     </a>
                 <button type="submit" class="btn btn-guardar btn-submit" id="submitBtn">
                     <span class="btn-spinner"></span>
-                    <i class="fas fa-save me-2"></i> 
+                    <i class="fas fa-save me-2"></i>
                     <span class="btn-text">Guardar Cambios</span>
                 </button>
             </div>
@@ -1111,12 +1124,12 @@ window.agregarDistribucion = function() {
             <select class="form-select" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" required>
                 <option value="">Seleccione...</option>
                 <?php if (!empty($unidades_negocio)): ?>
-                    <?php foreach ($unidades_negocio as $centro): ?>
-                        <option value="<?= $centro['id'] ?>"
+                    <?php foreach ($unidades_negocio as $centro): $unidadActiva = (bool)($centro['activo'] ?? 1); ?>
+                        <option value="<?= $centro['id'] ?>" <?= $unidadActiva ? '' : 'disabled' ?>
                                 data-centro-costo-id="<?= $centro['rel_centro_costo_id'] ?? $centro['centro_costo_id'] ?? '' ?>"
                                 data-centro-costo-nombre="<?= View::e($centro['centro_costo_nombre'] ?? 'CENTRO DE COSTO GENERAL') ?>"
                                 data-factura="<?= $centro['factura'] ?? 1 ?>">
-                            <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
+                            <?= View::e($centro['nombre'] ?? 'Sin nombre') ?><?= $unidadActiva ? '' : ' — no disponible' ?>
                         </option>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -1260,6 +1273,8 @@ function actualizarFacturas() {
     const filas = document.querySelectorAll('.distribucion-row');
     console.log('[actualizarFacturas] Filas encontradas:', filas.length);
 
+    const totalGeneral = parseFloat(document.getElementById('total_general')?.value) || 0;
+
     filas.forEach((row, idx) => {
         const porcentajeInput = row.querySelector('input[name*="[porcentaje]"]');
         const cantidadInput = row.querySelector('input[name*="[cantidad]"]');
@@ -1269,7 +1284,13 @@ function actualizarFacturas() {
 
         if (porcentajeInput && cantidadInput) {
             const porcentaje = parseFloat(porcentajeInput.value) || 0;
-            const cantidad = parseFloat(cantidadInput.value) || 0;
+            // Se calcula desde el porcentaje y el total general, NO desde el
+            // campo "Cantidad" (ese ya está redondeado a 2 decimales para
+            // mostrarse). Sumar cantidades ya redondeadas por línea acumula
+            // el mismo descuadre que se corrigió en el servidor; aquí se
+            // redondea una sola vez, al mostrar el monto por factura. Ver
+            // docs/PRECISION_DECIMAL.md
+            const cantidad = porcentaje > 0 ? (totalGeneral * porcentaje) / 100 : 0;
 
             // Determinar número de factura usando TODAS las fuentes disponibles
             let numeroFactura = 1;
@@ -1982,12 +2003,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 <select class="form-select" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" required>
                 <option value="">Seleccione...</option>
                     <?php if (!empty($unidades_negocio)): ?>
-                        <?php foreach ($unidades_negocio as $centro): ?>
-                            <option value="<?= $centro['id'] ?>"
+                        <?php foreach ($unidades_negocio as $centro): $unidadActiva = (bool)($centro['activo'] ?? 1); ?>
+                            <option value="<?= $centro['id'] ?>" <?= $unidadActiva ? '' : 'disabled' ?>
                                     data-centro-costo-id="<?= $centro['rel_centro_costo_id'] ?? $centro['centro_costo_id'] ?? '' ?>"
                                     data-centro-costo-nombre="<?= View::e($centro['centro_costo_nombre'] ?? 'CENTRO DE COSTO GENERAL') ?>"
                                     data-factura="<?= $centro['factura'] ?? 1 ?>">
-                                <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
+                                <?= View::e($centro['nombre'] ?? 'Sin nombre') ?><?= $unidadActiva ? '' : ' — no disponible' ?>
                         </option>
                 <?php endforeach; ?>
                 <?php endif; ?>
@@ -2089,10 +2110,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Manejar envío de requisición (estado enviado)
             form.addEventListener('submit', function(e) {
                 e.preventDefault(); // Prevenir envío normal
-                
+
                 // Agregar campo oculto para indicar actualización
                 addHiddenField(form, 'action_type', 'actualizar');
-                
+
                 // Validar formulario antes de mostrar loading
                 if (!form.checkValidity()) {
                     // Mostrar campos inválidos con animación
@@ -2352,8 +2373,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(result.error || 'Error desconocido del servidor');
                 }
             } else {
-                // Otro error
-                throw new Error(`Error del servidor: ${response.status}`);
+                // 500 u otro: mostrar el motivo que manda el servidor, si lo hay
+                throw new Error(`Error del servidor (${response.status})` + await leerMotivoError(response));
             }
         } catch (error) {
             console.error('Error enviando formulario:', error);
@@ -2361,6 +2382,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Extrae el motivo de una respuesta de error: el JSON que arma
+    // capturarErroresFatalesAjax() o, si el servidor devolvio HTML, su texto.
+    async function leerMotivoError(response) {
+        try {
+            const texto = await response.text();
+            let motivo = '';
+            try {
+                motivo = JSON.parse(texto).error || '';
+            } catch (e) {
+                motivo = texto.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+            }
+            return motivo ? `: ${motivo}` : '';
+        } catch (e) {
+            return '';
+        }
+    }
+
     // Función para manejar CSRF expirado
     async function handleCsrfExpired(form) {
         try {

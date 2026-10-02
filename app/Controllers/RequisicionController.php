@@ -201,7 +201,8 @@ class RequisicionController extends Controller
             'unidades_negocio' => $catalogos['unidades_negocio'] ?? [],
             'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
             'centros_costo' => $catalogos['centros_costo'] ?? [],
-            'unidades_requirentes' => \App\Models\UnidadRequirente::activas(),
+            // Espejo de unidades de negocio, activas e inactivas (las vistas bloquean las inactivas)
+            'unidades_requirentes' => \App\Models\UnidadRequirente::paraFormulario(),
             'title' => 'Requisición #' . $id,
             'timestamp' => time() // Para anti-caché
         ]);
@@ -225,7 +226,8 @@ class RequisicionController extends Controller
             'unidades_negocio' => $catalogos['unidades_negocio'] ?? [],
             'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
             'centros_costo' => $catalogos['centros_costo'] ?? [],
-            'unidades_requirentes' => \App\Models\UnidadRequirente::activas(),
+            // Espejo de unidades de negocio, activas e inactivas (las vistas bloquean las inactivas)
+            'unidades_requirentes' => \App\Models\UnidadRequirente::paraFormulario(),
             'title' => 'Nueva Requisición'
         ]);
     }
@@ -252,7 +254,11 @@ class RequisicionController extends Controller
             
             // Iniciar nuevo buffer limpio
             ob_start();
-            
+
+            // Un error fatal (tiempo o memoria agotados) no llega a los catch
+            // de abajo; asi devuelve su motivo en vez de un 500 mudo.
+            $this->capturarErroresFatalesAjax('crear_requisicion_ajax');
+
             $response = [
                 'success' => false,
                 'error' => 'Error desconocido'
@@ -499,7 +505,8 @@ class RequisicionController extends Controller
             'unidades_negocio' => $catalogos['unidades_negocio'] ?? [],
             'cuentas_contables' => $catalogos['cuentas_contables'] ?? [],
             'centros_costo' => $catalogos['centros_costo'] ?? [],
-            'unidades_requirentes' => \App\Models\UnidadRequirente::activas(),
+            // Espejo de unidades de negocio, activas e inactivas (las vistas bloquean las inactivas)
+            'unidades_requirentes' => \App\Models\UnidadRequirente::paraFormulario(),
             'title' => 'Editar Requisición #' . $id
         ]);
     }
@@ -512,6 +519,10 @@ class RequisicionController extends Controller
      */
     public function update($id)
     {
+        if ($this->isAjaxRequest()) {
+            $this->capturarErroresFatalesAjax('editar_requisicion_ajax');
+        }
+
         // Validar CSRF
         if (!$this->validateCSRF()) {
             if ($this->isAjaxRequest()) {
@@ -998,7 +1009,11 @@ class RequisicionController extends Controller
     private function getCatalogos()
     {
         return [
-            'unidades_negocio' => UnidadNegocio::activos(),
+            // paraFormulario() y no activos(): las unidades desactivadas siguen
+            // apareciendo en los <select>, pero en gris y bloqueadas. Se ven,
+            // no se eligen. Desactivar una unidad en /admin/centros es lo que
+            // la cierra para nuevas requisiciones.
+            'unidades_negocio' => UnidadNegocio::paraFormulario(),
             'cuentas_contables' => CuentaContable::activas(),
             'centros_costo' => CentroCosto::activas(),
             'formas_pago' => [

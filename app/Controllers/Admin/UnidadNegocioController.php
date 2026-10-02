@@ -15,6 +15,7 @@ use App\Helpers\View;
 use App\Helpers\Redirect;
 use App\Models\Model;
 use App\Models\UnidadNegocio;
+use App\Models\UnidadRequirente;
 use App\Models\CentroCosto;
 
 class UnidadNegocioController extends Controller
@@ -84,6 +85,9 @@ class UnidadNegocioController extends Controller
         $id = UnidadNegocio::create($data);
 
         if ($id) {
+            // Toda unidad de negocio tiene su unidad requirente espejo
+            UnidadRequirente::sincronizarConUnidadNegocio($id->id);
+
             Redirect::to('/admin/centros')
                 ->withSuccess('Unidad de negocio creada exitosamente')
                 ->send();
@@ -166,6 +170,8 @@ class UnidadNegocioController extends Controller
         $resultado = UnidadNegocio::updateById($id, $data);
 
         if ($resultado) {
+            UnidadRequirente::sincronizarConUnidadNegocio($id);
+
             Redirect::back()
                 ->withSuccess('Unidad de negocio actualizada')
                 ->send();
@@ -238,6 +244,7 @@ class UnidadNegocioController extends Controller
 
         $nuevoEstado = $centro->activo ? 0 : 1;
         UnidadNegocio::updateById($id, ['activo' => $nuevoEstado]);
+        UnidadRequirente::sincronizarConUnidadNegocio($id);
 
         $mensaje = $nuevoEstado ? 'Unidad de negocio activada' : 'Unidad de negocio desactivada';
         Redirect::to('/admin/centros')->withSuccess($mensaje)->send();

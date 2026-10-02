@@ -1395,14 +1395,34 @@ class RequisicionService
         }
         
         $datosProcesados['distribucion'] = $distribucion;
-        
+
         // Debug: mostrar las facturas asignadas a cada distribución
         foreach ($distribucion as $index => $dist) {
             error_log("Distribución $index - Unidad: {$dist['unidad_negocio_id']}, Factura: {$dist['factura']}, Porcentaje: {$dist['porcentaje']}%");
         }
-        
+
+        // Freno de seguridad: si por cualquier motivo la suma de la distribución
+        // no cuadra con el monto total, no se guarda nada. Con porcentajes que
+        // suman 100% esto siempre debería cuadrar (ver docs/PRECISION_DECIMAL.md);
+        // esta validación es la red de seguridad por si esa premisa llegara a
+        // fallar (ej. un cambio futuro que reintroduzca redondeo prematuro).
+        if (!empty($distribucion)) {
+            $sumaDistribucion = 0.0;
+            foreach ($distribucion as $dist) {
+                $sumaDistribucion += $dist['cantidad'];
+            }
+            $sumaDistribucion = round($sumaDistribucion, 2);
+            if (abs($sumaDistribucion - $montoTotal) > 0.01) {
+                throw new \InvalidArgumentException(sprintf(
+                    'La distribución de gastos (%.2f) no cuadra con el monto total (%.2f). No se guardó la requisición.',
+                    $sumaDistribucion,
+                    $montoTotal
+                ));
+            }
+        }
+
         error_log("Datos procesados - Total: " . $montoTotal . ", Items: " . count($items) . ", Distribuciones: " . count($distribucion));
-        
+
         return $datosProcesados;
     }
 
@@ -1552,6 +1572,28 @@ class RequisicionService
             }
             
             error_log("Facturas calculadas: " . json_encode($facturas));
+
+            // Freno de seguridad: cada factura se redondea a 2 decimales por
+            // separado (una por cada bucket 1-4), así que en teoría podrían
+            // acumular una diferencia de centavos entre sí aunque la
+            // distribución de origen sí cuadre. Si eso llega a pasar, no se
+            // guarda ninguna factura ni el resto de la requisición: el error
+            // se propaga y crearRequisicion() revierte toda la transacción.
+            $sumaFacturas = 0.0;
+            foreach ($facturas as $datos) {
+                $sumaFacturas = round($sumaFacturas + round($datos['monto'], 2), 2);
+            }
+            if (abs($sumaFacturas - round($montoTotal, 2)) > 0.01) {
+                error_log("ERROR: Facturas generadas ($sumaFacturas) no cuadran con monto_total ($montoTotal)");
+                return [
+                    'success' => false,
+                    'error' => sprintf(
+                        'Las facturas generadas (%.2f) no cuadran con el monto total (%.2f). No se guardó la requisición.',
+                        $sumaFacturas,
+                        $montoTotal
+                    )
+                ];
+            }
 
             // Guardar facturas que tengan monto > 0
             // Nota: La tabla facturas en bd_prueba tiene estructura diferente

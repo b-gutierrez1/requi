@@ -23,6 +23,10 @@ class UnidadNegocio extends Model
         'factura',
         'centro_costo_id',
         'requiere_asignacion_manual',
+        // 'activo' tiene que estar aqui: fill() y getFillableAttributes()
+        // descartan lo que no sea fillable, asi que el toggle del panel admin
+        // (toggleCentro) devolvia true y nunca escribia la columna.
+        'activo',
     ];
 
     protected static $guarded = ['id'];
@@ -165,8 +169,35 @@ class UnidadNegocio extends Model
     }
 
     /**
+     * Igual que activos(), pero trayendo tambien las unidades desactivadas.
+     *
+     * Los formularios de requisicion las pintan como <option disabled>: se ven
+     * en la lista, en gris y no seleccionables. Asi el solicitante entiende que
+     * la unidad existe pero esta cerrada, en vez de buscarla y no encontrarla.
+     * Cada fila incluye 'activo', que es lo que la vista consulta.
+     *
+     * @return array
+     */
+    public static function paraFormulario()
+    {
+        $table = static::$table;
+
+        $sql = "SELECT cc.*,
+                       un.id as rel_centro_costo_id,
+                       un.nombre as centro_costo_nombre,
+                       cc.factura as factura_numero
+                FROM {$table} cc
+                LEFT JOIN centro_de_costo un ON cc.centro_costo_id = un.id
+                ORDER BY cc.activo DESC, cc.nombre ASC";
+        $stmt = self::getConnection()->prepare($sql);
+        $stmt->execute();
+
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Busca unidades de negocio por nombre o código
-     * 
+     *
      * @param string $termino
      * @return array
      */
@@ -256,6 +287,8 @@ class UnidadNegocio extends Model
      */
     public function setActivo($activo = true)
     {
-        return self::update($this->attributes['id'], ['activo' => $activo ? 1 : 0]);
+        // update() es un metodo de instancia sin argumentos; la llamada estatica
+        // anterior era un error fatal en cuanto alguien usara este metodo.
+        return self::updateById($this->attributes['id'], ['activo' => $activo ? 1 : 0]);
     }
 }

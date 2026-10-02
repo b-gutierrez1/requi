@@ -896,7 +896,11 @@ class AutorizacionController extends Controller
             return;
         }
 
-        $usuarioId = $this->getUsuarioId();
+        // El rechazo identifica al autorizador por CORREO, igual que la
+        // aprobacion: la consulta filtra por autorizador_email. Antes aqui se
+        // mandaba el id numerico, asi que el UPDATE no encontraba ninguna fila
+        // y siempre devolvia "Error al rechazar la unidad de negocio".
+        $usuarioEmail = $this->requireUsuarioEmail();
 
         $autorizacion = $this->autorizacionCentroRepo->findById($id);
         if (!$autorizacion) {
@@ -929,7 +933,7 @@ class AutorizacionController extends Controller
             return;
         }
 
-        $resultado = $this->autorizacionService->rechazarUnidadNegocio($id, $usuarioId, $motivo);
+        $resultado = $this->autorizacionService->rechazarUnidadNegocio($id, $usuarioEmail, $motivo);
 
         if ($this->isAjaxRequest()) {
             $this->jsonResponse($resultado);

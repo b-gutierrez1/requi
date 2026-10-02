@@ -57,8 +57,55 @@ class UnidadRequirente extends Model
     }
 
     /**
+     * Catalogo para los formularios de requisicion: una opcion por unidad de
+     * negocio, con el nombre y el estado de la unidad de negocio.
+     *
+     * La unidad requirente es espejo de la unidad de negocio (relacion 1 a 1
+     * por unidad_negocio_id, que es UNIQUE). Nombre y activo se leen de
+     * unidad_de_negocio para que desactivar una unidad en /admin/centros la
+     * cierre tambien aqui, sin depender de que las dos tablas esten al dia.
+     * El value sigue siendo el id de unidad_requirente, que es lo que guarda
+     * requisiciones.unidad_requirente.
+     *
+     * @return array
+     */
+    public static function paraFormulario()
+    {
+        $sql = "SELECT ur.id, un.nombre, un.activo, ur.unidad_negocio_id
+                FROM unidad_requirente ur
+                INNER JOIN unidad_de_negocio un ON un.id = ur.unidad_negocio_id
+                ORDER BY un.activo DESC, un.nombre ASC";
+        $stmt = self::getConnection()->prepare($sql);
+        $stmt->execute();
+
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Crea o actualiza la unidad requirente espejo de una unidad de negocio.
+     *
+     * Se llama desde el panel de unidades de negocio al crear, editar o
+     * activar/desactivar, para que las dos listas no se vuelvan a desfasar.
+     *
+     * @param int $unidadNegocioId
+     * @return void
+     */
+    public static function sincronizarConUnidadNegocio($unidadNegocioId)
+    {
+        $sql = "INSERT INTO unidad_requirente (nombre, unidad_negocio_id, activo)
+                SELECT un.nombre, un.id, un.activo
+                FROM unidad_de_negocio un
+                WHERE un.id = ?
+                ON DUPLICATE KEY UPDATE
+                    nombre = VALUES(nombre),
+                    activo = VALUES(activo)";
+        $stmt = self::getConnection()->prepare($sql);
+        $stmt->execute([(int)$unidadNegocioId]);
+    }
+
+    /**
      * Busca unidades requirentes por nombre o código
-     * 
+     *
      * @param string $termino
      * @return array
      */

@@ -493,9 +493,9 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                     <select class="form-select" id="unidad_requirente" name="unidad_requirente" required>
                         <option value="">Seleccione...</option>
                         <?php if (!empty($unidades_requirentes)): ?>
-                            <?php foreach ($unidades_requirentes as $unidad): ?>
-                                <option value="<?= $unidad['id'] ?>">
-                                    <?= View::e($unidad['nombre'] ?? $unidad['descripcion'] ?? 'Sin nombre') ?>
+                            <?php foreach ($unidades_requirentes as $unidad): $requirenteActiva = (bool)($unidad['activo'] ?? 1); ?>
+                                <option value="<?= $unidad['id'] ?>" <?= $requirenteActiva ? '' : 'disabled' ?>>
+                                    <?= View::e($unidad['nombre'] ?? $unidad['descripcion'] ?? 'Sin nombre') ?><?= $requirenteActiva ? '' : ' — no disponible' ?>
                                 </option>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -517,6 +517,11 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                         <option value="eventualidad">Eventualidad</option>
                         <option value="emergencia">Emergencia</option>
                     </select>
+                    <div class="form-text d-none" id="avisoEventualidad">
+                        <a href="#" id="reabrirModalEventualidad">
+                            <i class="fas fa-file-excel me-1"></i>Descargar el formato de excepción por falta de cotizaciones
+                        </a>
+                    </div>
                 </div>
                 
                 <div class="col-md-6">
@@ -624,12 +629,12 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
                             <td><select class="form-select" name="distribucion[0][unidad_negocio_id]" required>
                                     <option value="">Seleccione...</option>
                                     <?php if (!empty($unidades_negocio)): ?>
-                                        <?php foreach ($unidades_negocio as $centro): ?>
-                                            <option value="<?= $centro['id'] ?>"
+                                        <?php foreach ($unidades_negocio as $centro): $unidadActiva = (bool)($centro['activo'] ?? 1); ?>
+                                            <option value="<?= $centro['id'] ?>" <?= $unidadActiva ? '' : 'disabled' ?>
                                                     data-centro-costo-id="<?= $centro['rel_centro_costo_id'] ?? $centro['centro_costo_id'] ?? '' ?>"
                                                     data-centro-costo-nombre="<?= View::e($centro['centro_costo_nombre'] ?? 'CENTRO DE COSTO GENERAL') ?>"
                                                     data-factura="<?= $centro['factura'] ?? 1 ?>">
-                                                <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
+                                                <?= View::e($centro['nombre'] ?? 'Sin nombre') ?><?= $unidadActiva ? '' : ' — no disponible' ?>
                                             </option>
                                         <?php endforeach; ?>
                                     <?php endif; ?>
@@ -794,6 +799,38 @@ body:has(.cuenta-contable-suggestions.show) .btn-add-item {
     </form>
 </div>
 
+<!-- Formato obligatorio cuando la causal de compra es "Eventualidad" -->
+<div class="modal fade" id="modalEventualidad" tabindex="-1" aria-labelledby="modalEventualidadLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalEventualidadLabel">
+                    <i class="fas fa-file-excel me-2"></i>Formato requerido por eventualidad
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">
+                    Seleccionó <strong>Eventualidad</strong> como causal de compra. Esta causal
+                    requiere el formato de <strong>excepción o eventualidad por falta de cotizaciones</strong>,
+                    lleno y firmado.
+                </p>
+                <p class="mb-0 text-muted">
+                    Descárguelo, complételo y adjúntelo a esta requisición en la sección de archivos.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <a class="btn btn-success"
+                   href="<?= View::asset('docs/excepcion-eventualidad-falta-cotizaciones.xls') ?>"
+                   download="Excepcion o eventualidad por falta de cotizaciones.xls">
+                    <i class="fas fa-download me-1"></i>Descargar formato
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Overlay de carga -->
 <div id="loadingOverlay" class="loading-overlay">
     <div class="loading-card">
@@ -874,17 +911,24 @@ function actualizarFacturas() {
         4: { porcentaje: 0, monto: 0 }
     };
 
+    const totalGeneral = parseFloat(document.getElementById('total_general')?.value) || 0;
+
     // Recorrer todas las filas de distribución para sumar por factura
     document.querySelectorAll('.distribucion-row').forEach(row => {
         const porcentajeInput = row.querySelector('input[name*="[porcentaje]"]');
-        const cantidadInput = row.querySelector('input[name*="[cantidad]"]');
         const facturaHidden = row.querySelector('input.dist-factura-value') || row.querySelector('input[name*="[factura]"]');
         const facturaDisplay = row.querySelector('input.dist-factura-display');
-        
-        if (porcentajeInput && cantidadInput && facturaHidden) {
+
+        if (porcentajeInput && facturaHidden) {
             const porcentaje = parseFloat(porcentajeInput.value) || 0;
-            const cantidad = parseFloat(cantidadInput.value) || 0;
-            
+            // Se calcula desde el porcentaje y el total general, NO desde el
+            // campo "Cantidad" (ese ya está redondeado a 2 decimales para
+            // mostrarse). Sumar cantidades ya redondeadas por línea acumula
+            // el mismo descuadre que se corrigió en el servidor; aquí se
+            // redondea una sola vez, al mostrar el monto por factura. Ver
+            // docs/PRECISION_DECIMAL.md
+            const monto = porcentaje > 0 ? (totalGeneral * porcentaje) / 100 : 0;
+
             // Obtener el número de factura: primero del campo hidden (valor directo), luego del display (data-attribute)
             let numeroFactura = 1;
             if (facturaHidden.value) {
@@ -900,10 +944,10 @@ function actualizarFacturas() {
                     numeroFactura = parseInt(match[1]) || 1;
                 }
             }
-            
+
             if (facturas[numeroFactura]) {
                 facturas[numeroFactura].porcentaje += porcentaje;
-                facturas[numeroFactura].monto += cantidad;
+                facturas[numeroFactura].monto += monto;
             }
         }
     });
@@ -1063,12 +1107,12 @@ window.agregarDistribucion = function() {
             <select class="form-select" name="distribucion[${contadorDistribucion}][unidad_negocio_id]" required>
                 <option value="">Seleccione...</option>
                 <?php if (!empty($unidades_negocio)): ?>
-                    <?php foreach ($unidades_negocio as $centro): ?>
-                        <option value="<?= $centro['id'] ?>"
+                    <?php foreach ($unidades_negocio as $centro): $unidadActiva = (bool)($centro['activo'] ?? 1); ?>
+                        <option value="<?= $centro['id'] ?>" <?= $unidadActiva ? '' : 'disabled' ?>
                                 data-centro-costo-id="<?= $centro['rel_centro_costo_id'] ?? $centro['centro_costo_id'] ?? '' ?>"
                                 data-centro-costo-nombre="<?= View::e($centro['centro_costo_nombre'] ?? 'CENTRO DE COSTO GENERAL') ?>"
                                 data-factura="<?= $centro['factura'] ?? 1 ?>">
-                            <?= View::e($centro['nombre'] ?? 'Sin nombre') ?>
+                            <?= View::e($centro['nombre'] ?? 'Sin nombre') ?><?= $unidadActiva ? '' : ' — no disponible' ?>
                         </option>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -2284,8 +2328,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(result.error || 'Error desconocido del servidor');
                 }
             } else {
-                // Otro error
-                throw new Error(`Error del servidor: ${response.status}`);
+                // 500 u otro: mostrar el motivo que manda el servidor, si lo hay
+                throw new Error(`Error del servidor (${response.status})` + await leerMotivoError(response));
             }
         } catch (error) {
             console.error('Error enviando formulario:', error);
@@ -2293,6 +2337,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Extrae el motivo de una respuesta de error: el JSON que arma
+    // capturarErroresFatalesAjax() o, si el servidor devolvio HTML, su texto.
+    async function leerMotivoError(response) {
+        try {
+            const texto = await response.text();
+            let motivo = '';
+            try {
+                motivo = JSON.parse(texto).error || '';
+            } catch (e) {
+                motivo = texto.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+            }
+            return motivo ? `: ${motivo}` : '';
+        } catch (e) {
+            return '';
+        }
+    }
+
     // Función para manejar CSRF expirado
     async function handleCsrfExpired(form) {
         try {
@@ -2572,7 +2633,55 @@ document.addEventListener('DOMContentLoaded', function() {
     setupSubmitAnimations();
     setupPercentageValidation();
     detectSuccessfulSubmission();
+    setupModalEventualidad();
 });
+
+/**
+ * Causal de compra = "Eventualidad": se abre el modal con el formato de
+ * excepcion por falta de cotizaciones y queda un enlace bajo el campo para
+ * volver a descargarlo sin tener que reabrir el modal.
+ */
+function setupModalEventualidad() {
+    const select = document.getElementById('causal_compra');
+    const aviso = document.getElementById('avisoEventualidad');
+    const contenedorModal = document.getElementById('modalEventualidad');
+
+    if (!select || !aviso || !contenedorModal) return;
+
+    // El modal tiene que colgar de <body>. Dentro de .container-fluid le cae
+    // encima la regla global "container-fluid > div:not(:first-child)
+    // { position: relative !important }" de app.css, que le gana al
+    // position:fixed de Bootstrap y lo deja al final de la pagina en vez de
+    // centrado sobre ella.
+    if (contenedorModal.parentElement !== document.body) {
+        document.body.appendChild(contenedorModal);
+    }
+
+    const modal = new bootstrap.Modal(contenedorModal);
+    const esEventualidad = () => select.value === 'eventualidad';
+
+    select.addEventListener('change', function() {
+        aviso.classList.toggle('d-none', !esEventualidad());
+        if (esEventualidad()) {
+            modal.show();
+        }
+    });
+
+    // Si el formulario vuelve con la causal ya elegida (por ejemplo tras un
+    // error de validacion), se deja el enlace visible pero sin abrir el modal:
+    // que salte solo al recargar seria molesto.
+    if (esEventualidad()) {
+        aviso.classList.remove('d-none');
+    }
+
+    const reabrir = document.getElementById('reabrirModalEventualidad');
+    if (reabrir) {
+        reabrir.addEventListener('click', function(e) {
+            e.preventDefault();
+            modal.show();
+        });
+    }
+}
 </script>
 
 

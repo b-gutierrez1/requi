@@ -192,6 +192,70 @@ abstract class Controller
     }
 
     /**
+     * Hace que un error fatal en una peticion AJAX devuelva su motivo.
+     *
+     * Los errores fatales (tiempo maximo de ejecucion, memoria agotada,
+     * excepcion no atrapada...) no llegan a ningun try/catch: PHP corta y el
+     * navegador solo recibe un 500 sin explicacion. Esta funcion se ejecuta al
+     * apagarse PHP, detecta ese caso, lo registra en storage/logs y responde
+     * JSON con el motivo para que el formulario lo muestre.
+     *
+     * @param string $contexto Nombre de la operacion, para el log
+     * @return void
+     */
+    protected function capturarErroresFatalesAjax($contexto)
+    {
+        register_shutdown_function(function () use ($contexto) {
+            $error = error_get_last();
+            $fatales = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
+
+            if (!$error || !in_array($error['type'], $fatales, true)) {
+                return;
+            }
+
+            // El mensaje de PHP de una excepcion no atrapada trae el stack
+            // completo; al usuario le basta la primera linea.
+            // Tambien se quita la ruta absoluta del servidor ("in /var/www/...:40"):
+            // la ubicacion va resumida al final del mensaje.
+            $motivo = strtok($error['message'], "\n");
+            $motivo = preg_replace('/ in .+:\d+$/', '', $motivo);
+
+            if (stripos($motivo, 'Maximum execution time') !== false) {
+                $motivo = 'El servidor tardó demasiado y canceló la operación. '
+                        . 'Revise si la requisición quedó guardada antes de volver a intentarlo. (' . $motivo . ')';
+            } elseif (stripos($motivo, 'Allowed memory size') !== false) {
+                $motivo = 'El servidor se quedó sin memoria al procesar la solicitud. (' . $motivo . ')';
+            }
+
+            $ubicacion = basename($error['file']) . ':' . $error['line'];
+
+            try {
+                \App\Helpers\ErrorLogger::log("Error fatal en {$contexto}: {$error['message']}", [
+                    'archivo' => $error['file'],
+                    'linea'   => $error['line'],
+                    'usuario_id' => $this->getUsuarioId(),
+                ]);
+            } catch (\Throwable $e) {
+                error_log("Error fatal en {$contexto}: {$error['message']} en {$ubicacion}");
+            }
+
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+
+            if (!headers_sent()) {
+                http_response_code(500);
+                header('Content-Type: application/json; charset=utf-8');
+            }
+
+            echo json_encode([
+                'success' => false,
+                'error'   => $motivo . ' [' . $ubicacion . ']',
+            ], JSON_UNESCAPED_UNICODE);
+        });
+    }
+
+    /**
      * Envía respuesta AJAX limpia (método mejorado para operaciones críticas)
      * Limpia buffers, suprime errores y asegura headers limpios
      * 
